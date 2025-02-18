@@ -64,6 +64,8 @@ button.when_released = led.off
 print("Press the button to toggle the LED and capture an image.")
 try:
     while True:
+        a = input("Press Enter to capture an image.")
+        toggle_led_and_capture()
         sleep(0.1)  # Keep the script running
 except KeyboardInterrupt:
     print("\nExiting program.")
