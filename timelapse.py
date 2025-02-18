@@ -76,6 +76,10 @@ def button_press_handler():
         return
     else:
         if end_press_count == 0 or (now - last_press_time <= 0.8):
+            if end_press_count == 0:
+                capture_photo()
+            elif end_press_count > 0:
+                print(f"End button press count: {end_press_count}")
             end_press_count += 1
         else:
             # Reset if too much time has passed.
@@ -83,7 +87,6 @@ def button_press_handler():
             capture_photo()
         # Timelapse is active: update last press time, give LED feedback and capture photo.
         last_press_time = now
-        print(f"End button press count: {end_press_count}")
         if end_press_count >= 5:
             print("Timelapse ended.")
             timelapse_stop = True
@@ -173,9 +176,9 @@ while True:
         for fname in captured_files:
             try:
                 os.remove(fname)
-                print(f"Deleted {fname}")
             except Exception as e:
                 print(f"Failed to delete {fname}: {e}")
+        print(f"Photos deleted")
     else:
         print("No images were captured, so no timelapse video was created.")
         
