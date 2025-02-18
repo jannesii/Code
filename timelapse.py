@@ -31,6 +31,7 @@ sleep(2)
 
 # Global variables to track timelapse state and startup button presses
 timelapse_active = False
+timelapse_stop = False
 last_press_time = 0
 captured_files = []  # List to store captured filenames
 
@@ -76,7 +77,7 @@ def button_press_handler():
     Before timelapse starts, count presses and activate timelapse when 5 presses occur within 1.5 seconds intervals.
     After timelapse starts, capture photos on each press.
     """
-    global last_press_time, timelapse_active, startup_press_count, last_start_press_time, end_press_count
+    global last_press_time, timelapse_active, timelapse_stop, startup_press_count, last_start_press_time, end_press_count
     now = time()
     led.toggle()
     if not timelapse_active:
@@ -106,10 +107,10 @@ def button_press_handler():
         print(f"End button press count: {end_press_count}")
         if end_press_count >= 5:
             print("Timelapse ended.")
-            timelapse_active = False
+            timelapse_stop = True
             end_press_count = 0
             led.off()
-            return
+        return
     
 
 # Attach the event to the button press.
@@ -127,6 +128,9 @@ try:
             # End timelapse if 5 minutes (300 seconds) have passed since the last button press.
             if time() - last_press_time >= 60 * 5:
                 print("No button press for 5 minutes. Timelapse ended.")
+                break
+            elif timelapse_stop:
+                print("Timelapse ended by button press.")
                 break
 
 except KeyboardInterrupt:
