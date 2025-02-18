@@ -19,7 +19,6 @@ button = Button(BUTTON_PIN, pull_up=True, bounce_time=0.05)  # Internal pull-up 
 # Initialize and configure Picamera2 for still images
 picam2 = Picamera2()
 camera_controls = picam2.camera_controls
-print(camera_controls)
 
 config = picam2.create_still_configuration()
 picam2.configure(config)
@@ -120,56 +119,57 @@ button.when_released = led.off
 # Inform the user how to start the timelapse.
 print("Press the button 5 times, with no more than 1.5 seconds between presses, to start timelapse capture.")
  
-try:
-    # Main loop monitoring inactivity after timelapse starts.
-    while True:
-        sleep(0.1)
-        if timelapse_active:
-            # End timelapse if 5 minutes (300 seconds) have passed since the last button press.
-            if time() - last_press_time >= 60 * 5:
-                print("No button press for 5 minutes. Timelapse ended.")
-                break
-            elif timelapse_stop:
-                print("Timelapse ended by button press.")
-                break
+while True:
+    try:
+        # Main loop monitoring inactivity after timelapse starts.
+        while True:
+            sleep(0.1)
+            if timelapse_active:
+                # End timelapse if 5 minutes (300 seconds) have passed since the last button press.
+                if time() - last_press_time >= 60 * 5:
+                    print("No button press for 5 minutes. Timelapse ended.")
+                    break
+                elif timelapse_stop:
+                    print("Timelapse ended by button press.")
+                    break
 
-except KeyboardInterrupt:
-    print("\nExiting program.")
+    except KeyboardInterrupt:
+        print("\nExiting program.")
 
-# Stop camera preview and release resources.
-picam2.stop_preview()
-picam2.close()
+    # Stop camera preview and release resources.
+    picam2.stop_preview()
+    picam2.close()
 
-# Combine captured images into a timelapse video if any photos were taken.
-if captured_files:
-    # Sort files (filenames include timestamps so they sort correctly).
-    captured_files.sort()
-    # Read the first image to determine frame size.
-    first_frame = cv2.imread(captured_files[0])
-    height, width, _ = first_frame.shape
+    # Combine captured images into a timelapse video if any photos were taken.
+    if captured_files:
+        # Sort files (filenames include timestamps so they sort correctly).
+        captured_files.sort()
+        # Read the first image to determine frame size.
+        first_frame = cv2.imread(captured_files[0])
+        height, width, _ = first_frame.shape
 
-    # Define video filename and create a VideoWriter object.
-    video_filename = "timelapse.mp4"
-    fourcc = cv2.VideoWriter_fourcc(*"avc1")
-    fps = 30  # Adjust frames per second as needed.
-    video_writer = cv2.VideoWriter(video_filename, fourcc, fps, (width, height))
+        # Define video filename and create a VideoWriter object.
+        video_filename = "timelapse.mp4"
+        fourcc = cv2.VideoWriter_fourcc(*"avc1")
+        fps = 30  # Adjust frames per second as needed.
+        video_writer = cv2.VideoWriter(video_filename, fourcc, fps, (width, height))
 
-    for fname in captured_files:
-        frame = cv2.imread(fname)
-        if frame is None:
-            print(f"Warning: Could not read {fname}, skipping.")
-            continue
-        video_writer.write(frame)
+        for fname in captured_files:
+            frame = cv2.imread(fname)
+            if frame is None:
+                print(f"Warning: Could not read {fname}, skipping.")
+                continue
+            video_writer.write(frame)
 
-    video_writer.release()
-    print(f"Timelapse video created as {video_filename}")
+        video_writer.release()
+        print(f"Timelapse video created as {video_filename}")
 
-    # Delete the captured JPG files after video creation.
-    for fname in captured_files:
-        try:
-            os.remove(fname)
-            print(f"Deleted {fname}")
-        except Exception as e:
-            print(f"Failed to delete {fname}: {e}")
-else:
-    print("No images were captured, so no timelapse video was created.")
+        # Delete the captured JPG files after video creation.
+        for fname in captured_files:
+            try:
+                os.remove(fname)
+                print(f"Deleted {fname}")
+            except Exception as e:
+                print(f"Failed to delete {fname}: {e}")
+    else:
+        print("No images were captured, so no timelapse video was created.")
