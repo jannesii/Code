@@ -3,6 +3,7 @@ from gpiozero import LED, Button
 from picamera2 import Picamera2
 import cv2
 import time
+from datetime import datetime
 from time import sleep, time
 import os
 from libcamera import controls
@@ -111,6 +112,7 @@ while True:
     # Global variables to track timelapse state and startup button presses
     timelapse_active = False
     timelapse_stop = False
+    keyboardFlag = False
     last_press_time = 0
     captured_files = []  # List to store captured filenames
 
@@ -136,6 +138,7 @@ while True:
                     break
 
     except KeyboardInterrupt:
+        keyboardFlag = True
         print("\nExiting program.")
 
     # Stop camera preview and release resources.
@@ -151,7 +154,7 @@ while True:
         height, width, _ = first_frame.shape
 
         # Define video filename and create a VideoWriter object.
-        video_filename = "timelapse.mp4"
+        video_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_timelapse.mp4"
         fourcc = cv2.VideoWriter_fourcc(*"avc1")
         fps = 30  # Adjust frames per second as needed.
         video_writer = cv2.VideoWriter(video_filename, fourcc, fps, (width, height))
@@ -175,3 +178,6 @@ while True:
                 print(f"Failed to delete {fname}: {e}")
     else:
         print("No images were captured, so no timelapse video was created.")
+        
+    if keyboardFlag:
+        break
