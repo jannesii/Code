@@ -29,8 +29,9 @@ def enable_autofocus():
             "AfMode": controls.AfModeEnum.Continuous,
             "AfRange": controls.AfRangeEnum.Normal,
             "AfWindows": [(16384, 16384, 49152, 49152)],
+            "AeEnable": 1,
         })
-        print("Autofocus activated.")
+        print("Autofocus and Autoexposure activated.")
     except Exception as e:
         print("Error activating autofocus:", e)
 
