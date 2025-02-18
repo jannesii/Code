@@ -117,7 +117,7 @@ button.when_pressed = button_press_handler
 button.when_released = led.off
 
 # Inform the user how to start the timelapse.
-print("Press the button 5 times, with no more than 1.5 seconds between presses, to start timelapse capture.")
+print("Press the button 5 times, with no more than 0.8 seconds between presses, to start timelapse capture.")
  
 try:
     # Main loop monitoring inactivity after timelapse starts.
