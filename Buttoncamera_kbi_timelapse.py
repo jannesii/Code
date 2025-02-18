@@ -7,6 +7,7 @@ from time import sleep, time
 import os
 from libcamera import controls
 
+# Test
 # Define GPIO pins
 LED_PIN = 17   # GPIO pin for LED
 BUTTON_PIN = 22  # GPIO pin for microswitch
