@@ -36,6 +36,7 @@ captured_files = []  # List to store captured filenames
 
 # New globals for startup button press sequence.
 startup_press_count = 0
+end_press_count = 0
 last_start_press_time = 0
 
 def enable_autofocus():
@@ -62,7 +63,7 @@ def capture_photo():
         # Convert image from RGB to BGR for OpenCV.
         image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         # Create a unique filename using the current timestamp.
-        filename = f"capture_{int(time())}.jpg"
+        filename = f"Photos\\capture_{int(time())}.jpg"
         cv2.imwrite(filename, image_bgr)
         print(f"Image captured and saved as {filename}")
         captured_files.append(filename)
@@ -75,10 +76,10 @@ def button_press_handler():
     Before timelapse starts, count presses and activate timelapse when 5 presses occur within 1.5 seconds intervals.
     After timelapse starts, capture photos on each press.
     """
-    global last_press_time, timelapse_active, startup_press_count, last_start_press_time
+    global last_press_time, timelapse_active, startup_press_count, last_start_press_time, end_press_count
     now = time()
+    led.toggle()
     if not timelapse_active:
-        led.toggle()
         # In startup phase: count the consecutive presses.
         if startup_press_count == 0 or (now - last_start_press_time <= 1.5):
             startup_press_count += 1
@@ -94,10 +95,22 @@ def button_press_handler():
             enable_autofocus()
         return
     else:
+        if end_press_count == 0 or (now - last_press_time <= 1.5):
+            end_press_count += 1
+        else:
+            # Reset if too much time has passed.
+            end_press_count = 1
+            capture_photo()
         # Timelapse is active: update last press time, give LED feedback and capture photo.
         last_press_time = now
-        led.toggle()  # Toggle LED for feedback.
-        capture_photo()
+        print(f"End button press count: {end_press_count}")
+        if end_press_count >= 5:
+            print("Timelapse ended.")
+            timelapse_active = False
+            end_press_count = 0
+            led.off()
+            return
+    
 
 # Attach the event to the button press.
 button.when_pressed = button_press_handler
