@@ -160,7 +160,7 @@ while True:
         # Define video filename and create a VideoWriter object.
         video_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_timelapse.mp4"
         fourcc = cv2.VideoWriter_fourcc(*"avc1")
-        fps = 20  # Adjust frames per second as needed.
+        fps = 25  # Adjust frames per second as needed.
         video_writer = cv2.VideoWriter(video_filename, fourcc, fps, (width, height))
 
         for fname in captured_files:
