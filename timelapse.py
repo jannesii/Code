@@ -12,6 +12,7 @@ from libcamera import controls
 # GPIO pins
 LED_PIN = 17       # LED
 BUTTON_PIN = 22    # Microswitch
+BUTTON_PIN2 = 27   # Microswitch
 
 class TimelapseController:
     def __init__(self, picam2, led, button):
@@ -134,7 +135,7 @@ def create_timelapse_video(image_files):
 def main():
     # Initialize LED and button.
     led = LED(LED_PIN)
-    button = Button(BUTTON_PIN, pull_up=True, bounce_time=0.01)
+    button = Button(BUTTON_PIN2, pull_up=True, bounce_time=0.01)
 
     # Initialize and configure the camera.
     picam2 = Picamera2()
