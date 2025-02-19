@@ -33,7 +33,7 @@ def create_video_from_images(image_folder, output_folder, fps=25):
     )
 
     # Define video codec and create VideoWriter object. The H264 codec in an MP4 container is good for iPhone.
-    fourcc = cv2.VideoWriter_fourcc(*"h264")
+    fourcc = cv2.VideoWriter_fourcc(*"x264")
     video_writer = cv2.VideoWriter(
         video_filename, fourcc, fps, (width, height))
 
