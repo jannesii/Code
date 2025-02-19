@@ -44,7 +44,7 @@ def capture_photo():
         # Convert image from RGB to BGR for OpenCV.
         image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         # Create a unique filename using the current timestamp.
-        filename = f"Photos\\capture_{int(time())}.jpg"
+        filename = f"Photos/capture_{int(time())}.jpg"
         cv2.imwrite(filename, image_bgr)
         print(f"Image captured and saved as {filename}")
         captured_files.append(filename)
@@ -158,7 +158,7 @@ while True:
         height, width, _ = first_frame.shape
 
         # Define video filename and create a VideoWriter object.
-        video_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_timelapse.mp4"
+        video_filename = f"Timelapses/{datetime.now().strftime('%Y%m%d_%H%M%S')}_timelapse.mp4"
         fourcc = cv2.VideoWriter_fourcc(*"avc1")
         fps = 25  # Adjust frames per second as needed.
         video_writer = cv2.VideoWriter(video_filename, fourcc, fps, (width, height))
