@@ -11,11 +11,11 @@ from libcamera import controls
 
 # GPIO pins
 LED_PIN = 17       # LED
-BUTTON_PIN = 22    # Microswitch
-BUTTON_PIN2 = 27   # Microswitch
+CAPTURE_BUTTON_PIN = 22    # Microswitch
+PAUSE_BUTTON_PIN = 27   # Microswitch
 
 class TimelapseController:
-    def __init__(self, picam2, led, button):
+    def __init__(self, picam2, led, capture_button):
         self.picam2 = picam2
         self.led = led
 
@@ -29,8 +29,8 @@ class TimelapseController:
         self.captured_files = []
 
         # Attach button event handlers.
-        button.when_pressed = self.button_press_handler
-        button.when_released = self.led_off
+        capture_button.when_pressed = self.button_press_handler
+        capture_button.when_released = self.led_off
 
     def led_off(self):
         self.led.off()
@@ -42,9 +42,9 @@ class TimelapseController:
                 "AfMode": controls.AfModeEnum.Continuous,
                 "AfRange": controls.AfRangeEnum.Normal,
                 "AfWindows": [(16384, 16384, 49152, 49152)],
-                "AeEnable": 1,
+                #"AeEnable": 1,
             })
-            print("Autofocus and Autoexposure activated.")
+            print("Autofocus activated.")
         except Exception as e:
             print("Error activating autofocus:", e)
 
@@ -135,7 +135,8 @@ def create_timelapse_video(image_files):
 def main():
     # Initialize LED and button.
     led = LED(LED_PIN)
-    button = Button(BUTTON_PIN2, pull_up=True, bounce_time=0.01)
+    capture_button = Button(CAPTURE_BUTTON_PIN, pull_up=True, bounce_time=0.01)
+    pause_button = Button(PAUSE_BUTTON_PIN, pull_up=True, bounce_time=0.01)
 
     # Initialize and configure the camera.
     picam2 = Picamera2()
@@ -148,7 +149,7 @@ def main():
     print("Press the button 5 times, with no more than 0.8 seconds between presses, to start timelapse capture.")
 
     # Create timelapse controller.
-    controller = TimelapseController(picam2, led, button)
+    controller = TimelapseController(picam2, led, capture_button)
 
     try:
         # Monitor timelapse activity.
