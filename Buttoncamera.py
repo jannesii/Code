@@ -51,7 +51,7 @@ def toggle_led_and_capture():
         # Convert image from RGB to BGR format for OpenCV
         image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         # Create a unique filename using the current timestamp
-        filename = f"testPhotos\\capture_{int(time())}.jpg"
+        filename = f"testPhotos/capture_{int(time())}.jpg"
         cv2.imwrite(filename, image_bgr)
         print(f"Image captured and saved as {filename}")
     except Exception as e:
