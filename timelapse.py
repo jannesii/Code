@@ -42,7 +42,7 @@ class TimelapseController:
                 "AfMode": controls.AfModeEnum.Continuous,
                 "AfRange": controls.AfRangeEnum.Normal,
                 "AfWindows": [(16384, 16384, 49152, 49152)],
-                "ExposureValue": -0.05,
+                "ExposureValue": -0.1,
                 #"AeEnable": 1,
             })
             print("Autofocus activated.")
