@@ -157,9 +157,9 @@ def main():
         while True:
             sleep(0.1)
             if controller.timelapse_active:
-                # End timelapse if 5 minutes pass since the last press.
-                if time() - controller.last_press_time >= 600:
-                    print("No button press for 10 minutes. Timelapse ended.")
+                # End timelapse if 30 minutes pass since the last press.
+                if time() - controller.last_press_time >= 60*30:
+                    print("No button press for 30 minutes. Timelapse ended.")
                     break
                 elif controller.timelapse_stop:
                     print("Timelapse ended by button press.")
