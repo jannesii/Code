@@ -10,10 +10,41 @@ from gpiozero import LED, Button
 from picamera2 import Picamera2
 from libcamera import controls
 
+# Import shared streaming state and web server
+import stream_state
+import stream_server
+
+# Global lock to prevent concurrent camera access.
+camera_lock = threading.Lock()
+# Flag to control continuous streaming (active before timelapse starts).
+streaming_active = True
+
 # GPIO pins
-LED_PIN = 17       # LED
-CAPTURE_BUTTON_PIN = 22    # Microswitch
-PAUSE_BUTTON_PIN = 27   # Microswitch
+LED_PIN = 17             # LED
+CAPTURE_BUTTON_PIN = 22  # Button for capture & commands
+PAUSE_BUTTON_PIN = 27    # (Unused in this version; kept for future use)
+
+def continuous_stream_update(camera, controller):
+    """
+    Continuously capture frames at a low framerate (e.g., once per second)
+    and update the shared stream image until the timelapse is activated.
+    """
+    global streaming_active
+    while streaming_active and not controller.timelapse_active:
+        with camera_lock:
+            try:
+                # Capture a frame for the stream
+                frame = camera.capture_array()
+            except Exception as e:
+                print("Error capturing stream frame:", e)
+                sleep(1)
+                continue
+        # Convert to BGR (for JPEG encoding) if needed.
+        frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        ret, jpeg = cv2.imencode('.jpg', frame_bgr)
+        if ret:
+            stream_state.latest_frame_jpeg = jpeg.tobytes()
+        sleep(1)  # Low framerate update
 
 class TimelapseController:
     def __init__(self, picam2, led, capture_button):
@@ -60,14 +91,19 @@ class TimelapseController:
             print("Error activating autofocus:", e)
 
     def capture_photo(self):
-        """Capture a photo and save it."""
+        """Capture a photo, update the streaming image and save it."""
         try:
-            image = self.picam2.capture_array()
+            with camera_lock:
+                image = self.picam2.capture_array()
             image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
             filename = f"Photos/capture_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.jpg"
             cv2.imwrite(filename, image_bgr)
             print(f"Image captured and saved as {filename}")
             self.captured_files.append(filename)
+            # After timelapse has started, update the stream frame with the new capture.
+            ret, jpeg = cv2.imencode('.jpg', image_bgr)
+            if ret:
+                stream_state.latest_frame_jpeg = jpeg.tobytes()
         except Exception as e:
             print("Error capturing image:", e)
 
@@ -90,6 +126,7 @@ class TimelapseController:
     def process_button_sequence(self):
         """Called after cutoff_time has passed with no new button press.
            Determines which action to take based on the count of presses."""
+        global streaming_active
         count = self.button_press_count
         print("Processing button sequence with count:", count)
         self.button_press_count = 0  # reset counter for next sequence
@@ -97,6 +134,7 @@ class TimelapseController:
         # --- BEFORE TIMELAPSE START ---
         if not self.timelapse_active:
             if count >= self.startup_count:
+                streaming_active = False  # stop continuous streaming
                 self.timelapse_active = True
                 print("Timelapse started! Use the same button for actions.")
                 self.enable_autofocus()
@@ -133,14 +171,12 @@ class TimelapseController:
 
 def create_timelapse_video(image_files):
     """Combine captured images into a timelapse video and delete the images."""
-    # Sort files so they are in order.
     image_files.sort()
     first_frame = cv2.imread(image_files[0])
     height, width, _ = first_frame.shape
 
     default_fps = 25  # Use 25 fps if enough images.
     num_images = len(image_files)
-    # If num_images is less than default_fps, use num_images as FPS (if at least 1).
     fps = default_fps if num_images >= default_fps and num_images > 0 else (num_images if num_images > 0 else default_fps)
     print(f"Using fps: {fps}")
 
@@ -169,6 +205,7 @@ def main():
     # Initialize LED and button.
     led = LED(LED_PIN)
     capture_button = Button(CAPTURE_BUTTON_PIN, pull_up=True, bounce_time=0.01)
+    # The pause_button is defined but not used in this implementation.
     pause_button = Button(PAUSE_BUTTON_PIN, pull_up=True, bounce_time=0.01)
 
     # Initialize and configure the camera.
@@ -179,9 +216,16 @@ def main():
     picam2.start()
     sleep(2)  # Allow camera settings to settle
 
-
     # Create timelapse controller.
     controller = TimelapseController(picam2, led, capture_button)
+
+    # Start the continuous streaming thread (only active before timelapse starts).
+    stream_thread = threading.Thread(target=continuous_stream_update, args=(picam2, controller), daemon=True)
+    stream_thread.start()
+
+    # Start the Flask streaming server in its own thread.
+    server_thread = threading.Thread(target=stream_server.run_server, daemon=True)
+    server_thread.start()
 
     print(f"Press the button {controller.startup_count} times, with no more than {controller.cutoff_time} seconds between presses, to start timelapse capture.")
     try:

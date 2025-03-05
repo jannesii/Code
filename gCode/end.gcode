@@ -1,8 +1,11 @@
 ;===== date: 20231229 =====================
 G392 S0 ;turn off nozzle clog detect
 
-G1 Y250 F18000 ; move to safe pos
-M400 ; wait for buffer to clear
+G1 X-38.2 Y250 F18000 ; move to safe pos
+M400 P1700
+G1 X-48.2 F3000 ; move to safe pos
+G1 X-38.2 F18000
+M400 P300
 G1 X-38.2 F18000
 G1 X-48.2 F3000
 ;M400 P60
