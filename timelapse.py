@@ -15,7 +15,7 @@ CAPTURE_BUTTON_PIN = 22    # Microswitch
 PAUSE_BUTTON_PIN = 27   # Microswitch
 
 class TimelapseController:
-    def __init__(self, picam2, led, capture_button, pause_button):
+    def __init__(self, picam2, led, capture_button):
         self.picam2 = picam2
         self.led = led
 
@@ -23,26 +23,23 @@ class TimelapseController:
         self.timelapse_active = False
         self.timelapse_stop = False
         self.timelapse_paused = False
-        self.startup_press_count = 0
-        self.end_press_count = 0
-        self.pause_press_count = 0
-        self.last_start_press_time = 0
-        self.last_pause_press_time = 0
+
+        self.startup_press_count = 0  # for starting timelapse
+        self.action_press_count = 0   # for actions when timelapse is active
         self.last_press_time = 0
+
         self.captured_files = []
-        
+
+        # thresholds
         self.startup_count = 3
         self.end_count = 3
         self.pause_count = 4
-        
+
         self.cutoff_time = 0.3
 
-        # Attach button event handlers.
+        # Attach button event handlers (only one button now)
         capture_button.when_pressed = self.button_press_handler
         capture_button.when_released = self.led_off
-        
-        pause_button.when_pressed = self.pause_button_press_handler
-        pause_button.when_released = self.led_off
 
     def led_off(self):
         self.led.off()
@@ -55,7 +52,6 @@ class TimelapseController:
                 "AfRange": controls.AfRangeEnum.Normal,
                 "AfWindows": [(16384, 16384, 49152, 49152)],
                 "ExposureValue": -0.1,
-                #"AeEnable": 1,
             })
             print("Autofocus activated.")
         except Exception as e:
@@ -72,91 +68,73 @@ class TimelapseController:
             self.captured_files.append(filename)
         except Exception as e:
             print("Error capturing image:", e)
-            
-    def pause_button_press_handler(self):
-        self.led.toggle()
-        if self.timelapse_active:
-            self.timelapse_paused = True
-            print("Timelapse paused")
 
     def button_press_handler(self):
-        """
-        Handle a button press.
-        
-        Before timelapse starts, count presses (5 consecutive presses with <= self.cutoff_time sec gap
-        starts timelapse). Once active, each press captures a photo. 5 consecutive presses will end the timelapse.
-        """
         now = time()
         self.led.toggle()
 
+        # --- BEFORE TIMELAPSE START ---
         if not self.timelapse_active:
-            # If this isn't the first press, show elapsed time.
-            if self.startup_press_count > 0:
-                elapsed = now - self.last_start_press_time
-                print(f"Time since last startup press: {elapsed:.2f} seconds")
-            else:
-                print("First startup button press")
-
-            # Counting presses to start timelapse.
-            if self.startup_press_count == 0 or (now - self.last_start_press_time <= self.cutoff_time):
+            # Startup: count 3 quick presses to start timelapse.
+            if self.startup_press_count == 0 or (now - self.last_press_time <= self.cutoff_time):
                 self.startup_press_count += 1
             else:
                 self.startup_press_count = 1
-            self.last_start_press_time = now
-            print(f"Startup button press count: {self.startup_press_count}")
+            self.last_press_time = now
+            print(f"Startup press count: {self.startup_press_count}")
             if self.startup_press_count >= self.startup_count:
                 self.timelapse_active = True
+                self.startup_press_count = 0
                 self.last_press_time = now
-                print("Timelapse started! Press the button to take photos.")
+                print("Timelapse started! Use the same button to capture photos, pause, or end.")
                 self.enable_autofocus()
             return
-        
-        if self.timelapse_paused:
-            # If this isn't the first press, show elapsed time.
-            if self.pause_press_count > 0:
-                elapsed = now - self.last_pause_press_time
-                print(f"Time since last pause press: {elapsed:.2f} seconds")
-            else:
-                print("First pause button press")
 
-            # Counting presses to start timelapse.
-            if self.pause_press_count == 0 or (now - self.last_pause_press_time <= self.cutoff_time):
-                self.pause_press_count += 1
+        # --- WHEN TIMELAPSE IS ACTIVE ---
+        # Check if we're in paused mode
+        if self.timelapse_paused:
+            # While paused, count presses to resume (4 quick presses required)
+            if self.action_press_count == 0 or (now - self.last_press_time <= self.cutoff_time):
+                self.action_press_count += 1
             else:
-                self.pause_press_count = 1
-            self.last_pause_press_time = now
-            print(f"Pause button press count: {self.pause_press_count}")
-            if self.pause_press_count >= self.pause_count:
+                self.action_press_count = 1
+            self.last_press_time = now
+            print(f"Resume press count (paused): {self.action_press_count}")
+            if self.action_press_count >= self.pause_count:
                 self.timelapse_paused = False
-                print("Pause ended!")
+                self.action_press_count = 0
+                print("Resuming timelapse!")
             return
 
+        # When active and not paused:
+        # We use action_press_count to differentiate between capturing a photo,
+        # ending the timelapse (3 quick presses), or pausing (4 quick presses).
+        if self.action_press_count == 0 or (now - self.last_press_time <= self.cutoff_time):
+            self.action_press_count += 1
+        else:
+            # If the gap was too long, assume a single press intended for a photo capture.
+            self.action_press_count = 1
+            self.capture_photo()
+        self.last_press_time = now
+        print(f"Active press count: {self.action_press_count}")
 
-        # Timelapse is active: capture photos on press.
-        if not self.timelapse_paused:
-            if self.end_press_count > 0:
-                elapsed = now - self.last_press_time
-                print(f"Time since last active press: {elapsed:.2f} seconds")
-            else:
-                print("First active button press")
-
-            if self.end_press_count == 0 or (now - self.last_press_time <= self.cutoff_time):
-                if self.end_press_count == 0:
-                    sleep(self.cutoff_time)
-                    self.capture_photo()
-                else:
-                    print(f"End button press count: {self.end_press_count}")
-                self.end_press_count += 1
-            else:
-                self.end_press_count = 1
-                self.capture_photo()
-            self.last_press_time = now
-
-            if self.end_press_count >= self.end_count:
-                print("Timelapse ended.")
-                self.timelapse_stop = True
-                self.end_press_count = 0
-                self.led.off()
+        # Decide what to do once the count reaches one of our thresholds.
+        # Note: Depending on your application, you might want to wait a tiny bit
+        # (or use an asynchronous callback) to let the user finish the sequence.
+        if self.action_press_count == self.pause_count:
+            # 4 quick presses trigger pause.
+            self.timelapse_paused = True
+            self.action_press_count = 0
+            print("Timelapse paused.")
+        elif self.action_press_count == self.end_count:
+            # 3 quick presses trigger end.
+            print("Timelapse ended.")
+            self.timelapse_stop = True
+            self.action_press_count = 0
+            self.led.off()
+        # Otherwise, if no threshold is reached, you might choose to capture a photo
+        # after a delay if no further press occurs. (This example triggers capture on a timeout
+        # when the gap is too long, as handled in the 'else' clause above.)
 
 def create_timelapse_video(image_files):
     """Combine captured images into a timelapse video and delete the images."""
@@ -209,7 +187,7 @@ def main():
     print("Press the button 5 times, with no more than 0.8 seconds between presses, to start timelapse capture.")
 
     # Create timelapse controller.
-    controller = TimelapseController(picam2, led, capture_button, pause_button)
+    controller = TimelapseController(picam2, led, capture_button)
 
     try:
         # Monitor timelapse activity.
