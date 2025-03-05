@@ -184,11 +184,11 @@ def main():
     picam2.start()
     sleep(2)  # Allow camera settings to settle
 
-    print("Press the button 5 times, with no more than 0.8 seconds between presses, to start timelapse capture.")
 
     # Create timelapse controller.
     controller = TimelapseController(picam2, led, capture_button)
 
+    print(f"Press the button {controller.startup_count} times, with no more than {controller.cutoff_time} seconds between presses, to start timelapse capture.")
     try:
         # Monitor timelapse activity.
         while True:
