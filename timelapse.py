@@ -33,7 +33,7 @@ class TimelapseController:
         
         self.startup_count = 5
         self.end_count = 5
-        self.pause_count = 5
+        self.pause_count = 4
 
         # Attach button event handlers.
         capture_button.when_pressed = self.button_press_handler
