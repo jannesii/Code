@@ -12,6 +12,7 @@ socketio = SocketIO(app)
 HTML_PAGE = """
 <html>
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Camera Feed</title>
     <!-- Include Socket.IO client library -->
     <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.3/socket.io.min.js"></script>
@@ -25,13 +26,26 @@ HTML_PAGE = """
           });
       });
     </script>
+    <style>
+      /* Ensure the image scales to the window width */
+      body, html {
+        margin: 0;
+        padding: 0;
+      }
+      img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+    </style>
   </head>
   <body>
     <h1>Camera Feed</h1>
-    <img id="stream" src="/current_frame.jpg" alt="Camera Feed" style="max-width: 100%;">
+    <img id="stream" src="/current_frame.jpg" alt="Camera Feed">
   </body>
 </html>
 """
+
 
 @app.route('/')
 def index():
