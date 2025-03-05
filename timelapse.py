@@ -31,9 +31,9 @@ class TimelapseController:
         self.last_press_time = 0
         self.captured_files = []
         
-        self.startup_count = 6
-        self.end_count = 6
-        self.pause_count = 5
+        self.startup_count = 3
+        self.end_count = 3
+        self.pause_count = 4
         
         self.cutoff_time = 0.3
 
