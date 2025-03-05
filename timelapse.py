@@ -38,7 +38,7 @@ def continuous_stream_update(camera, controller):
                 frame = camera.capture_array()
             except Exception as e:
                 print("Error capturing stream frame:", e)
-                sleep(1)
+                sleep(0.2)
                 continue
         # Convert the frame to BGR for JPEG encoding.
         frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
