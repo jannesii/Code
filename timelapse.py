@@ -32,8 +32,8 @@ class TimelapseController:
 
         # thresholds
         self.startup_count = 3
-        self.end_count = 3
-        self.pause_count = 4
+        self.end_count = 4
+        self.pause_count = 3
 
         self.cutoff_time = 0.3
 
@@ -93,7 +93,7 @@ class TimelapseController:
         # --- WHEN TIMELAPSE IS ACTIVE ---
         # Check if we're in paused mode
         if self.timelapse_paused:
-            # While paused, count presses to resume (4 quick presses required)
+            # While paused, count presses to resume (3 quick presses required)
             if self.action_press_count == 0 or (now - self.last_press_time <= self.cutoff_time):
                 self.action_press_count += 1
             else:
@@ -122,12 +122,12 @@ class TimelapseController:
         # Note: Depending on your application, you might want to wait a tiny bit
         # (or use an asynchronous callback) to let the user finish the sequence.
         if self.action_press_count == self.pause_count:
-            # 4 quick presses trigger pause.
+            # 3 quick presses trigger pause.
             self.timelapse_paused = True
             self.action_press_count = 0
             print("Timelapse paused.")
         elif self.action_press_count == self.end_count:
-            # 3 quick presses trigger end.
+            # 4 quick presses trigger end.
             print("Timelapse ended.")
             self.timelapse_stop = True
             self.action_press_count = 0
