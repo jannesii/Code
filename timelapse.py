@@ -13,6 +13,8 @@ from libcamera import controls
 # Import shared streaming state and web server
 import stream_state
 import stream_server
+from stream_server import socketio  # import the SocketIO instance
+
 
 # Global lock to prevent concurrent camera access.
 camera_lock = threading.Lock()
@@ -26,25 +28,26 @@ PAUSE_BUTTON_PIN = 27    # (Unused in this version; kept for future use)
 
 def continuous_stream_update(camera, controller):
     """
-    Continuously capture frames at a low framerate (e.g., once per second)
-    and update the shared stream image until the timelapse is activated.
+    Continuously capture frames at a low framerate and update the shared stream image.
     """
     global streaming_active
     while streaming_active and not controller.timelapse_active:
         with camera_lock:
             try:
-                # Capture a frame for the stream
+                # Capture a frame for the stream.
                 frame = camera.capture_array()
             except Exception as e:
                 print("Error capturing stream frame:", e)
                 sleep(1)
                 continue
-        # Convert to BGR (for JPEG encoding) if needed.
+        # Convert the frame to BGR for JPEG encoding.
         frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
         ret, jpeg = cv2.imencode('.jpg', frame_bgr)
         if ret:
             stream_state.latest_frame_jpeg = jpeg.tobytes()
-        sleep(1)  # Low framerate update
+            # Emit a SocketIO event to notify clients of a new frame.
+            socketio.emit('update_frame')
+        sleep(1)  # Update at 1 FPS (adjust as needed)
 
 class TimelapseController:
     def __init__(self, picam2, led, capture_button):
@@ -100,12 +103,14 @@ class TimelapseController:
             cv2.imwrite(filename, image_bgr)
             print(f"Image captured and saved as {filename}")
             self.captured_files.append(filename)
-            # After timelapse has started, update the stream frame with the new capture.
             ret, jpeg = cv2.imencode('.jpg', image_bgr)
             if ret:
                 stream_state.latest_frame_jpeg = jpeg.tobytes()
+                # Emit an event so the browser gets the new frame immediately.
+                socketio.emit('update_frame')
         except Exception as e:
             print("Error capturing image:", e)
+
 
     def reset_timer(self):
         """Reset (or start) the timer that waits for the end of the press sequence."""

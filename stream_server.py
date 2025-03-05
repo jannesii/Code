@@ -1,20 +1,26 @@
 # stream_server.py
 from flask import Flask, Response, render_template_string
+from flask_socketio import SocketIO
 import stream_state
 
 app = Flask(__name__)
+socketio = SocketIO(app)
 
 HTML_PAGE = """
 <html>
   <head>
     <title>Camera Feed</title>
+    <!-- Include Socket.IO client library -->
+    <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.3/socket.io.min.js"></script>
     <script type="text/javascript">
-      // Update the image every 1000ms (1 second)
-      setInterval(function() {
-          var image = document.getElementById("stream");
-          // Append a dummy query parameter to prevent browser caching
-          image.src = "/current_frame.jpg?rand=" + new Date().getTime();
-      }, 1000);
+      document.addEventListener("DOMContentLoaded", function() {
+          var socket = io();
+          // Listen for the "update_frame" event to refresh the image
+          socket.on('update_frame', function(data) {
+              var image = document.getElementById("stream");
+              image.src = "/current_frame.jpg?rand=" + new Date().getTime();
+          });
+      });
     </script>
   </head>
   <body>
@@ -23,7 +29,6 @@ HTML_PAGE = """
   </body>
 </html>
 """
-
 
 @app.route('/')
 def index():
@@ -36,5 +41,4 @@ def current_frame():
     return Response(stream_state.latest_frame_jpeg, mimetype='image/jpeg')
 
 def run_server():
-    # Run the Flask server so that it is accessible on the local network.
-    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False)
