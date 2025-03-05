@@ -224,6 +224,8 @@ M622 J1
   G1 X-48.2 F3000
   G1 X-38.2 F12000 ;wipe and shake
   G1 X-48.2 F3000
+  G1 X-38.2 F12000 ;wipe and shake
+  G1 X-48.2 F3000
   M400
   M106 P1 S0 
 M623

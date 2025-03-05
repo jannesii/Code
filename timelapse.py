@@ -31,9 +31,11 @@ class TimelapseController:
         self.last_press_time = 0
         self.captured_files = []
         
-        self.startup_count = 5
-        self.end_count = 5
-        self.pause_count = 4
+        self.startup_count = 6
+        self.end_count = 6
+        self.pause_count = 5
+        
+        self.cutoff_time = 0.3
 
         # Attach button event handlers.
         capture_button.when_pressed = self.button_press_handler
@@ -81,7 +83,7 @@ class TimelapseController:
         """
         Handle a button press.
         
-        Before timelapse starts, count presses (5 consecutive presses with <=0.8 sec gap
+        Before timelapse starts, count presses (5 consecutive presses with <= self.cutoff_time sec gap
         starts timelapse). Once active, each press captures a photo. 5 consecutive presses will end the timelapse.
         """
         now = time()
@@ -96,7 +98,7 @@ class TimelapseController:
                 print("First startup button press")
 
             # Counting presses to start timelapse.
-            if self.startup_press_count == 0 or (now - self.last_start_press_time <= 0.8):
+            if self.startup_press_count == 0 or (now - self.last_start_press_time <= self.cutoff_time):
                 self.startup_press_count += 1
             else:
                 self.startup_press_count = 1
@@ -118,7 +120,7 @@ class TimelapseController:
                 print("First pause button press")
 
             # Counting presses to start timelapse.
-            if self.pause_press_count == 0 or (now - self.last_pause_press_time <= 0.8):
+            if self.pause_press_count == 0 or (now - self.last_pause_press_time <= self.cutoff_time):
                 self.pause_press_count += 1
             else:
                 self.pause_press_count = 1
@@ -138,7 +140,7 @@ class TimelapseController:
             else:
                 print("First active button press")
 
-            if self.end_press_count == 0 or (now - self.last_press_time <= 0.8):
+            if self.end_press_count == 0 or (now - self.last_press_time <= self.cutoff_time):
                 if self.end_press_count == 0:
                     self.capture_photo()
                 else:

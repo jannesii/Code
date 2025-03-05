@@ -18,6 +18,9 @@ G1 X-48.2 F3000
 G1 X-38.2 F18000
 G1 X-48.2 F3000
 ;M400 P60
+G1 X-38.2 F18000
+G1 X-48.2 F3000
+;M400 P60
 
 M400 ; wait for buffer to clear
 G92 E0 ; zero the extruder
