@@ -165,9 +165,14 @@ def create_timelapse_video(image_files):
     first_frame = cv2.imread(image_files[0])
     height, width, _ = first_frame.shape
 
+    default_fps = 25  # Use 25 fps if enough images.
+    num_images = len(image_files)
+    # If num_images is less than default_fps, use num_images as FPS (if at least 1).
+    fps = default_fps if num_images >= default_fps and num_images > 0 else (num_images if num_images > 0 else default_fps)
+    print(f"Using fps: {fps}")
+
     video_filename = f"Timelapses/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_timelapse.mp4"
     fourcc = cv2.VideoWriter_fourcc(*"avc1")
-    fps = 25  # Adjust frames per second as needed.
     video_writer = cv2.VideoWriter(video_filename, fourcc, fps, (width, height))
 
     for fname in image_files:
