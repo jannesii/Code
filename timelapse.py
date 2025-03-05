@@ -76,6 +76,8 @@ class TimelapseController:
         # Attach button event handlers (only one button now)
         capture_button.when_pressed = self.button_press_handler
         capture_button.when_released = self.led_off
+        
+        self.enable_autofocus()
 
     def led_off(self):
         self.led.off()
@@ -142,7 +144,7 @@ class TimelapseController:
                 streaming_active = False  # stop continuous streaming
                 self.timelapse_active = True
                 print("Timelapse started! Use the same button for actions.")
-                self.enable_autofocus()
+                #self.enable_autofocus()
             else:
                 print("Not enough presses to start timelapse.")
             return
