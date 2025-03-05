@@ -8,13 +8,22 @@ HTML_PAGE = """
 <html>
   <head>
     <title>Camera Feed</title>
+    <script type="text/javascript">
+      // Update the image every 1000ms (1 second)
+      setInterval(function() {
+          var image = document.getElementById("stream");
+          // Append a dummy query parameter to prevent browser caching
+          image.src = "/current_frame.jpg?rand=" + new Date().getTime();
+      }, 1000);
+    </script>
   </head>
   <body>
     <h1>Camera Feed</h1>
-    <img src="/current_frame.jpg" alt="Camera Feed" style="max-width: 100%;">
+    <img id="stream" src="/current_frame.jpg" alt="Camera Feed" style="max-width: 100%;">
   </body>
 </html>
 """
+
 
 @app.route('/')
 def index():
