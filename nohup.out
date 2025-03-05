@@ -1,0 +1,9 @@
+[334:08:15.609502616] [21971] [1;32m INFO [1;37mCamera [1;34mcamera_manager.cpp:327 [0mlibcamera v0.4.0+53-29156679
+[334:08:15.617240344] [21981] [1;32m INFO [1;37mRPI [1;34mpisp.cpp:720 [0mlibpisp version v1.1.0 e7974a156008 27-01-2025 (21:50:51)
+[334:08:15.627745366] [21981] [1;32m INFO [1;37mRPI [1;34mpisp.cpp:1179 [0mRegistered camera /base/axi/pcie@120000/rp1/i2c@88000/imx708@1a to CFE device /dev/media2 and ISP device /dev/media0 using PiSP variant BCM2712_D0
+[334:08:15.630751605] [21971] [1;32m INFO [1;37mCamera [1;34mcamera.cpp:1202 [0mconfiguring streams: (0) 4608x2592-BGR888 (1) 4608x2592-BGGR_PISP_COMP1
+[334:08:15.630863569] [21981] [1;32m INFO [1;37mRPI [1;34mpisp.cpp:1484 [0mSensor: /base/axi/pcie@120000/rp1/i2c@88000/imx708@1a - Selected sensor format: 4608x2592-SBGGR10_1X10 - Selected CFE format: 4608x2592-PC1B
+Press the button 3 times, with no more than 0.3 seconds between presses, to start timelapse capture.
+
+Exiting program.
+No images were captured, so no timelapse video was created.

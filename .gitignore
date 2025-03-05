@@ -1,3 +1,5 @@
 *.json
 *.jpg
 *.mp4
+.venv/
+myenv/
