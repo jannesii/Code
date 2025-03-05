@@ -16,6 +16,16 @@ M106 P2 S0
 M104 S[old_filament_temp]
 {endif}
 
+G1 X-38.2 F18000
+G1 X-48.2 F3000
+G1 X-38.2 F18000 ;wipe and shake
+G1 X-48.2 F3000
+G1 X-38.2 F12000 ;wipe and shake
+G1 X-48.2 F3000
+G1 X-38.2 F12000 ;wipe and shake
+G1 X-48.2 F3000
+
+M400
 G1 X267 F18000
 
 {if long_retractions_when_cut[previous_extruder]}
