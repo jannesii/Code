@@ -40,7 +40,6 @@ HTML_PAGE = """
     </style>
   </head>
   <body>
-    <h1>Camera Feed</h1>
     <img id="stream" src="/current_frame.jpg" alt="Camera Feed">
   </body>
 </html>
