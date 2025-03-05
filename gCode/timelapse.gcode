@@ -11,10 +11,11 @@ G1 Z{max_layer_z + 0.4}
 G1 X0 Y250 F18000 ; move to safe pos
 
 
-G1 X-28.5 F18000
-M400 P1200
+G1 X-38.2 F18000
+M400 P1700
 G1 X-48.2 F3000 ; move to safe pos
-M400 P800
+G1 X-38.2 F18000
+M400 P300
 
 M971 S11 C11 O0
 G92 E0
@@ -33,7 +34,7 @@ M622 J1
       G0 Z2 F4000
       G0 X261 Y250 F20000
       M400 P200
-      G39 S1
+      ;G39 S1
       G0 Z2 F4000
     {endif}
 
@@ -52,7 +53,7 @@ M622 J1
             M83
             M204 S5000
             G0 Z{max_layer_z + 0.4} F4000
-            G39.3 S1
+            ;G39.3 S1
             G0 Z{max_layer_z + 0.4} F4000
             G392 S0
           {endif}

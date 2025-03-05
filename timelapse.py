@@ -142,6 +142,7 @@ class TimelapseController:
 
             if self.end_press_count == 0 or (now - self.last_press_time <= self.cutoff_time):
                 if self.end_press_count == 0:
+                    sleep(self.cutoff_time)
                     self.capture_photo()
                 else:
                     print(f"End button press count: {self.end_press_count}")
