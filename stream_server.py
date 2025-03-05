@@ -2,6 +2,9 @@
 from flask import Flask, Response, render_template_string
 from flask_socketio import SocketIO
 import stream_state
+import logging
+logging.getLogger('werkzeug').setLevel(logging.ERROR)
+
 
 app = Flask(__name__)
 socketio = SocketIO(app)
