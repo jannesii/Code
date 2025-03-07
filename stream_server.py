@@ -33,7 +33,7 @@ HTML_PAGE = """
       }
       /* Container to limit the max width to 1920px and center content */
       .container {
-        max-width: 1920px;
+        max-height: 1200px;
         margin: 0 auto;
       }
       /* Image scales to fill the container while maintaining its aspect ratio */
