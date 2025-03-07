@@ -35,6 +35,7 @@ HTML_PAGE = """
       .container {
         max-height: 1200px;
         margin: 0 auto;
+        overflow: hidden;  /* Added to handle overflow */
       }
       /* Image scales to fill the container while maintaining its aspect ratio */
       img {
