@@ -28,12 +28,24 @@ HTML_PAGE = """
       // Toggle fullscreen mode for the container
       function toggleFullScreen() {
           var container = document.querySelector('.container');
-          if (!document.fullscreenElement) {
-              container.requestFullscreen().catch(err => {
-                  alert("Error attempting to enable full-screen mode: " + err.message);
-              });
+          // If Fullscreen API is available, use it
+          if (container.requestFullscreen) {
+              if (!document.fullscreenElement) {
+                  container.requestFullscreen().catch(err => {
+                      alert("Error attempting to enable full-screen mode: " + err.message);
+                  });
+              } else {
+                  document.exitFullscreen();
+              }
           } else {
-              document.exitFullscreen();
+              // Fallback for browsers that don't support the Fullscreen API (e.g., iOS Safari)
+              if (!container.classList.contains('fullscreen')) {
+                  container.classList.add('fullscreen');
+                  document.body.style.overflow = "hidden";  // prevent background scrolling
+              } else {
+                  container.classList.remove('fullscreen');
+                  document.body.style.overflow = "";
+              }
           }
       }
     </script>
@@ -61,6 +73,16 @@ HTML_PAGE = """
         padding: 10px 20px;
         font-size: 16px;
         cursor: pointer;
+      }
+      /* Fallback fullscreen styling for iOS Safari */
+      .fullscreen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: black;
+        z-index: 9999;
       }
     </style>
   </head>
