@@ -5,7 +5,6 @@ import stream_state
 import logging
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
-
 app = Flask(__name__)
 socketio = SocketIO(app)
 
@@ -27,11 +26,17 @@ HTML_PAGE = """
       });
     </script>
     <style>
-      /* Ensure the image scales to the window width */
+      /* Basic reset for margin and padding */
       body, html {
         margin: 0;
         padding: 0;
       }
+      /* Container to limit the max width to 1920px and center content */
+      .container {
+        max-width: 1920px;
+        margin: 0 auto;
+      }
+      /* Image scales to fill the container while maintaining its aspect ratio */
       img {
         display: block;
         width: 100%;
@@ -40,11 +45,12 @@ HTML_PAGE = """
     </style>
   </head>
   <body>
-    <img id="stream" src="/current_frame.jpg" alt="Camera Feed">
+    <div class="container">
+      <img id="stream" src="/current_frame.jpg" alt="Camera Feed">
+    </div>
   </body>
 </html>
 """
-
 
 @app.route('/')
 def index():
