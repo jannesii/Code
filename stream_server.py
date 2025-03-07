@@ -33,9 +33,8 @@ HTML_PAGE = """
       }
       /* Container to limit the max width to 1920px and center content */
       .container {
-        max-height: 1200px;
+        max-heigth: 1920px;
         margin: 0 auto;
-        overflow: hidden;  /* Added to handle overflow */
       }
       /* Image scales to fill the container while maintaining its aspect ratio */
       img {
