@@ -24,6 +24,18 @@ HTML_PAGE = """
               image.src = "/current_frame.jpg?rand=" + new Date().getTime();
           });
       });
+
+      // Toggle fullscreen mode for the container
+      function toggleFullScreen() {
+          var container = document.querySelector('.container');
+          if (!document.fullscreenElement) {
+              container.requestFullscreen().catch(err => {
+                  alert("Error attempting to enable full-screen mode: " + err.message);
+              });
+          } else {
+              document.exitFullscreen();
+          }
+      }
     </script>
     <style>
       /* Basic reset for margin and padding */
@@ -33,7 +45,7 @@ HTML_PAGE = """
       }
       /* Container to limit the max width to 1920px and center content */
       .container {
-        max-heigth: 1920px;
+        max-width: 1920px;
         margin: 0 auto;
       }
       /* Image scales to fill the container while maintaining its aspect ratio */
@@ -42,12 +54,21 @@ HTML_PAGE = """
         width: 100%;
         height: auto;
       }
+      /* Styling for the fullscreen button */
+      .fullscreen-button {
+        display: block;
+        margin: 20px auto;
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+      }
     </style>
   </head>
   <body>
     <div class="container">
       <img id="stream" src="/current_frame.jpg" alt="Camera Feed">
     </div>
+    <button class="fullscreen-button" onclick="toggleFullScreen()">Fullscreen</button>
   </body>
 </html>
 """
