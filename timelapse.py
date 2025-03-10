@@ -57,9 +57,6 @@ class TimelapseController:
         self.yellow_led = yellow_led
         self.green_led = green_led
         
-        self.red_led.on()
-        self.yellow_led.on()
-        self.green_led.on()
 
         # Timelapse state variables
         self.timelapse_active = False
@@ -82,11 +79,11 @@ class TimelapseController:
 
         # Attach button event handlers (only one button now)
         capture_button.when_pressed = self.button_press_handler
-        capture_button.when_released = self.led_off
+        capture_button.when_released = self.red_led_off
         
         self.enable_autofocus()
 
-    def led_off(self):
+    def red_led_off(self):
         self.red_led.off()
 
     def enable_autofocus(self):
@@ -148,6 +145,7 @@ class TimelapseController:
         # --- BEFORE TIMELAPSE START ---
         if not self.timelapse_active:
             if count >= self.startup_count:
+                self.green_led.on()
                 streaming_active = False  # stop continuous streaming
                 self.timelapse_active = True
                 print("Timelapse started! Use the same button for actions.")
@@ -160,6 +158,7 @@ class TimelapseController:
         # If timelapse is paused, 4 quick presses will resume it.
         if self.timelapse_paused:
             if count >= self.pause_count:
+                self.yellow_led.off()
                 self.timelapse_paused = False
                 print("Resuming timelapse!")
             else:
@@ -173,6 +172,7 @@ class TimelapseController:
             self.capture_photo()
         elif count == self.pause_count:
             # 4 quick presses trigger pause.
+            self.yellow_led.on()
             self.timelapse_paused = True
             print("Timelapse paused.")
         elif count == self.end_count:
@@ -180,6 +180,7 @@ class TimelapseController:
             print("Timelapse ended.")
             self.timelapse_stop = True
             self.red_led.off()
+            self.green_led.off()
         else:
             print("Unrecognized press sequence:", count)
 
