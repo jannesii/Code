@@ -22,9 +22,10 @@ camera_lock = threading.Lock()
 streaming_active = True
 
 # GPIO pins
-LED_PIN = 17             # LED
+RED_LED_PIN = 17             # LED
+YELLOW_LED_PIN = 23         
+GREEN_LED_PIN = 27         
 CAPTURE_BUTTON_PIN = 22  # Button for capture & commands
-PAUSE_BUTTON_PIN = 27    # (Unused in this version; kept for future use)
 
 def continuous_stream_update(camera, controller):
     """
@@ -50,9 +51,15 @@ def continuous_stream_update(camera, controller):
         sleep(1)  # Update at 1 FPS (adjust as needed)
 
 class TimelapseController:
-    def __init__(self, picam2, led, capture_button):
+    def __init__(self, picam2, red_led, yellow_led, green_led, capture_button):
         self.picam2 = picam2
-        self.led = led
+        self.red_led = red_led
+        self.yellow_led = yellow_led
+        self.green_led = green_led
+        
+        self.red_led.on()
+        self.yellow_led.on()
+        self.green_led.on()
 
         # Timelapse state variables
         self.timelapse_active = False
@@ -80,7 +87,7 @@ class TimelapseController:
         self.enable_autofocus()
 
     def led_off(self):
-        self.led.off()
+        self.red_led.off()
 
     def enable_autofocus(self):
         """Activate autofocus and autoexposure if the camera supports it."""
@@ -123,7 +130,7 @@ class TimelapseController:
 
     def button_press_handler(self):
         """Handle each button press by incrementing the counter and restarting the timer."""
-        self.led.toggle()
+        self.red_led.toggle()
         now = time()
         self.last_press_time = now
         self.button_press_count += 1
@@ -172,7 +179,7 @@ class TimelapseController:
             # 3 quick presses trigger ending the timelapse.
             print("Timelapse ended.")
             self.timelapse_stop = True
-            self.led.off()
+            self.red_led.off()
         else:
             print("Unrecognized press sequence:", count)
 
@@ -210,10 +217,11 @@ def create_timelapse_video(image_files):
 
 def main():
     # Initialize LED and button.
-    led = LED(LED_PIN)
+    red_led = LED(RED_LED_PIN)
+    yellow_led = LED(YELLOW_LED_PIN)
+    green_led = LED(GREEN_LED_PIN)
     capture_button = Button(CAPTURE_BUTTON_PIN, pull_up=True, bounce_time=0.01)
     # The pause_button is defined but not used in this implementation.
-    pause_button = Button(PAUSE_BUTTON_PIN, pull_up=True, bounce_time=0.01)
 
     # Initialize and configure the camera.
     picam2 = Picamera2()
@@ -224,7 +232,7 @@ def main():
     sleep(2)  # Allow camera settings to settle
 
     # Create timelapse controller.
-    controller = TimelapseController(picam2, led, capture_button)
+    controller = TimelapseController(picam2, red_led, yellow_led, green_led, capture_button)
 
     # Start the continuous streaming thread (only active before timelapse starts).
     stream_thread = threading.Thread(target=continuous_stream_update, args=(picam2, controller), daemon=True)
