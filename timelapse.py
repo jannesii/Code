@@ -139,48 +139,44 @@ class TimelapseController:
         self.reset_timer()
 
     def process_button_sequence(self):
-        """Process button press sequence based on count after a cutoff delay."""
         global streaming_active
         count = self.button_press_count
-        print(f"Processing: {count}; ", end="")
+        print(f"Seq:{count} -> ", end="")  # Short sequence count
         self.button_press_count = 0  # reset counter
 
-        # --- Before Timelapse Starts ---
         if not self.timelapse_active:
             if count >= self.startup_count:
                 self.green_led.on()
-                # Stop continuous streaming for timelapse.
-                streaming_active = False
+                streaming_active = False  # Stop continuous streaming for timelapse.
                 self.timelapse_active = True
-                print("Timelapse started!")
+                print("start")
             else:
-                print("Not enough presses to start timelapse.")
+                print("no start")
             return
 
-        # --- Timelapse Active (Paused or Running) ---
         if self.timelapse_paused:
             if count >= self.pause_count:
                 self.yellow_led.off()
                 self.timelapse_paused = False
-                print("Resuming timelapse!")
+                print("resume")
             else:
-                print("Press sequence not recognized while paused.")
+                print("no action")
             return
 
-        # --- Timelapse Active and Not Paused ---
         if count == 1:
             self.capture_photo()
         elif count == self.pause_count:
             self.yellow_led.on()
             self.timelapse_paused = True
-            print("Timelapse paused.")
+            print("pause")
         elif count == self.end_count:
-            print("Timelapse ended.")
+            print("end")
             self.timelapse_stop = True
             self.red_led.off()
             self.green_led.off()
         else:
-            print("Unrecognized press sequence:", count)
+            print(f"?({count})")
+
 
     def finalize_timelapse(self):
         """
