@@ -1,8 +1,0 @@
-{
-    "raspi_host": "",
-    "raspi_port": 22,
-    "username": "",
-    "password": "",
-    "remote_folders": [],
-    "poll_interval": 10
-}
