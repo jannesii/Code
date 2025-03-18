@@ -26,6 +26,12 @@ YELLOW_LED_PIN = 23
 GREEN_LED_PIN = 27
 CAPTURE_BUTTON_PIN = 22  # Button for capture & commands
 
+# ANSI escape codes for colors.
+GREEN = "\033[32m"
+YELLOW = "\033[33m"
+RED = "\033[31m"
+RESET = "\033[0m"
+
 
 def continuous_stream_update(camera, controller):
     """
@@ -112,7 +118,7 @@ class TimelapseController:
             image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
             filename = f"Photos/capture_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.jpg"
             cv2.imwrite(filename, image_bgr)
-            print(f"Image captured: {os.path.basename(filename)}")
+            print(f"Image captured at {datetime.now().strftime('%H-%M-%S')}.")
             self.captured_files.append(filename)
             ret, jpeg = cv2.imencode('.jpg', image_bgr)
             if ret:
@@ -314,7 +320,7 @@ def main():
 
             # Reset the streaming flag for the next session.
             streaming_active = True
-            print("Ready for a new timelapse session.\n")
+            print(f"{GREEN}Ready for a new timelapse session.{RESET}\n")
     except KeyboardInterrupt:
         print("\nExiting program.")
 
