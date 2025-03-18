@@ -211,18 +211,32 @@ G1 X-48.2 F3000
 M400
 G1 Z{max_layer_z + 3.0} F3000
 M106 P1 S0
-{if layer_z <= (initial_layer_print_height + 0.001)}
-M204 S[initial_layer_acceleration]
-{else}
-M204 S[default_acceleration]
-{endif}
-{else}
-G1 X[x_after_toolchange] Y[y_after_toolchange] Z[z_after_toolchange] F12000
-{endif}
 
 M622.1 S0
 M9833 F{outer_wall_volumetric_speed/2.4} A0.3 ; cali dynamic extrusion compensation
 M1002 judge_flag filament_need_cali_flag
+{if layer_z <= (initial_layer_print_height + 0.001)}
+M204 S[default_acceleration]
+M622 J1
+  G92 E0
+  G1 E-[new_retract_length_toolchange] F1800
+  M400
+  M106 P1 S178
+  M400 S4
+  G1 X-38.2 F18000
+  G1 X-48.2 F3000
+  G1 X-38.2 F18000
+  G1 X-48.2 F3000
+  G1 X-38.2 F18000
+  G1 X-48.2 F3000
+  G1 X-38.2 F18000
+  G1 X-48.2 F3000
+  M400
+  M106 P1 S0 
+M623
+M204 S[initial_layer_acceleration]
+{else}
+M204 S[default_acceleration]
 M622 J1
   G92 E0
   G1 E-[new_retract_length_toolchange] F1800
@@ -231,45 +245,42 @@ M622 J1
   M106 P1 S178
   M400 S4
   G1 X-38.2 F18000
-  M400 P50
   G1 X-48.2 F3000
   G1 X-38.2 F18000
-  M400 P50
   G1 X-48.2 F3000
   G1 X-38.2 F18000
-  M400 P50
   G1 X-48.2 F3000
   G1 X-38.2 F18000
-  M400 P50
+  G1 X-48.2 F3000
+  M400
+  M106 P1 S0 
+M623
+{endif}
+{else}
+M204 S[default_acceleration]
+M622 J1
+  G92 E0
+  G1 E-[new_retract_length_toolchange] F1800
+  M400
+  
+  M106 P1 S178
+  M400 S4
+  G1 X-38.2 F18000
+  G1 X-48.2 F3000
+  G1 X-38.2 F18000
+  G1 X-48.2 F3000
+  G1 X-38.2 F18000
+  G1 X-48.2 F3000
+  G1 X-38.2 F18000
   G1 X-48.2 F3000
   M400
   M106 P1 S0 
 M623
 
-{if layer_z <= (initial_layer_print_height + 0.001)}
-M204 S[default_acceleration]
-M400
-G1 X-38.2 F18000
-G1 X-48.2 F3000
-G1 X-38.2 F18000 ;wipe and shake
-G1 X-48.2 F3000
-G1 X-38.2 F12000 ;wipe and shake
-G1 X-48.2 F3000
-G1 X-38.2 F12000 ;wipe and shake
-G1 X-48.2 F3000
-M400
-M204 S[initial_layer_acceleration]
-{else}
-M204 S[default_acceleration]
-G1 X-38.2 F18000
-G1 X-48.2 F3000
-G1 X-38.2 F18000 ;wipe and shake
-G1 X-48.2 F3000
-G1 X-38.2 F12000 ;wipe and shake
-G1 X-48.2 F3000
-G1 X-38.2 F12000 ;wipe and shake
-G1 X-48.2 F3000
+G1 X[x_after_toolchange] Y[y_after_toolchange] Z[z_after_toolchange] F12000
 {endif}
+
+
 M621 S[next_extruder]A
 G392 S0
 
