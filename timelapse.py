@@ -191,7 +191,7 @@ class TimelapseController:
             self.red_led.off()
             self.green_led.off()
         elif count == self.end_no_video_count:
-            print(f"{RED}end{RESET}\n")
+            print(f"{RED}end NO VIDEO{RESET}\n")
             self.timelapse_stop = True
             self.create_timelapse = False
             self.red_led.off()
@@ -257,7 +257,7 @@ class TimelapseController:
             video_writer.release()
             print(f"Timelapse video created as {video_filename}\n")
         else:
-            print("{RED}No timelapse video created.{RESET}")
+            print(f"{RED}No timelapse video created.{RESET}\n")
 
         # Delete the captured images if they exist.
         for fname in self.captured_files:
