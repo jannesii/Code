@@ -45,7 +45,7 @@ def continuous_stream_update(camera, controller):
         if ret:
             stream_state.latest_frame_jpeg = jpeg.tobytes()
             socketio.emit('update_frame')
-        sleep(0.2)  # ~5 FPS (adjust as needed)
+        sleep(0.1)  # ~5 FPS (adjust as needed)
 
 class TimelapseController:
     def __init__(self, red_led, yellow_led, green_led, capture_button):
