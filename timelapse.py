@@ -45,7 +45,7 @@ def continuous_stream_update(camera, controller):
         if ret:
             stream_state.latest_frame_jpeg = jpeg.tobytes()
             socketio.emit('update_frame')
-        sleep(0.033)  # ~5 FPS (adjust as needed)
+        sleep(0.1)  # Currently ~5 FPS; adjust sleep time as needed for higher frame rates.
 
 class TimelapseController:
     def __init__(self, red_led, yellow_led, green_led, capture_button):
@@ -66,7 +66,7 @@ class TimelapseController:
         self.timelapse_stop = False
         self.timelapse_paused = False
 
-        # Button press counter and timer
+        # Button press counter and timer (we keep the timer running during a session)
         self.button_press_count = 0
         self.button_timer = None
         self.last_press_time = 0
@@ -86,39 +86,6 @@ class TimelapseController:
         
         self.enable_autofocus()
         
-    def __del__(self):
-        print("\n\n---------------Destructor called...---------------\n\n")
-        self.cleanup()
-        print("\n\n---------------Destructor Finished!---------------\n\n")
-    
-    def cleanup(self):
-        """Clean up resources explicitly."""
-        # Cancel any active button timer.
-        if self.button_timer is not None:
-            self.button_timer.cancel()
-            self.button_timer = None
-
-        # Stop camera preview and close the camera.
-        try:
-            self.picam2.stop_preview()
-            self.picam2.close()
-        except Exception as e:
-            print("Error during camera cleanup:", e)
-
-        # Create timelapse video if images were captured.
-        if self.captured_files:
-            self.create_timelapse_video()
-        else:
-            print("No images were captured, so no timelapse video was created.")
-
-        # Reset LED states.
-        self.red_led.off()
-        self.yellow_led.off()
-        self.green_led.off()
-
-    def red_led_off(self):
-        self.red_led.off()
-
     def enable_autofocus(self):
         """Activate autofocus and autoexposure if supported."""
         try:
@@ -150,7 +117,7 @@ class TimelapseController:
             print("Error capturing image:", e)
 
     def reset_timer(self):
-        """Reset or start the timer waiting for the end of the button press sequence."""
+        """Reset (or start) the timer that waits for the end of the press sequence."""
         if self.button_timer is not None:
             self.button_timer.cancel()
         self.button_timer = threading.Timer(self.cutoff_time, self.process_button_sequence)
@@ -208,10 +175,35 @@ class TimelapseController:
         else:
             print("Unrecognized press sequence:", count)
 
+    def finalize_timelapse(self):
+        """
+        Finalize the timelapse session by creating the timelapse video and resetting LED states.
+        This does not stop the camera or cancel timers.
+        """
+        if self.captured_files:
+            self.create_timelapse_video()
+        else:
+            print("No images were captured, so no timelapse video was created.")
+
+        self.red_led.off()
+        self.yellow_led.off()
+        self.green_led.off()
+
     def create_timelapse_video(self):
         """Combine captured images into a timelapse video and delete the images."""
         self.captured_files.sort()
-        first_frame = cv2.imread(self.captured_files[0])
+        
+        # Ensure we have a valid first frame.
+        first_filename = self.captured_files[0]
+        if not os.path.exists(first_filename):
+            print(f"Warning: First frame {first_filename} not found. Skipping timelapse creation.")
+            return
+
+        first_frame = cv2.imread(first_filename)
+        if first_frame is None:
+            print(f"Warning: Could not read {first_filename}. Skipping timelapse creation.")
+            return
+
         height, width, _ = first_frame.shape
 
         default_fps = 25  # Use 25 fps if enough images.
@@ -224,20 +216,26 @@ class TimelapseController:
         video_writer = cv2.VideoWriter(video_filename, fourcc, fps, (width, height))
 
         for fname in self.captured_files:
+            if not os.path.exists(fname):
+                print(f"Warning: {fname} does not exist. Skipping.")
+                continue
             frame = cv2.imread(fname)
             if frame is None:
-                print(f"Warning: Could not read {fname}, skipping.")
+                print(f"Warning: Could not read {fname}. Skipping.")
                 continue
             video_writer.write(frame)
         video_writer.release()
         print(f"Timelapse video created as {video_filename}")
 
-        # Delete captured images.
+        # Delete the captured images if they exist.
         for fname in self.captured_files:
-            try:
-                os.remove(fname)
-            except Exception as e:
-                print(f"Failed to delete {fname}: {e}")
+            if os.path.exists(fname):
+                try:
+                    os.remove(fname)
+                except Exception as e:
+                    print(f"Failed to delete {fname}: {e}")
+            else:
+                print(f"{fname} already deleted or not found.")
         print("Photos deleted.")
 
 def main():
@@ -255,14 +253,14 @@ def main():
     server_thread = threading.Thread(target=stream_server.run_server, daemon=True)
     server_thread.start()
 
+    # Create a new timelapse controller session.
+    controller = TimelapseController(red_led, yellow_led, green_led, capture_button)
+
+    # Start continuous streaming (active until timelapse starts).
+    stream_thread = threading.Thread(target=continuous_stream_update, args=(controller.picam2, controller), daemon=True)
+    stream_thread.start()
     try:
         while True:
-            # Create a new timelapse controller session.
-            controller = TimelapseController(red_led, yellow_led, green_led, capture_button)
-
-            # Start continuous streaming (active until timelapse starts).
-            stream_thread = threading.Thread(target=continuous_stream_update, args=(controller.picam2, controller), daemon=True)
-            stream_thread.start()
 
             print(f"Press the button {controller.startup_count} times (within {controller.cutoff_time} sec between presses) to start timelapse capture.")
             
@@ -278,12 +276,13 @@ def main():
                         print("Timelapse ended by button press.")
                         break
 
-            # Explicitly clean up the controller.
-            controller.cleanup()
-            del controller
+            # Finalize the timelapse (create video, clean up photos and reset LEDs).
+            controller.finalize_timelapse()
 
-            # Reset the streaming flag for the next session.
-            streaming_active = True
+            # Do not close camera or cancel timers here if you wish to keep them active between sessions.
+            # If you eventually want to free camera resources, you might need additional logic.
+
+            streaming_active = True  # Reset streaming flag for next session.
             print("Ready for a new timelapse session.")
     except KeyboardInterrupt:
         print("\nExiting program.")
