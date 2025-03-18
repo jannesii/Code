@@ -112,7 +112,7 @@ class TimelapseController:
             image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
             filename = f"Photos/capture_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.jpg"
             cv2.imwrite(filename, image_bgr)
-            print(f"Image captured and saved as {filename}")
+            print(f"Image captured: {os.path.basename(filename)}")
             self.captured_files.append(filename)
             ret, jpeg = cv2.imencode('.jpg', image_bgr)
             if ret:
@@ -300,10 +300,10 @@ def main():
                 if controller.timelapse_active:
                     # End timelapse if 30 minutes pass without any button press.
                     if time() - controller.last_press_time >= 60 * 30:
-                        print("No button press for 30 minutes. Timelapse ended.")
+                        print("No button press for 30 minutes. Timelapse ended.\n")
                         break
                     elif controller.timelapse_stop:
-                        print("Timelapse ended by button press.")
+                        print("Timelapse ended by button press.\n")
                         break
 
             # Finalize the timelapse (create video, clean up photos, and reset LEDs).
