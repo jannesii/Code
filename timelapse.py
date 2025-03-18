@@ -139,9 +139,15 @@ class TimelapseController:
         self.reset_timer()
 
     def process_button_sequence(self):
+        # ANSI escape codes for colors.
+        GREEN = "\033[32m"
+        YELLOW = "\033[33m"
+        RED = "\033[31m"
+        RESET = "\033[0m"
+
         global streaming_active
         count = self.button_press_count
-        print(f"Seq:{count} -> ", end="")  # Short sequence count
+        print(f"Seq: {count} -> ", end="")  # Short sequence count
         self.button_press_count = 0  # reset counter
 
         if not self.timelapse_active:
@@ -149,7 +155,7 @@ class TimelapseController:
                 self.green_led.on()
                 streaming_active = False  # Stop continuous streaming for timelapse.
                 self.timelapse_active = True
-                print("start")
+                print(f"{GREEN}start{RESET}")
             else:
                 print("no start")
             return
@@ -158,7 +164,7 @@ class TimelapseController:
             if count >= self.pause_count:
                 self.yellow_led.off()
                 self.timelapse_paused = False
-                print("resume")
+                print(f"{GREEN}resume{RESET}")
             else:
                 print("no action")
             return
@@ -168,14 +174,15 @@ class TimelapseController:
         elif count == self.pause_count:
             self.yellow_led.on()
             self.timelapse_paused = True
-            print("pause")
+            print(f"{YELLOW}pause{RESET}")
         elif count == self.end_count:
-            print("end")
+            print(f"{RED}end{RESET}")
             self.timelapse_stop = True
             self.red_led.off()
             self.green_led.off()
         else:
             print(f"?({count})")
+
 
 
     def finalize_timelapse(self):
