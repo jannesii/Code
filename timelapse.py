@@ -100,7 +100,7 @@ class TimelapseController:
                 "AfWindows": [(16384, 16384, 49152, 49152)],
                 "ExposureValue": -0.5,
             })
-            print("Autofocus activated.")
+            print("\nAutofocus activated.\n")
         except Exception as e:
             print("Error activating autofocus:", e)
 
@@ -176,7 +176,7 @@ class TimelapseController:
             self.timelapse_paused = True
             print(f"{YELLOW}pause{RESET}")
         elif count == self.end_count:
-            print(f"{RED}end{RESET}")
+            print(f"{RED}end{RESET}\n")
             self.timelapse_stop = True
             self.red_led.off()
             self.green_led.off()
@@ -192,7 +192,7 @@ class TimelapseController:
         if self.captured_files:
             self.create_timelapse_video()
         else:
-            print("No images were captured, so no timelapse video was created.")
+            print("No images were captured, so no timelapse video was created.\n")
 
         self.red_led.off()
         self.yellow_led.off()
@@ -238,7 +238,7 @@ class TimelapseController:
                 continue
             video_writer.write(frame)
         video_writer.release()
-        print(f"Timelapse video created as {video_filename}")
+        print(f"Timelapse video created as {video_filename}\n")
 
         # Delete the captured images if they exist.
         for fname in self.captured_files:
@@ -249,7 +249,7 @@ class TimelapseController:
                     print(f"Failed to delete {fname}: {e}")
             else:
                 print(f"{fname} already deleted or not found.")
-        print("Photos deleted.")
+        print("Photos deleted.\n")
 
     def shutdown_camera(self):
         """
@@ -259,7 +259,7 @@ class TimelapseController:
         try:
             self.picam2.stop_preview()
             self.picam2.close()
-            print("Camera shutdown completed.")
+            print("Camera shutdown completed.\n")
         except Exception as e:
             print("Error during camera shutdown:", e)
 
@@ -292,7 +292,7 @@ def main():
             stream_thread.start()
 
             print(
-                f"Press the button {controller.startup_count} times (within {controller.cutoff_time} sec between presses) to start timelapse capture.")
+                f"Press the button {controller.startup_count} times (within {controller.cutoff_time} sec between presses) to start timelapse capture.\n")
 
             # Monitor timelapse session.
             while True:
@@ -314,7 +314,7 @@ def main():
 
             # Reset the streaming flag for the next session.
             streaming_active = True
-            print("Ready for a new timelapse session.")
+            print("Ready for a new timelapse session.\n")
     except KeyboardInterrupt:
         print("\nExiting program.")
 
