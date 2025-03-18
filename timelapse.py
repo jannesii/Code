@@ -255,7 +255,7 @@ class TimelapseController:
                     continue
                 video_writer.write(frame)
             video_writer.release()
-            print(f"Timelapse video created as {video_filename}\n")
+            print(f"Timelapse video created as {os.path.basename(video_filename)}\n")
         else:
             print(f"{RED}No timelapse video created.{RESET}\n")
 
