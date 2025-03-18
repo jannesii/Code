@@ -246,6 +246,8 @@ M622 J1
   M106 P1 S0 
 M623
 
+{if layer_z <= (initial_layer_print_height + 0.001)}
+M204 S[default_acceleration]
 M400
 G1 X-38.2 F18000
 G1 X-48.2 F3000
@@ -256,6 +258,18 @@ G1 X-48.2 F3000
 G1 X-38.2 F12000 ;wipe and shake
 G1 X-48.2 F3000
 M400
+M204 S[initial_layer_acceleration]
+{else}
+M204 S[default_acceleration]
+G1 X-38.2 F18000
+G1 X-48.2 F3000
+G1 X-38.2 F18000 ;wipe and shake
+G1 X-48.2 F3000
+G1 X-38.2 F12000 ;wipe and shake
+G1 X-48.2 F3000
+G1 X-38.2 F12000 ;wipe and shake
+G1 X-48.2 F3000
+{endif}
 M621 S[next_extruder]A
 G392 S0
 
