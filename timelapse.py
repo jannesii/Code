@@ -45,7 +45,7 @@ def continuous_stream_update(camera, controller):
         if ret:
             stream_state.latest_frame_jpeg = jpeg.tobytes()
             socketio.emit('update_frame')
-        sleep(0.1)  # Currently ~5 FPS; adjust sleep time as needed for higher frame rates.
+        sleep(0.1)  # Adjust sleep time for desired FPS
 
 class TimelapseController:
     def __init__(self, red_led, yellow_led, green_led, capture_button):
@@ -66,7 +66,7 @@ class TimelapseController:
         self.timelapse_stop = False
         self.timelapse_paused = False
 
-        # Button press counter and timer (we keep the timer running during a session)
+        # Button press counter and timer (active during session)
         self.button_press_count = 0
         self.button_timer = None
         self.last_press_time = 0
@@ -181,7 +181,6 @@ class TimelapseController:
     def finalize_timelapse(self):
         """
         Finalize the timelapse session by creating the timelapse video and resetting LED states.
-        This does not stop the camera or cancel timers.
         """
         if self.captured_files:
             self.create_timelapse_video()
@@ -241,6 +240,18 @@ class TimelapseController:
                 print(f"{fname} already deleted or not found.")
         print("Photos deleted.")
 
+    def shutdown_camera(self):
+        """
+        Shutdown the camera by stopping the preview and closing the device.
+        This releases the camera resource so a new session can be started.
+        """
+        try:
+            self.picam2.stop_preview()
+            self.picam2.close()
+            print("Camera shutdown completed.")
+        except Exception as e:
+            print("Error during camera shutdown:", e)
+
 def main():
     global streaming_active
     # Reset the streaming flag at the beginning.
@@ -282,10 +293,12 @@ def main():
             # Finalize the timelapse (create video, clean up photos, and reset LEDs).
             controller.finalize_timelapse()
 
-            # Reset the streaming flag and reinitialize a new session.
+            # Shutdown the camera to release the resource before starting a new session.
+            controller.shutdown_camera()
+
+            # Reset the streaming flag for the next session.
             streaming_active = True
             print("Ready for a new timelapse session.")
-            # The controller is automatically discarded, and a new one will be created in the next iteration.
     except KeyboardInterrupt:
         print("\nExiting program.")
 
