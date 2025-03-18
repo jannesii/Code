@@ -39,7 +39,7 @@ def continuous_stream_update(camera, controller):
                 frame = camera.capture_array()
             except Exception as e:
                 print("Error capturing stream frame:", e)
-                sleep(0.2)
+                sleep(1)
                 continue
         # Convert the frame to BGR for JPEG encoding.
         frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
@@ -48,7 +48,7 @@ def continuous_stream_update(camera, controller):
             stream_state.latest_frame_jpeg = jpeg.tobytes()
             # Emit a SocketIO event to notify clients of a new frame.
             socketio.emit('update_frame')
-        sleep(1)  # Update at 1 FPS (adjust as needed)
+        sleep(0.2)  # Update at 1 FPS (adjust as needed)
 
 class TimelapseController:
     def __init__(self, picam2, red_led, yellow_led, green_led, capture_button):
