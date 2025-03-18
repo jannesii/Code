@@ -45,4 +45,5 @@ def transfer_files():
 if __name__ == '__main__':
     while True:
         transfer_files()
+        break
         time.sleep(POLL_INTERVAL)
