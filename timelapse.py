@@ -243,7 +243,7 @@ class TimelapseController:
 
 def main():
     global streaming_active
-    # Reset the streaming flag at the beginning of each session.
+    # Reset the streaming flag at the beginning.
     streaming_active = True
 
     # Initialize LEDs and button.
@@ -256,14 +256,14 @@ def main():
     server_thread = threading.Thread(target=stream_server.run_server, daemon=True)
     server_thread.start()
 
-    # Create a new timelapse controller session.
-    controller = TimelapseController(red_led, yellow_led, green_led, capture_button)
-
-    # Start continuous streaming (active until timelapse starts).
-    stream_thread = threading.Thread(target=continuous_stream_update, args=(controller.picam2, controller), daemon=True)
-    stream_thread.start()
     try:
         while True:
+            # Create a new timelapse controller session.
+            controller = TimelapseController(red_led, yellow_led, green_led, capture_button)
+
+            # Start continuous streaming (active until timelapse starts).
+            stream_thread = threading.Thread(target=continuous_stream_update, args=(controller.picam2, controller), daemon=True)
+            stream_thread.start()
 
             print(f"Press the button {controller.startup_count} times (within {controller.cutoff_time} sec between presses) to start timelapse capture.")
             
@@ -279,14 +279,13 @@ def main():
                         print("Timelapse ended by button press.")
                         break
 
-            # Finalize the timelapse (create video, clean up photos and reset LEDs).
+            # Finalize the timelapse (create video, clean up photos, and reset LEDs).
             controller.finalize_timelapse()
 
-            # Do not close camera or cancel timers here if you wish to keep them active between sessions.
-            # If you eventually want to free camera resources, you might need additional logic.
-
-            streaming_active = True  # Reset streaming flag for next session.
+            # Reset the streaming flag and reinitialize a new session.
+            streaming_active = True
             print("Ready for a new timelapse session.")
+            # The controller is automatically discarded, and a new one will be created in the next iteration.
     except KeyboardInterrupt:
         print("\nExiting program.")
 
