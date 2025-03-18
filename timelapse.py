@@ -86,6 +86,9 @@ class TimelapseController:
         
         self.enable_autofocus()
         
+    def red_led_off(self):
+        self.red_led.off()
+        
     def enable_autofocus(self):
         """Activate autofocus and autoexposure if supported."""
         try:
