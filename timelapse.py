@@ -187,6 +187,7 @@ class TimelapseController:
         elif count == self.end_count:
             print(f"{RED}end{RESET}\n")
             self.timelapse_stop = True
+            self.create_timelapse = True
             self.red_led.off()
             self.green_led.off()
         elif count == self.end_no_video_count:
