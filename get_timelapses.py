@@ -1,21 +1,19 @@
+import json
 import paramiko
 import os
 import time
 
-# Configuration
-RASPI_HOST = '192.168.1.128'
-RASPI_PORT = 22
-USERNAME = 'jannesi'
-PASSWORD = 'jannesi'  # Use key-based authentication in production
-REMOTE_FOLDERS = []
-testPhotos = "/home/jannesi/Code/testPhotos/"
-timelapses = "/home/jannesi/Code/Timelapses/"
-testtimelapses = "/home/jannesi/Code/testTimelapses/"
-#REMOTE_FOLDERS.append(testPhotos)
-REMOTE_FOLDERS.append(timelapses)
-#REMOTE_FOLDERS.append(testtimelapses)
+# Load configuration data from JSON file.
+with open('config.json', 'r') as config_file:
+    config = json.load(config_file)
 
-POLL_INTERVAL = 10  # seconds
+RASPI_HOST = config["raspi_host"]
+RASPI_PORT = config["raspi_port"]
+USERNAME = config["username"]
+PASSWORD = config["password"]
+REMOTE_FOLDERS = config["remote_folders"]
+
+POLL_INTERVAL = config.get("poll_interval", 10)  # seconds, default to 10
 
 def transfer_files():
     transport = paramiko.Transport((RASPI_HOST, RASPI_PORT))
@@ -29,8 +27,7 @@ def transfer_files():
                 print("No files found.")
             for file_name in remote_files:
                 remote_file_path = os.path.join(REMOTE_FOLDER, file_name)
-                local_file_path = os.path.join(os.getcwd(), REMOTE_FOLDER.split("/")[-2] ,file_name)
-                #print(local_file_path, " | ", remote_file_path)
+                local_file_path = os.path.join(os.getcwd(), REMOTE_FOLDER.split("/")[-2], file_name)
                 print(f"Transferring {file_name}...")
                 sftp.get(remote_file_path, local_file_path)
                 print(f"{file_name} transferred to local machine.")
@@ -48,6 +45,4 @@ def transfer_files():
 if __name__ == '__main__':
     while True:
         transfer_files()
-        break
         time.sleep(POLL_INTERVAL)
-        

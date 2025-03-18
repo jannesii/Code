@@ -231,17 +231,31 @@ M622 J1
   M106 P1 S178
   M400 S4
   G1 X-38.2 F18000
+  M400 P50
   G1 X-48.2 F3000
-  G1 X-38.2 F18000 ;wipe and shake
+  G1 X-38.2 F18000
+  M400 P50
   G1 X-48.2 F3000
-  G1 X-38.2 F12000 ;wipe and shake
+  G1 X-38.2 F18000
+  M400 P50
   G1 X-48.2 F3000
-  G1 X-38.2 F12000 ;wipe and shake
+  G1 X-38.2 F18000
+  M400 P50
   G1 X-48.2 F3000
   M400
   M106 P1 S0 
 M623
 
+M400
+G1 X-38.2 F18000
+G1 X-48.2 F3000
+G1 X-38.2 F18000 ;wipe and shake
+G1 X-48.2 F3000
+G1 X-38.2 F12000 ;wipe and shake
+G1 X-48.2 F3000
+G1 X-38.2 F12000 ;wipe and shake
+G1 X-48.2 F3000
+M400
 M621 S[next_extruder]A
 G392 S0
 
