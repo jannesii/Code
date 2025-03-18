@@ -73,6 +73,7 @@ class TimelapseController:
         self.timelapse_active = False
         self.timelapse_stop = False
         self.timelapse_paused = False
+        self.create_timelapse = True
 
         # Button press counter and timer (active during session)
         self.button_press_count = 0
@@ -85,6 +86,8 @@ class TimelapseController:
         self.startup_count = 3  # 3 quick presses to start timelapse
         self.end_count = 3      # 3 quick presses to end timelapse
         self.pause_count = 4    # 4 quick presses to pause/resume timelapse
+        
+        self.end_no_video_count = 5
 
         self.cutoff_time = 0.3  # maximum time gap between presses
 
@@ -186,6 +189,12 @@ class TimelapseController:
             self.timelapse_stop = True
             self.red_led.off()
             self.green_led.off()
+        elif count == self.end_no_video_count:
+            print(f"{RED}end{RESET}\n")
+            self.timelapse_stop = True
+            self.create_timelapse = False
+            self.red_led.off()
+            self.green_led.off()
         else:
             print(f"?({count})")
 
@@ -208,43 +217,46 @@ class TimelapseController:
         """Combine captured images into a timelapse video and delete the images."""
         self.captured_files.sort()
 
-        # Ensure we have a valid first frame.
-        first_filename = self.captured_files[0]
-        if not os.path.exists(first_filename):
-            print(
-                f"Warning: First frame {first_filename} not found. Skipping timelapse creation.")
-            return
+        if self.create_timelapse:
+            # Ensure we have a valid first frame.
+            first_filename = self.captured_files[0]
+            if not os.path.exists(first_filename):
+                print(
+                    f"Warning: First frame {first_filename} not found. Skipping timelapse creation.")
+                return
 
-        first_frame = cv2.imread(first_filename)
-        if first_frame is None:
-            print(
-                f"Warning: Could not read {first_filename}. Skipping timelapse creation.")
-            return
+            first_frame = cv2.imread(first_filename)
+            if first_frame is None:
+                print(
+                    f"Warning: Could not read {first_filename}. Skipping timelapse creation.")
+                return
 
-        height, width, _ = first_frame.shape
+            height, width, _ = first_frame.shape
 
-        default_fps = 25  # Use 25 fps if enough images.
-        num_images = len(self.captured_files)
-        fps = default_fps if num_images >= default_fps and num_images > 0 else (
-            num_images if num_images > 0 else default_fps)
-        print(f"Using fps: {fps}")
+            default_fps = 25  # Use 25 fps if enough images.
+            num_images = len(self.captured_files)
+            fps = default_fps if num_images >= default_fps and num_images > 0 else (
+                num_images if num_images > 0 else default_fps)
+            print(f"Using fps: {fps}")
 
-        video_filename = f"Timelapses/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_timelapse.mp4"
-        fourcc = cv2.VideoWriter_fourcc(*"avc1")
-        video_writer = cv2.VideoWriter(
-            video_filename, fourcc, fps, (width, height))
+            video_filename = f"Timelapses/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_timelapse.mp4"
+            fourcc = cv2.VideoWriter_fourcc(*"avc1")
+            video_writer = cv2.VideoWriter(
+                video_filename, fourcc, fps, (width, height))
 
-        for fname in self.captured_files:
-            if not os.path.exists(fname):
-                print(f"Warning: {fname} does not exist. Skipping.")
-                continue
-            frame = cv2.imread(fname)
-            if frame is None:
-                print(f"Warning: Could not read {fname}. Skipping.")
-                continue
-            video_writer.write(frame)
-        video_writer.release()
-        print(f"Timelapse video created as {video_filename}\n")
+            for fname in self.captured_files:
+                if not os.path.exists(fname):
+                    print(f"Warning: {fname} does not exist. Skipping.")
+                    continue
+                frame = cv2.imread(fname)
+                if frame is None:
+                    print(f"Warning: Could not read {fname}. Skipping.")
+                    continue
+                video_writer.write(frame)
+            video_writer.release()
+            print(f"Timelapse video created as {video_filename}\n")
+        else:
+            print("{RED}No timelapse video created.{RESET}")
 
         # Delete the captured images if they exist.
         for fname in self.captured_files:
