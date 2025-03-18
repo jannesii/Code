@@ -142,7 +142,7 @@ class TimelapseController:
         """Process button press sequence based on count after a cutoff delay."""
         global streaming_active
         count = self.button_press_count
-        print("Processing button sequence with count:", count)
+        print(f"Processing button sequence with count: {count}; ", end="")
         self.button_press_count = 0  # reset counter
 
         # --- Before Timelapse Starts ---
