@@ -134,7 +134,7 @@ class TimelapseController:
         elapsed = current_time - self.last_press_time if self.last_press_time else 0
         self.last_press_time = current_time
         self.button_press_count += 1
-        print(f"Δ {elapsed:.2f}s, #{self.button_press_count}")
+        print(f"Δ {elapsed:.2f}s,\t #{self.button_press_count}")
         self.red_led.toggle()
         self.reset_timer()
 
@@ -142,7 +142,7 @@ class TimelapseController:
         """Process button press sequence based on count after a cutoff delay."""
         global streaming_active
         count = self.button_press_count
-        print(f"Processing button sequence with count: {count}; ", end="")
+        print(f"Processing: {count}; ", end="")
         self.button_press_count = 0  # reset counter
 
         # --- Before Timelapse Starts ---
@@ -152,7 +152,7 @@ class TimelapseController:
                 # Stop continuous streaming for timelapse.
                 streaming_active = False
                 self.timelapse_active = True
-                print("Timelapse started! Use the same button for actions.")
+                print("Timelapse started!")
             else:
                 print("Not enough presses to start timelapse.")
             return
