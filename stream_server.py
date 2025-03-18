@@ -84,4 +84,4 @@ def current_frame():
     return Response(stream_state.latest_frame_jpeg, mimetype='image/jpeg')
 
 def run_server():
-    socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False, allow_unsafe_werkzeug=True)
