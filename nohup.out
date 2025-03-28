@@ -7,3 +7,41 @@ Press the button 3 times, with no more than 0.3 seconds between presses, to star
 
 Exiting program.
 No images were captured, so no timelapse video was created.
+Exception in thread Thread-3 (run_server):
+[2:05:31.621270582] [12570] [1;32m INFO [1;37mCamera [1;34mcamera_manager.cpp:327 [0mlibcamera v0.4.0+53-29156679
+[2:05:31.631295236] [12579] [1;32m INFO [1;37mRPI [1;34mpisp.cpp:720 [0mlibpisp version v1.1.0 e7974a156008 27-01-2025 (21:50:51)
+[2:05:31.641724337] [12579] [1;32m INFO [1;37mRPI [1;34mpisp.cpp:1179 [0mRegistered camera /base/axi/pcie@120000/rp1/i2c@88000/imx708@1a to CFE device /dev/media0 and ISP device /dev/media1 using PiSP variant BCM2712_D0
+Traceback (most recent call last):
+  File "/usr/lib/python3.11/threading.py", line 1038, in _bootstrap_inner
+[2:05:31.645096808] [12570] [1;32m INFO [1;37mCamera [1;34mcamera.cpp:1202 [0mconfiguring streams: (0) 4608x2592-BGR888 (1) 4608x2592-BGGR_PISP_COMP1
+[2:05:31.645205105] [12579] [1;32m INFO [1;37mRPI [1;34mpisp.cpp:1484 [0mSensor: /base/axi/pcie@120000/rp1/i2c@88000/imx708@1a - Selected sensor format: 4608x2592-SBGGR10_1X10 - Selected CFE format: 4608x2592-PC1B
+    self.run()
+  File "/usr/lib/python3.11/threading.py", line 975, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/jannesi/Code/stream_server.py", line 87, in run_server
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+  File "/home/jannesi/Code/myenv/lib/python3.11/site-packages/flask_socketio/__init__.py", line 650, in run
+    raise RuntimeError('The Werkzeug web server is not '
+RuntimeError: The Werkzeug web server is not designed to run in production. Pass allow_unsafe_werkzeug=True to the run() method to disable this error.
+[2:06:27.084814330] [12570] [1;32m INFO [1;37mCamera [1;34mcamera_manager.cpp:327 [0mlibcamera v0.4.0+53-29156679
+[2:06:27.092378112] [12598] [1;32m INFO [1;37mRPI [1;34mpisp.cpp:720 [0mlibpisp version v1.1.0 e7974a156008 27-01-2025 (21:50:51)
+[2:06:27.102918176] [12598] [1;32m INFO [1;37mRPI [1;34mpisp.cpp:1179 [0mRegistered camera /base/axi/pcie@120000/rp1/i2c@88000/imx708@1a to CFE device /dev/media0 and ISP device /dev/media1 using PiSP variant BCM2712_D0
+[2:06:27.105648235] [12570] [1;32m INFO [1;37mCamera [1;34mcamera.cpp:1202 [0mconfiguring streams: (0) 4608x2592-BGR888 (1) 4608x2592-BGGR_PISP_COMP1
+[2:06:27.105754291] [12598] [1;32m INFO [1;37mRPI [1;34mpisp.cpp:1484 [0mSensor: /base/axi/pcie@120000/rp1/i2c@88000/imx708@1a - Selected sensor format: 4608x2592-SBGGR10_1X10 - Selected CFE format: 4608x2592-PC1B
+[0:02:47.856610891] [2079] [1;32m INFO [1;37mCamera [1;34mcamera_manager.cpp:327 [0mlibcamera v0.4.0+53-29156679
+[0:02:47.864325476] [2088] [1;32m INFO [1;37mRPI [1;34mpisp.cpp:720 [0mlibpisp version v1.1.0 e7974a156008 27-01-2025 (21:50:51)
+[0:02:47.874724713] [2088] [1;32m INFO [1;37mRPI [1;34mpisp.cpp:1179 [0mRegistered camera /base/axi/pcie@120000/rp1/i2c@88000/imx708@1a to CFE device /dev/media2 and ISP device /dev/media0 using PiSP variant BCM2712_D0
+[0:02:47.878124864] [2079] [1;32m INFO [1;37mCamera [1;34mcamera.cpp:1202 [0mconfiguring streams: (0) 4608x2592-BGR888 (1) 4608x2592-BGGR_PISP_COMP1
+[0:02:47.878235401] [2088] [1;32m INFO [1;37mRPI [1;34mpisp.cpp:1484 [0mSensor: /base/axi/pcie@120000/rp1/i2c@88000/imx708@1a - Selected sensor format: 4608x2592-SBGGR10_1X10 - Selected CFE format: 4608x2592-PC1B
+ * Serving Flask app 'stream_server'
+ * Debug mode: off
+[0:03:09.994611670] [2079] [1;32m INFO [1;37mCamera [1;34mcamera_manager.cpp:327 [0mlibcamera v0.4.0+53-29156679
+[0:03:10.006234878] [2146] [1;32m INFO [1;37mRPI [1;34mpisp.cpp:720 [0mlibpisp version v1.1.0 e7974a156008 27-01-2025 (21:50:51)
+[0:03:10.022482199] [2146] [1;32m INFO [1;37mRPI [1;34mpisp.cpp:1179 [0mRegistered camera /base/axi/pcie@120000/rp1/i2c@88000/imx708@1a to CFE device /dev/media2 and ISP device /dev/media0 using PiSP variant BCM2712_D0
+[0:03:10.026472194] [2079] [1;32m INFO [1;37mCamera [1;34mcamera.cpp:1202 [0mconfiguring streams: (0) 4608x2592-BGR888 (1) 4608x2592-BGGR_PISP_COMP1
+[0:03:10.026607198] [2146] [1;32m INFO [1;37mRPI [1;34mpisp.cpp:1484 [0mSensor: /base/axi/pcie@120000/rp1/i2c@88000/imx708@1a - Selected sensor format: 4608x2592-SBGGR10_1X10 - Selected CFE format: 4608x2592-PC1B
+[0:27:27.396329788] [2079] [1;32m INFO [1;37mCamera [1;34mcamera_manager.cpp:327 [0mlibcamera v0.4.0+53-29156679
+[0:27:27.403852637] [5102] [1;32m INFO [1;37mRPI [1;34mpisp.cpp:720 [0mlibpisp version v1.1.0 e7974a156008 27-01-2025 (21:50:51)
+[0:27:27.414381572] [5102] [1;32m INFO [1;37mRPI [1;34mpisp.cpp:1179 [0mRegistered camera /base/axi/pcie@120000/rp1/i2c@88000/imx708@1a to CFE device /dev/media2 and ISP device /dev/media0 using PiSP variant BCM2712_D0
+[0:27:27.417209282] [2079] [1;32m INFO [1;37mCamera [1;34mcamera.cpp:1202 [0mconfiguring streams: (0) 4608x2592-BGR888 (1) 4608x2592-BGGR_PISP_COMP1
+[0:27:27.417324250] [5102] [1;32m INFO [1;37mRPI [1;34mpisp.cpp:1484 [0mSensor: /base/axi/pcie@120000/rp1/i2c@88000/imx708@1a - Selected sensor format: 4608x2592-SBGGR10_1X10 - Selected CFE format: 4608x2592-PC1B
