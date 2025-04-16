@@ -336,7 +336,7 @@ def continuous_stream_update(camera, controller):
             stream_state.latest_frame_jpeg = jpeg.tobytes()
             socketio.emit('update_frame')
             
-            with open("frame.txt", "wb") as f:
+            with open("frame.json", "wb") as f:
                 f.write(jpeg.tobytes())  # Save the frame for debugging
             print("Frame saved for debugging.")
             return  # Exit after saving the frame for debugging
