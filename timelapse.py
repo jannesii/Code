@@ -21,8 +21,7 @@ from stream_server import socketio  # import the SocketIO instance
 
 # Global lock to prevent concurrent camera access.
 camera_lock = threading.Lock()
-# Flag to control continuous streaming (active before timelapse starts).
-streaming_active = True
+
 
 # Global variable to hold the current timelapse controller for keyboard simulation.
 current_controller = None
@@ -59,6 +58,7 @@ class TimelapseController:
         self.timelapse_stop = False
         self.timelapse_paused = False
         self.create_timelapse = True
+        self.streaming_active = True  # Flag to control streaming
 
         # Button press counter and timer (active during session)
         self.button_press_count = 0
@@ -80,6 +80,8 @@ class TimelapseController:
         capture_button.when_released = self.red_led_off
 
         self.enable_autofocus()
+        
+        self.start_threads()
 
     def red_led_off(self):
         self.red_led.off()
@@ -97,6 +99,12 @@ class TimelapseController:
         except Exception as e:
             print("Error activating autofocus:", e)
 
+    def start_threads(self):
+        """Start threads for continuous streaming and timelapse control."""
+        self.streaming_thread = threading.Thread(
+            target=self.continuous_stream_update, daemon=True)
+        self.streaming_thread.start()
+    
     def send_image(self, image):
         """Send the captured image to the server."""
         try:
@@ -127,10 +135,22 @@ class TimelapseController:
             self.captured_files.append(filename)
             ret, jpeg = cv2.imencode('.jpg', image_bgr)
             if ret:
-                stream_state.latest_frame_jpeg = jpeg.tobytes()
-                socketio.emit('update_frame')
+                self.send_image(jpeg.tobytes())  # Send the image to the server.
         except Exception as e:
             print("Error capturing image:", e)
+            
+    def continuous_stream_update(self):
+        """
+        Continuously capture frames at a low framerate and update the shared stream image.
+        """
+        
+        while self.streaming_active and not self.timelapse_active:
+            with camera_lock:
+                self.capture_photo()  # Capture a frame
+                
+            sleep(5)  # Adjust sleep time for desired FPS
+        print("Continuous streaming stopped.")
+
 
     def reset_timer(self):
         """Reset (or start) the timer that waits for the end of the press sequence."""
@@ -156,7 +176,7 @@ class TimelapseController:
         RED = "\033[31m"
         RESET = "\033[0m"
 
-        global streaming_active
+        
         count = self.button_press_count
         print(f"Seq: {count} -> ", end="")  # Short sequence count
         self.button_press_count = 0  # reset counter
@@ -165,7 +185,7 @@ class TimelapseController:
             if count >= self.startup_count:
                 self.green_led.on()
                 # Stop continuous streaming for timelapse.
-                streaming_active = False
+                self.streaming_active = False
                 self.timelapse_active = True
                 print(f"{GREEN}start{RESET}")
             else:
@@ -336,37 +356,12 @@ def keyboard_monitor():
             current_controller.red_led_off()
 
 
-def continuous_stream_update(camera, controller):
-    """
-    Continuously capture frames at a low framerate and update the shared stream image.
-    """
-    global streaming_active
-    while streaming_active and not controller.timelapse_active:
-        with camera_lock:
-            try:
-                frame = camera.capture_array()
-            except Exception as e:
-                print("Error capturing stream frame:", e)
-                sleep(1)
-                continue
-        # Convert the frame to BGR for JPEG encoding.
-        frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-        ret, jpeg = cv2.imencode('.jpg', frame_bgr)
-        if ret:
-            url = f"{server}/3d/image"
-            # Convert the binary JPEG data into a base64-encoded string.
-            encoded_image = base64.b64encode(jpeg.tobytes()).decode('utf-8')
-            
-            controller.send_image(jpeg.tobytes())  # Send the image to the server.
-
-            
-        sleep(5)  # Adjust sleep time for desired FPS
 
 
 def main():
-    global streaming_active, current_controller
+    global current_controller
     # Reset the streaming flag at the beginning.
-    streaming_active = True
+
 
     # Initialize LEDs and button.
     red_led = LED(RED_LED_PIN)
@@ -390,11 +385,6 @@ def main():
                 red_led, yellow_led, green_led, capture_button)
             # Set the global current controller.
             current_controller = controller
-
-            # Start continuous streaming (active until timelapse starts).
-            stream_thread = threading.Thread(target=continuous_stream_update, args=(
-                controller.picam2, controller), daemon=True)
-            stream_thread.start()
 
             print(
                 f"Press the button {controller.startup_count} times (within {controller.cutoff_time} sec between presses) to start timelapse capture.\n"
@@ -421,8 +411,7 @@ def main():
             # Shutdown the camera to release the resource before starting a new session.
             controller.shutdown_camera()
 
-            # Reset the streaming flag for the next session.
-            streaming_active = True
+
             print(f"{GREEN}Ready for a new timelapse session.{RESET}\n")
 
             return  # Exit the loop after one session for testing purposes.
