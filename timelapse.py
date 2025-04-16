@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import cv2
+import sys
 import time
 from time import sleep, time
 from datetime import datetime
@@ -246,8 +247,6 @@ class TimelapseController:
                 video_writer = cv2.VideoWriter(
                     video_filename, fourcc, fps, (width, height))
                 
-                if not video_writer.isOpened():
-                    raise Exception("Failed to open the video writer. Please check the codec and device configuration.")
 
                 for fname in self.captured_files:
                     if not os.path.exists(fname):
@@ -258,11 +257,13 @@ class TimelapseController:
                         print(f"Warning: Could not read {fname}. Skipping.")
                         continue
                     video_writer.write(frame)
+                if not video_writer.isOpened():
+                    raise Exception("Failed to open the video writer. Please check the codec and device configuration.")
                 video_writer.release()
                 print(f"Timelapse video created as {os.path.basename(video_filename)}\n")
             except Exception as e:
                 print(f"Error creating timelapse video: {e}")
-                pass
+                sys.exit(1)
         else:
             print(f"{RED}No timelapse video created.{RESET}\n")
 
