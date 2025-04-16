@@ -91,7 +91,7 @@ class TimelapseController:
         self.startup_count = 3  # 3 quick presses to start timelapse
         self.end_count = 3      # 3 quick presses to end timelapse
         self.pause_count = 4    # 4 quick presses to pause/resume timelapse
-        self.end_no_video_count = 5 # 5 quick presses to end timelapse without video
+        self.end_no_video_count = 5  # 5 quick presses to end timelapse without video
 
         self.cutoff_time = 0.3  # maximum time gap between presses
 
@@ -166,7 +166,8 @@ class TimelapseController:
         if not self.timelapse_active:
             if count >= self.startup_count:
                 self.green_led.on()
-                streaming_active = False  # Stop continuous streaming for timelapse.
+                # Stop continuous streaming for timelapse.
+                streaming_active = False
                 self.timelapse_active = True
                 print(f"{GREEN}start{RESET}")
             else:
@@ -247,7 +248,7 @@ class TimelapseController:
                 fourcc = cv2.VideoWriter_fourcc(*"mp4v")
                 video_writer = cv2.VideoWriter(
                     video_filename, fourcc, fps, (width, height))
-                
+
                 for fname in self.captured_files:
                     if not os.path.exists(fname):
                         print(f"Warning: {fname} does not exist. Skipping.")
@@ -257,16 +258,18 @@ class TimelapseController:
                         print(f"Warning: Could not read {fname}. Skipping.")
                         continue
                     video_writer.write(frame)
-                    
+
                 if not video_writer.isOpened():
-                    raise Exception("Failed to open the video writer. Please check the codec and device configuration.")
-                
+                    raise Exception(
+                        "Failed to open the video writer. Please check the codec and device configuration.")
+
                 video_writer.release()
-                
+
                 # Transcode the video to H.264 using FFMPEG.
-                #self.encode_video(video_filename)
-                
-                print(f"Timelapse video created as {os.path.basename(video_filename)}\n")
+                self.encode_video(video_filename)
+
+                print(
+                    f"Timelapse video created as {os.path.basename(video_filename)}\n")
             except Exception as e:
                 print(f"Error creating timelapse video: {e}")
                 sys.exit(1)
@@ -283,19 +286,22 @@ class TimelapseController:
             else:
                 print(f"{fname} already deleted or not found.")
         print("Photos deleted.\n")
-        
+
     def encode_video(self, input_file):
         # Run FFMPEG to transcode the video.
         print(f"Transcoding {input_file} to H.264 format...")
         # Ensure the output filename is different from the input filename.
-        input_file = input_file.replace("_timelapse.mp4", "_timelapse_h264.mp4")
+        input_file = input_file.replace(
+            "_timelapse.mp4", "_timelapse_h264.mp4")
 
         ffmpeg_cmd = [
             'ffmpeg',
             '-i', input_file,
             '-c:v', 'libx264',        # Use the software-based H.264 encoder.
-            '-pix_fmt', 'yuv420p',     # Set pixel format for maximum compatibility.
-            '-crf', '23',            # Constant rate factor (adjust quality as needed).
+            # Set pixel format for maximum compatibility.
+            '-pix_fmt', 'yuv420p',
+            # Constant rate factor (adjust quality as needed).
+            '-crf', '23',
             input_file
         ]
 
@@ -357,7 +363,8 @@ def main():
             # Create a new timelapse controller session.
             controller = TimelapseController(
                 red_led, yellow_led, green_led, capture_button)
-            current_controller = controller  # Set the global current controller.
+            # Set the global current controller.
+            current_controller = controller
 
             # Start continuous streaming (active until timelapse starts).
             stream_thread = threading.Thread(target=continuous_stream_update, args=(
@@ -380,7 +387,7 @@ def main():
                     elif controller.timelapse_stop:
                         print("Timelapse ended by button press.\n")
                         break
-            
+
             controller.timelapse_active = False  # Reset the timelapse state.
 
             # Finalize the timelapse (create video, clean up photos, and reset LEDs).
