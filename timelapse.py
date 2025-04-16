@@ -22,6 +22,9 @@ camera_lock = threading.Lock()
 # Flag to control continuous streaming (active before timelapse starts).
 streaming_active = True
 
+# Global variable to hold the current timelapse controller for keyboard simulation.
+current_controller = None
+
 # GPIO pins
 RED_LED_PIN = 17             # LED
 YELLOW_LED_PIN = 23
@@ -88,7 +91,6 @@ class TimelapseController:
         self.startup_count = 3  # 3 quick presses to start timelapse
         self.end_count = 3      # 3 quick presses to end timelapse
         self.pause_count = 4    # 4 quick presses to pause/resume timelapse
-        
         self.end_no_video_count = 5 # 5 quick presses to end timelapse without video
 
         self.cutoff_time = 0.3  # maximum time gap between presses
@@ -201,8 +203,6 @@ class TimelapseController:
         else:
             print(f"?({count})")
 
-
-
     def finalize_timelapse(self):
         """
         Finalize the timelapse session by creating the timelapse video and resetting LED states.
@@ -248,7 +248,6 @@ class TimelapseController:
                 video_writer = cv2.VideoWriter(
                     video_filename, fourcc, fps, (width, height))
                 
-
                 for fname in self.captured_files:
                     if not os.path.exists(fname):
                         print(f"Warning: {fname} does not exist. Skipping.")
@@ -264,6 +263,7 @@ class TimelapseController:
                 
                 video_writer.release()
                 
+                # Transcode the video to H.264 using FFMPEG.
                 self.encode_video(video_filename)
                 
                 print(f"Timelapse video created as {os.path.basename(video_filename)}\n")
@@ -314,8 +314,22 @@ class TimelapseController:
             print("Error during camera shutdown:", e)
 
 
+def keyboard_monitor():
+    """
+    Monitor keyboard input to simulate the button press.
+    When the user presses enter, simulate a button press event on the current controller.
+    """
+    global current_controller
+    while True:
+        _ = input()  # Wait for the user to press enter.
+        if current_controller is not None:
+            print("Simulated button press via keyboard.")
+            current_controller.button_press_handler()
+            current_controller.red_led_off()
+
+
 def main():
-    global streaming_active
+    global streaming_active, current_controller
     # Reset the streaming flag at the beginning.
     streaming_active = True
 
@@ -330,11 +344,16 @@ def main():
         target=stream_server.run_server, daemon=True)
     server_thread.start()
 
+    # Start the keyboard monitor thread for simulating button presses.
+    keyboard_thread = threading.Thread(target=keyboard_monitor, daemon=True)
+    keyboard_thread.start()
+
     try:
         while True:
             # Create a new timelapse controller session.
             controller = TimelapseController(
                 red_led, yellow_led, green_led, capture_button)
+            current_controller = controller  # Set the global current controller.
 
             # Start continuous streaming (active until timelapse starts).
             stream_thread = threading.Thread(target=continuous_stream_update, args=(
@@ -342,7 +361,9 @@ def main():
             stream_thread.start()
 
             print(
-                f"Press the button {controller.startup_count} times (within {controller.cutoff_time} sec between presses) to start timelapse capture.\n")
+                f"Press the button {controller.startup_count} times (within {controller.cutoff_time} sec between presses) to start timelapse capture.\n"
+                "Or just press ENTER to simulate a button press.\n"
+            )
 
             # Monitor timelapse session.
             while True:
