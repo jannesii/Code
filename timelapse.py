@@ -110,22 +110,22 @@ class TimelapseController:
     
     def send_image(self, image):
         """Send the captured image to the server."""
-        print("Sending image to server...")
+        print("Sending image to server...", flush=True)
         try:
             url = f"{self.server}/3d/image"
             # Convert the binary JPEG data into a base64-encoded string.
             encoded_image = base64.b64encode(image).decode('utf-8')
-            data = {
-                'image': encoded_image,
-            }
-            print(f"Sending image to {url}...")
-            response = requests.post(url, json=data, timeout=5)
+            data = {'image': encoded_image}
+            print(f"Sending image to {url}...", flush=True)
+            response = requests.post(url, json=data, timeout=10)
+            print("Got response from server", flush=True)
             if response.status_code == 200:
-                print("Image sent successfully.")
+                print("Image sent successfully.", flush=True)
             else:
-                print(f"Failed to send image: {response.status_code, response.text}")
+                print(f"Failed to send image: {response.status_code, response.text}", flush=True)
         except Exception as e:
-            print(f"Error sending image: {e}")
+            print(f"Error sending image: {e}", flush=True)
+
 
     def capture_photo(self):
         """Capture a photo, update the streaming image, and save it."""
