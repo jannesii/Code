@@ -108,6 +108,7 @@ class TimelapseController:
     
     def send_image(self, image):
         """Send the captured image to the server."""
+        print("Sending image to server...")
         try:
             url = f"{server}/3d/image"
             # Convert the binary JPEG data into a base64-encoded string.
@@ -116,7 +117,6 @@ class TimelapseController:
                 'image': encoded_image,
             }
             print(f"Sending image to {url}...")
-            print(f"Image size: {len(image)} bytes")
             response = requests.post(url, json=data)
             if response.status_code == 200:
                 print("Image sent successfully.")
