@@ -266,7 +266,9 @@ class TimelapseController:
                 video_writer.release()
                 
                 # Transcode the video to H.264 using FFMPEG.
-                self.encode_video(video_filename)
+                t = threading.Thread(
+                    target=self.encode_video, args=(video_filename,), daemon=True)
+                t.start()
                 
                 print(f"Timelapse video created as {os.path.basename(video_filename)}\n")
             except Exception as e:
