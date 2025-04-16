@@ -379,7 +379,7 @@ def main():
     # Start the Flask streaming server only once.
     server_thread = threading.Thread(
         target=stream_server.run_server, daemon=True)
-    server_thread.start()
+    #server_thread.start()
 
     # Start the keyboard monitor thread for simulating button presses.
     keyboard_thread = threading.Thread(target=keyboard_monitor, daemon=True)
