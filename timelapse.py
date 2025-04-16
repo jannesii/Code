@@ -76,6 +76,10 @@ class TimelapseController:
         self.end_no_video_count = 5  # 5 quick presses to end timelapse without video
 
         self.cutoff_time = 0.3  # maximum time gap between presses
+        
+        self.temp = 0.0
+        self.hum = 0.0
+        self.thread_flag = True
 
         # Attach button event handlers.
         capture_button.when_pressed = self.button_press_handler
@@ -111,9 +115,37 @@ class TimelapseController:
             target=self.send_status, daemon=True)
         self.status_thread.start()
         
+        self.temphum_thread = threading.Thread(
+            target=self.send_temperature_humidity, daemon=True)
+        self.temphum_thread.start()
+        
+    def stop_threads(self):
+        """Stop all threads."""
+        self.thread_flag = False
+        self.streaming_thread.join()
+        self.status_thread.join()
+        self.temphum_thread.join()
+        
+    def send_temperature_humidity(self):
+        """Send the current temperature and humidity to the server."""
+        while self.thread_flag:
+            try:
+                url = f"{self.server}/3d/temphum"
+                data = {'temperature': self.temp, 'humidity': self.hum}
+                #print(f"Sending temperature and humidity to {url}...", flush=True)
+                response = requests.post(url, json=data, timeout=10)
+                if response.status_code == 200:
+                    pass
+                    #print("Temperature and humidity sent successfully.", flush=True)
+                else:
+                    print(f"Failed to send temperature and humidity: {response.status_code, response.text}", flush=True)
+                sleep(10) 
+            except Exception as e:
+                print(f"Error sending temperature and humidity: {e}", flush=True)
+        
     def send_status(self):
         """Send the current status of the timelapse to the server."""
-        while True:
+        while self.thread_flag:
             try:
                 if self.timelapse_paused:
                     status = "paused"
@@ -124,15 +156,16 @@ class TimelapseController:
                 
                 url = f"{self.server}/3d/status"
                 data = {'status': status}
-                print(f"Sending status to {url}...", flush=True)
+                #print(f"Sending status to {url}...", flush=True)
                 response = requests.post(url, json=data, timeout=10)
                 if response.status_code == 200:
-                    print("Status sent successfully.", flush=True)
+                    pass
+                    #print("Status sent successfully.", flush=True)
                 else:
                     print(f"Failed to send status: {response.status_code, response.text}", flush=True)
+                sleep(10)  
             except Exception as e:
                 print(f"Error sending status: {e}", flush=True)
-            sleep(10)  
     
     def send_image(self, image):
         """Send the captured image to the server."""
@@ -141,10 +174,11 @@ class TimelapseController:
             # Convert the binary JPEG data into a base64-encoded string.
             encoded_image = base64.b64encode(image).decode('utf-8')
             data = {'image': encoded_image}
-            print(f"Sending image to {url}...", flush=True)
+            #print(f"Sending image to {url}...", flush=True)
             response = requests.post(url, json=data, timeout=10)
             if response.status_code == 200:
-                print("Image sent successfully.", flush=True)
+                pass
+                #print("Image sent successfully.", flush=True)
             else:
                 print(f"Failed to send image: {response.status_code, response.text}", flush=True)
         except Exception as e:
@@ -174,7 +208,7 @@ class TimelapseController:
         """
         Continuously capture frames at a low framerate and update the shared stream image.
         """
-        while self.streaming_active and not self.timelapse_active:
+        while self.streaming_active and not self.timelapse_active and self.thread_flag:
             
             self.capture_photo()  # Capture a frame
                 
@@ -375,6 +409,10 @@ class TimelapseController:
         except Exception as e:
             print("Error during camera shutdown:", e)
 
+    def __del__(self):
+        """Ensure the camera is shut down when the object is deleted."""
+        self.shutdown_camera()
+        self.stop_threads()
 
 def keyboard_monitor():
     """

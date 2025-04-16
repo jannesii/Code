@@ -73,6 +73,9 @@ def update_temperature_humidity():
 
     temperature = data['temperature']
     humidity = data['humidity']
+    
+    socketio.emit('temphum', data)
+    
     # Process the temperature and humidity data as needed
     print(f"Received temperature: {temperature}, humidity: {humidity}")
 
@@ -87,6 +90,8 @@ def update_timelapse_status():
         abort(400, 'Invalid status data')
 
     socketio.emit('status', data)
+    
+    print(f"Received timelapse status: {data['status']}")
 
     # Send a response back to the client
     return json.dumps({'status': 'success', 'message': 'Timelapse status received successfully'})

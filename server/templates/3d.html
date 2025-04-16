@@ -81,7 +81,7 @@
     <div class="data-grid">
     <div class="tile">Temperature: <strong id="temperature">20°C</strong></div>
     <div class="tile">Humidity: <strong id="humidity">60%</strong></div>
-    <div class="tile">Status: <strong id="status">Normal</strong></div>
+    <div class="tile">Status: <strong id="status"></strong></div>
     </div>
 </div>
 <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.min.js"></script>
@@ -105,6 +105,12 @@
         socket.on('status', function(data) {
             console.log('Received status data:', data);
             document.getElementById('status').innerText = data.status;
+        });
+
+        socket.on('temphum', function(data) {
+            console.log('Received temperature and humidity data:', data);
+            document.getElementById('temperature').innerText = data.temperature + '°C';
+            document.getElementById('humidity').innerText = data.humidity + '%';
         });
         
     }     
