@@ -38,28 +38,6 @@ RED = "\033[31m"
 RESET = "\033[0m"
 
 
-def continuous_stream_update(camera, controller):
-    """
-    Continuously capture frames at a low framerate and update the shared stream image.
-    """
-    global streaming_active
-    while streaming_active and not controller.timelapse_active:
-        with camera_lock:
-            try:
-                frame = camera.capture_array()
-            except Exception as e:
-                print("Error capturing stream frame:", e)
-                sleep(1)
-                continue
-        # Convert the frame to BGR for JPEG encoding.
-        frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-        ret, jpeg = cv2.imencode('.jpg', frame_bgr)
-        if ret:
-            stream_state.latest_frame_jpeg = jpeg.tobytes()
-            socketio.emit('update_frame')
-        sleep(0.1)  # Adjust sleep time for desired FPS
-
-
 class TimelapseController:
     def __init__(self, red_led, yellow_led, green_led, capture_button):
         self.red_led = red_led
@@ -338,6 +316,29 @@ def keyboard_monitor():
             current_controller.red_led_off()
 
 
+def continuous_stream_update(camera, controller):
+    """
+    Continuously capture frames at a low framerate and update the shared stream image.
+    """
+    global streaming_active
+    while streaming_active and not controller.timelapse_active:
+        with camera_lock:
+            try:
+                frame = camera.capture_array()
+            except Exception as e:
+                print("Error capturing stream frame:", e)
+                sleep(1)
+                continue
+        # Convert the frame to BGR for JPEG encoding.
+        frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        ret, jpeg = cv2.imencode('.jpg', frame_bgr)
+        if ret:
+            stream_state.latest_frame_jpeg = jpeg.tobytes()
+            print(jpeg.tobytes())
+            socketio.emit('update_frame')
+        sleep(0.1)  # Adjust sleep time for desired FPS
+
+
 def main():
     global streaming_active, current_controller
     # Reset the streaming flag at the beginning.
@@ -399,7 +400,7 @@ def main():
             # Reset the streaming flag for the next session.
             streaming_active = True
             print(f"{GREEN}Ready for a new timelapse session.{RESET}\n")
-            
+
             return  # Exit the loop after one session for testing purposes.
     except KeyboardInterrupt:
         print("\nExiting program.")
