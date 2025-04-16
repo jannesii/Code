@@ -38,12 +38,14 @@ YELLOW = "\033[33m"
 RED = "\033[31m"
 RESET = "\033[0m"
 
-server = "http://192.168.1.125:5555"  # Replace with your server address
+ 
 class TimelapseController:
     def __init__(self, red_led, yellow_led, green_led, capture_button):
         self.red_led = red_led
         self.yellow_led = yellow_led
         self.green_led = green_led
+        
+        self.server = "http://192.168.1.125:5555"
 
         # Initialize and configure the camera.
         self.picam2 = Picamera2()
@@ -110,7 +112,7 @@ class TimelapseController:
         """Send the captured image to the server."""
         print("Sending image to server...")
         try:
-            url = f"{server}/3d/image"
+            url = f"{self.server}/3d/image"
             # Convert the binary JPEG data into a base64-encoded string.
             encoded_image = base64.b64encode(image).decode('utf-8')
             data = {
@@ -140,7 +142,6 @@ class TimelapseController:
             if ret:
                 print("Capturing image...")
                 self.send_image(jpeg.tobytes())  # Send the image to the server.
-                threading.Thread(target=self.send_image, args=(jpeg.tobytes(),), daemon=True).start()
         except Exception as e:
             print("Error capturing image:", e)
             
