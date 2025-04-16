@@ -97,6 +97,24 @@ class TimelapseController:
         except Exception as e:
             print("Error activating autofocus:", e)
 
+    def send_image(self, image):
+        """Send the captured image to the server."""
+        try:
+            url = f"{server}/3d/image"
+            # Convert the binary JPEG data into a base64-encoded string.
+            encoded_image = base64.b64encode(image).decode('utf-8')
+            data = {
+                'image': encoded_image,
+            }
+            print(f"Sending image to {url}...")
+            response = requests.post(url, json=data)
+            if response.status_code == 200:
+                print("Image sent successfully.")
+            else:
+                print(f"Failed to send image: {response.status_code, response.text}")
+        except Exception as e:
+            print(f"Error sending image: {e}")
+
     def capture_photo(self):
         """Capture a photo, update the streaming image, and save it."""
         try:
@@ -338,18 +356,9 @@ def continuous_stream_update(camera, controller):
             url = f"{server}/3d/image"
             # Convert the binary JPEG data into a base64-encoded string.
             encoded_image = base64.b64encode(jpeg.tobytes()).decode('utf-8')
-            data = {
-                'image': encoded_image,
-            }
             
-            try:
-                response = requests.post(url, json=data)
-                if response.status_code == 200:
-                    print("Image sent successfully.")
-                else:
-                    print(f"Failed to send image: {response.status_code, response.text}")
-            except Exception as e:
-                print(f"Error sending image: {e}")
+            controller.send_image(encoded_image)
+
             
         sleep(5)  # Adjust sleep time for desired FPS
 

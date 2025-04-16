@@ -1,88 +1,108 @@
 <!DOCTYPE html>
 <html lang="fi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sensor Dashboard</title>
-  <style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sensor Dashboard</title>
+<style>
     /* Yleiset tyylit */
     * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
     }
 
     body {
-      background-color: #121212; /* Tumma tausta */
-      color: #fff; /* Vaalea teksti */
-      font-family: Arial, sans-serif;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
+    background-color: #121212; /* Tumma tausta */
+    color: #fff; /* Vaalea teksti */
+    font-family: Arial, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
     }
 
     .container {
-      max-width: 800px;
-      width: 100%;
-      padding: 20px;
+    max-width: 800px;
+    width: 100%;
+    padding: 20px;
     }
 
     /* Perustyyli kaikille ruutuja kuvaaville laatikoille */
     .tile {
-      background-color: #1e1e1e;
-      border: 1px solid #333;
-      padding: 30px;
-      border-radius: 10px;
-      text-align: center;
-      color: #fff;
-      font-size: 1.2em;
-      transition: background-color 0.3s, transform 0.3s;
+    background-color: #1e1e1e;
+    border: 1px solid #333;
+    padding: 30px;
+    border-radius: 10px;
+    text-align: center;
+    color: #fff;
+    font-size: 1.2em;
+    transition: background-color 0.3s, transform 0.3s;
     }
 
     .tile:hover {
-      background-color: #272727;
-      transform: scale(1.05);
+    background-color: #272727;
+    transform: scale(1.05);
     }
 
     /* Kuvan laatikko, joka ulottuu koko riville */
     .image-tile {
-      margin-bottom: 20px;
+    margin-bottom: 20px;
     }
 
     .image-tile img {
-      width: 100%;
-      height: auto;
-      border-radius: 10px;
+    width: 100%;
+    height: auto;
+    border-radius: 10px;
     }
 
     /* Data-ruudukko sensoritiedoille */
     .data-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
     }
 
     /* Responsiivisuus: jos näyttö on kapea, aseta data ruudukko yhdelle sarakkeelle */
     @media (max-width: 600px) {
-      .data-grid {
+    .data-grid {
         grid-template-columns: 1fr;
-      }
     }
-  </style>
+    }
+</style>
 </head>
-<body>
-  <div class="container">
+<body onload="init()">
+<div class="container">
     <!-- Kuvatile, joka kattaa koko rivin leveyden -->
     <div class="tile image-tile">
-      <img src="your-image.jpg" alt="Sensor Image">
+    <img src="data:image/jpeg;base64,{{ last_image['image'] }}" alt="Sensor Image">
     </div>
     <!-- Sensoridatan ruudukko -->
     <div class="data-grid">
-      <div class="tile">Temperature: <strong id="temperature">20°C</strong></div>
-      <div class="tile">Humidity: <strong id="humidity">60%</strong></div>
-      <div class="tile">Status: <strong id="status">Normal</strong></div>
+    <div class="tile">Temperature: <strong id="temperature">20°C</strong></div>
+    <div class="tile">Humidity: <strong id="humidity">60%</strong></div>
+    <div class="tile">Status: <strong id="status">Normal</strong></div>
     </div>
-  </div>
+</div>
+<script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.min.js"></script>
+<script type="text/javascript">
+    function init() {
+        const socket = io.connect('http://192.168.1.125:5555'); // Adjust the URL as needed
+        socket.on('connect_error', function(err) {
+            console.error('Connection error:', err);
+        });
+        socket.on('connect', function() {
+            console.log('Connected to server');
+        });
+
+        socket.on('image', function(data) {
+            console.log('Received image data:', data);
+            const imageTile = document.querySelector('.image-tile img');
+            // Prepend the correct data URL scheme.
+            imageTile.src = 'data:image/jpeg;base64,' + data.image;
+        });
+        
+    }     
+</script>
 </body>
 </html>
