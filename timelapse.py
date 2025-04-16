@@ -119,7 +119,7 @@ class TimelapseController:
                 'image': encoded_image,
             }
             print(f"Sending image to {url}...")
-            response = requests.post(url, json=data)
+            response = requests.post(url, json=data, timeout=5)
             if response.status_code == 200:
                 print("Image sent successfully.")
             else:
