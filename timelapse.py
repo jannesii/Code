@@ -127,6 +127,7 @@ class TimelapseController:
     def capture_photo(self):
         """Capture a photo, update the streaming image, and save it."""
         try:
+            print("Capturing image...")
             with camera_lock:
                 image = self.picam2.capture_array()
             image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
