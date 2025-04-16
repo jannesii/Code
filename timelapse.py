@@ -87,7 +87,7 @@ class TimelapseController:
         self.end_count = 3      # 3 quick presses to end timelapse
         self.pause_count = 4    # 4 quick presses to pause/resume timelapse
         
-        self.end_no_video_count = 5
+        self.end_no_video_count = 5 # 5 quick presses to end timelapse without video
 
         self.cutoff_time = 0.3  # maximum time gap between presses
 
@@ -240,22 +240,26 @@ class TimelapseController:
                 num_images if num_images > 0 else default_fps)
             print(f"Using fps: {fps}")
 
-            video_filename = f"Timelapses/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_timelapse.mp4"
-            fourcc = cv2.VideoWriter_fourcc(*"avc1")
-            video_writer = cv2.VideoWriter(
-                video_filename, fourcc, fps, (width, height))
+            try:
+                video_filename = f"Timelapses/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_timelapse.mp4"
+                fourcc = cv2.VideoWriter_fourcc(*"avc1")
+                video_writer = cv2.VideoWriter(
+                    video_filename, fourcc, fps, (width, height))
 
-            for fname in self.captured_files:
-                if not os.path.exists(fname):
-                    print(f"Warning: {fname} does not exist. Skipping.")
-                    continue
-                frame = cv2.imread(fname)
-                if frame is None:
-                    print(f"Warning: Could not read {fname}. Skipping.")
-                    continue
-                video_writer.write(frame)
-            video_writer.release()
-            print(f"Timelapse video created as {os.path.basename(video_filename)}\n")
+                for fname in self.captured_files:
+                    if not os.path.exists(fname):
+                        print(f"Warning: {fname} does not exist. Skipping.")
+                        continue
+                    frame = cv2.imread(fname)
+                    if frame is None:
+                        print(f"Warning: Could not read {fname}. Skipping.")
+                        continue
+                    video_writer.write(frame)
+                video_writer.release()
+                print(f"Timelapse video created as {os.path.basename(video_filename)}\n")
+            except Exception as e:
+                print(f"Error creating timelapse video: {e}")
+                pass
         else:
             print(f"{RED}No timelapse video created.{RESET}\n")
 
