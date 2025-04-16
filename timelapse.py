@@ -399,6 +399,8 @@ def main():
             # Reset the streaming flag for the next session.
             streaming_active = True
             print(f"{GREEN}Ready for a new timelapse session.{RESET}\n")
+            
+            return  # Exit the loop after one session for testing purposes.
     except KeyboardInterrupt:
         print("\nExiting program.")
 
