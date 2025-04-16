@@ -9,6 +9,7 @@ from datetime import datetime
 import threading
 import requests
 import base64
+import json
 
 from gpiozero import LED, Button
 from picamera2 import Picamera2
@@ -50,6 +51,8 @@ class TimelapseController:
             self.server = "http://195.148.20.90:5555"
         else:
             self.server = "http://192.168.1.125:5555"
+            
+        self.get_api_key()
 
         # Initialize and configure the camera.
         self.picam2 = Picamera2()
@@ -92,6 +95,10 @@ class TimelapseController:
         self.enable_autofocus()
 
         self.start_threads()
+        
+    def get_api_key(self):
+        with open("config.json") as f:
+            self.API_KEY = json.load(f)
 
     def red_led_off(self):
         self.red_led.off()
@@ -132,25 +139,24 @@ class TimelapseController:
 
     def send_temperature_humidity(self):
         """Send the current temperature and humidity to the server."""
+        headers = {'X-API-KEY': self.API_KEY}
         while self.thread_flag:
             try:
                 url = f"{self.server}/3d/temphum"
                 data = {'temperature': self.temp, 'humidity': self.hum}
-                # print(f"Sending temperature and humidity to {url}...", flush=True)
-                response = requests.post(url, json=data, timeout=10)
-                if response.status_code == 200:
-                    pass
-                    # print("Temperature and humidity sent successfully.", flush=True)
-                else:
+                response = requests.post(url, json=data, headers=headers, timeout=10)
+                if response.status_code != 200:
                     print(
-                        f"Failed to send temperature and humidity: {response.status_code, response.text}", flush=True)
+                        f"Failed to send temperature and humidity: {response.status_code}, {response.text}", 
+                        flush=True
+                    )
                 sleep(10)
             except Exception as e:
-                print(
-                    f"Error sending temperature and humidity: {e}", flush=True)
+                print(f"Error sending temperature and humidity: {e}", flush=True)
 
     def send_status(self):
         """Send the current status of the timelapse to the server."""
+        headers = {'X-API-KEY': self.API_KEY}
         while self.thread_flag:
             try:
                 if self.timelapse_paused:
@@ -162,35 +168,33 @@ class TimelapseController:
 
                 url = f"{self.server}/3d/status"
                 data = {'status': status}
-                # print(f"Sending status to {url}...", flush=True)
-                response = requests.post(url, json=data, timeout=10)
-                if response.status_code == 200:
-                    pass
-                    # print("Status sent successfully.", flush=True)
-                else:
+                response = requests.post(url, json=data, headers=headers, timeout=10)
+                if response.status_code != 200:
                     print(
-                        f"Failed to send status: {response.status_code, response.text}", flush=True)
+                        f"Failed to send status: {response.status_code}, {response.text}", 
+                        flush=True
+                    )
                 sleep(10)
             except Exception as e:
                 print(f"Error sending status: {e}", flush=True)
 
     def send_image(self, image):
         """Send the captured image to the server."""
+        headers = {'X-API-KEY': self.API_KEY}
         try:
             url = f"{self.server}/3d/image"
             # Convert the binary JPEG data into a base64-encoded string.
             encoded_image = base64.b64encode(image).decode('utf-8')
             data = {'image': encoded_image}
-            # print(f"Sending image to {url}...", flush=True)
-            response = requests.post(url, json=data, timeout=10)
-            if response.status_code == 200:
-                pass
-                # print("Image sent successfully.", flush=True)
-            else:
+            response = requests.post(url, json=data, headers=headers, timeout=10)
+            if response.status_code != 200:
                 print(
-                    f"Failed to send image: {response.status_code, response.text}", flush=True)
+                    f"Failed to send image: {response.status_code}, {response.text}", 
+                    flush=True
+                )
         except Exception as e:
             print(f"Error sending image: {e}", flush=True)
+
 
     def capture_photo(self):
         """Capture a photo, update the streaming image, and save it."""
