@@ -329,8 +329,12 @@ class TimelapseController:
         try:
             subprocess.run(ffmpeg_cmd, check=True)
             print(f"H.264 timelapse video created as {output_file}")
+            # Remove the original video file after transcoding.
+            os.remove(input_file)
         except subprocess.CalledProcessError as e:
             print("FFMPEG transcoding failed:", e)
+        except Exception as e:
+            print(f"Error during video encoding: {e}")
 
     def shutdown_camera(self):
         """
