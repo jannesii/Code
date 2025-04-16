@@ -15,9 +15,12 @@ def get_home_page():
 
 @server.route('/3d')
 def get_3d_page():
-    with open('last_image.json', 'r') as f:
-        last_image = json.load(f)
-    return render_template('3d.html', last_image=last_image)
+    try:
+        with open('last_image.json', 'r') as f:
+            last_image = json.load(f)
+        return render_template('3d.html', last_image=last_image)
+    except FileNotFoundError:
+        return render_template('3d.html', last_image=None)
 
 
 @server.route('/3d/image', methods=['POST'])
