@@ -140,6 +140,7 @@ class TimelapseController:
             if ret:
                 print("Capturing image...")
                 self.send_image(jpeg.tobytes())  # Send the image to the server.
+                threading.Thread(target=self.send_image, args=(jpeg.tobytes(),), daemon=True).start()
         except Exception as e:
             print("Error capturing image:", e)
             
