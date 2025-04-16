@@ -7,6 +7,7 @@ import subprocess
 from time import sleep, time
 from datetime import datetime
 import threading
+import requests
 
 from gpiozero import LED, Button
 from picamera2 import Picamera2
@@ -37,7 +38,7 @@ YELLOW = "\033[33m"
 RED = "\033[31m"
 RESET = "\033[0m"
 
-
+server = "http://127.0.0.1:5555"
 class TimelapseController:
     def __init__(self, red_led, yellow_led, green_led, capture_button):
         self.red_led = red_led
@@ -333,14 +334,21 @@ def continuous_stream_update(camera, controller):
         frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
         ret, jpeg = cv2.imencode('.jpg', frame_bgr)
         if ret:
-            stream_state.latest_frame_jpeg = jpeg.tobytes()
-            socketio.emit('update_frame')
+            url = f"{server}/3d/image"
+            data = {
+                'image': jpeg.tobytes(),
+            }
             
-            with open("frame.json", "wb") as f:
-                f.write(jpeg.tobytes())  # Save the frame for debugging
-            print("Frame saved for debugging.")
-            return  # Exit after saving the frame for debugging
-        sleep(0.1)  # Adjust sleep time for desired FPS
+            try:
+                response = requests.post(url, json=data)
+                if response.status_code == 200:
+                    print("Image sent successfully.")
+                else:
+                    print(f"Failed to send image: {response.status_code, response.text}")
+            except Exception as e:
+                print(f"Error sending image: {e}")
+            
+        sleep(5)  # Adjust sleep time for desired FPS
 
 
 def main():

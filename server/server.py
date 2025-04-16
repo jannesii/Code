@@ -15,7 +15,7 @@ def get_home_page():
 def get_3d_page():
     return render_template('3d.html')
 
-@server.route('3d/image', methods=['POST'])
+@server.route('/3d/image', methods=['POST'])
 def update_image():
     data = request.get_json()
     if not data or 'image' not in data:
@@ -23,7 +23,7 @@ def update_image():
     
     image_data = data['image']
     # Process the image data as needed
-    print(f"Received image data: {image_data}")
+    print(f"Received image data.")
     
     # Send a response back to the client
     return json.dumps({'status': 'success', 'message': 'Image received successfully'})

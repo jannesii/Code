@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kodinhallintasivu</title>
+  <title>Sensor Dashboard</title>
   <style>
     /* Yleiset tyylit */
     * {
@@ -22,32 +22,22 @@
       min-height: 100vh;
     }
 
-    /* Ruudukon kontti */
     .container {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      grid-template-rows: repeat(3, auto);
-      gap: 20px;
       max-width: 800px;
+      width: 100%;
       padding: 20px;
     }
 
-    /* Neliöiden tyylit */
+    /* Perustyyli kaikille ruutuja kuvaaville laatikoille */
     .tile {
       background-color: #1e1e1e;
       border: 1px solid #333;
       padding: 30px;
       border-radius: 10px;
       text-align: center;
-      text-decoration: none;
       color: #fff;
       font-size: 1.2em;
       transition: background-color 0.3s, transform 0.3s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 250px;
-      height: 250px;
     }
 
     .tile:hover {
@@ -55,23 +45,44 @@
       transform: scale(1.05);
     }
 
-    /* Responsiivisuus: yhdellä sarakkeella pienemmillä näytöillä */
+    /* Kuvan laatikko, joka ulottuu koko riville */
+    .image-tile {
+      margin-bottom: 20px;
+    }
+
+    .image-tile img {
+      width: 100%;
+      height: auto;
+      border-radius: 10px;
+    }
+
+    /* Data-ruudukko sensoritiedoille */
+    .data-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    /* Responsiivisuus: jos näyttö on kapea, aseta data ruudukko yhdelle sarakkeelle */
     @media (max-width: 600px) {
-      .container {
+      .data-grid {
         grid-template-columns: 1fr;
-        grid-template-rows: repeat(6, auto);
       }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <a class="tile" href="/3d">3d</a>
-    <a class="tile" href="#">Neliö 2</a>
-    <a class="tile" href="#">Neliö 3</a>
-    <a class="tile" href="#">Neliö 4</a>
-    <a class="tile" href="#">Neliö 5</a>
-    <a class="tile" href="#">Neliö 6</a>
+    <!-- Kuvatile, joka kattaa koko rivin leveyden -->
+    <div class="tile image-tile">
+      <img src="your-image.jpg" alt="Sensor Image">
+    </div>
+    <!-- Sensoridatan ruudukko -->
+    <div class="data-grid">
+      <div class="tile">Temperature: <strong id="temperature">20°C</strong></div>
+      <div class="tile">Humidity: <strong id="humidity">60%</strong></div>
+      <div class="tile">Status: <strong id="status">Normal</strong></div>
+    </div>
   </div>
 </body>
 </html>
