@@ -3,3 +3,6 @@ gpiozero
 picamera2
 Flask
 Flask-SocketIO
+wheel
+rpi-libcamera 
+rpi-kms 
