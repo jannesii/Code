@@ -190,12 +190,14 @@ class TimelapseController:
             print(f"{YELLOW}pause{RESET}")
         elif count == self.end_count:
             print(f"{RED}end{RESET}\n")
+            self.timelapse_active = False
             self.timelapse_stop = True
             self.create_timelapse = True
             self.red_led.off()
             self.green_led.off()
         elif count == self.end_no_video_count:
             print(f"{RED}end NO VIDEO{RESET}\n")
+            self.timelapse_active = False
             self.timelapse_stop = True
             self.create_timelapse = False
             self.red_led.off()
@@ -286,6 +288,8 @@ class TimelapseController:
         
     def encode_video(self, input_file):
         # Run FFMPEG to transcode the video.
+        input_file = input_file.replace("_timelapse.mp4", "_timelapse_h264.mp4")
+
         ffmpeg_cmd = [
             'ffmpeg',
             '-i', input_file,
