@@ -8,6 +8,7 @@ from time import sleep, time
 from datetime import datetime
 import threading
 import requests
+import base64
 
 from gpiozero import LED, Button
 from picamera2 import Picamera2
@@ -335,8 +336,10 @@ def continuous_stream_update(camera, controller):
         ret, jpeg = cv2.imencode('.jpg', frame_bgr)
         if ret:
             url = f"{server}/3d/image"
+            # Convert the binary JPEG data into a base64-encoded string.
+            encoded_image = base64.b64encode(jpeg.tobytes()).decode('utf-8')
             data = {
-                'image': jpeg.tobytes(),
+                'image': encoded_image,
             }
             
             try:
