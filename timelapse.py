@@ -127,17 +127,18 @@ class TimelapseController:
     def capture_photo(self):
         """Capture a photo, update the streaming image, and save it."""
         try:
-            print("Capturing image...")
             with camera_lock:
                 image = self.picam2.capture_array()
             image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-            filename = f"Photos/capture_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.jpg"
-            cv2.imwrite(filename, image_bgr)
-            print(f"Image captured at {datetime.now().strftime('%H-%M-%S')}.")
-            self.captured_files.append(filename)
+            
+            if not self.streaming_active:
+                filename = f"Photos/capture_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.jpg"
+                cv2.imwrite(filename, image_bgr)
+                print(f"Image captured at {datetime.now().strftime('%H-%M-%S')}.")
+                self.captured_files.append(filename)
+                
             ret, jpeg = cv2.imencode('.jpg', image_bgr)
             if ret:
-                print("Capturing image...")
                 self.send_image(jpeg.tobytes())  # Send the image to the server.
         except Exception as e:
             print("Error capturing image:", e)
