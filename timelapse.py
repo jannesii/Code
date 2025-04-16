@@ -291,7 +291,7 @@ class TimelapseController:
         # Run FFMPEG to transcode the video.
         print(f"Transcoding {input_file} to H.264 format...")
         # Ensure the output filename is different from the input filename.
-        input_file = input_file.replace(
+        output_file = input_file.replace(
             "_timelapse.mp4", "_timelapse_h264.mp4")
 
         ffmpeg_cmd = [
@@ -302,12 +302,12 @@ class TimelapseController:
             '-pix_fmt', 'yuv420p',
             # Constant rate factor (adjust quality as needed).
             '-crf', '23',
-            input_file
+            output_file
         ]
 
         try:
             subprocess.run(ffmpeg_cmd, check=True)
-            print(f"H.264 timelapse video created as {input_file}")
+            print(f"H.264 timelapse video created as {output_file}")
         except subprocess.CalledProcessError as e:
             print("FFMPEG transcoding failed:", e)
 
