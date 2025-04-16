@@ -334,8 +334,11 @@ def continuous_stream_update(camera, controller):
         ret, jpeg = cv2.imencode('.jpg', frame_bgr)
         if ret:
             stream_state.latest_frame_jpeg = jpeg.tobytes()
-            print(jpeg.tobytes())
             socketio.emit('update_frame')
+            
+            with open("frame.jpg", "wb") as f:
+                f.write(jpeg.tobytes())  # Save the frame for debugging
+            sys.exit(0)  # Exit after saving the frame for debugging
         sleep(0.1)  # Adjust sleep time for desired FPS
 
 
