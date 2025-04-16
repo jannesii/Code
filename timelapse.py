@@ -45,7 +45,7 @@ class TimelapseController:
         self.yellow_led = yellow_led
         self.green_led = green_led
         
-        self.server = "http://192.168.1.125:5555"
+        self.server = "http://httpbin.org"
 
         # Initialize and configure the camera.
         self.picam2 = Picamera2()
@@ -375,11 +375,6 @@ def main():
     yellow_led = LED(YELLOW_LED_PIN)
     green_led = LED(GREEN_LED_PIN)
     capture_button = Button(CAPTURE_BUTTON_PIN, pull_up=True, bounce_time=0.01)
-
-    # Start the Flask streaming server only once.
-    server_thread = threading.Thread(
-        target=stream_server.run_server, daemon=True)
-    #server_thread.start()
 
     # Start the keyboard monitor thread for simulating button presses.
     keyboard_thread = threading.Thread(target=keyboard_monitor, daemon=True)
