@@ -3,6 +3,7 @@ import os
 import cv2
 import sys
 import time
+import subprocess
 from time import sleep, time
 from datetime import datetime
 import threading
@@ -262,6 +263,9 @@ class TimelapseController:
                     raise Exception("Failed to open the video writer. Please check the codec and device configuration.")
                 
                 video_writer.release()
+                
+                self.encode_video(video_filename)
+                
                 print(f"Timelapse video created as {os.path.basename(video_filename)}\n")
             except Exception as e:
                 print(f"Error creating timelapse video: {e}")
@@ -279,6 +283,23 @@ class TimelapseController:
             else:
                 print(f"{fname} already deleted or not found.")
         print("Photos deleted.\n")
+        
+    def encode_video(self, input_file):
+        # Run FFMPEG to transcode the video.
+        ffmpeg_cmd = [
+            'ffmpeg',
+            '-i', input_file,
+            '-c:v', 'libx264',        # Use the software-based H.264 encoder.
+            '-pix_fmt', 'yuv420p',     # Set pixel format for maximum compatibility.
+            '-crf', '23',            # Constant rate factor (adjust quality as needed).
+            input_file
+        ]
+
+        try:
+            subprocess.run(ffmpeg_cmd, check=True)
+            print(f"H.264 timelapse video created as {input_file}")
+        except subprocess.CalledProcessError as e:
+            print("FFMPEG transcoding failed:", e)
 
     def shutdown_camera(self):
         """
