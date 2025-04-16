@@ -101,6 +101,11 @@
             // Prepend the correct data URL scheme.
             imageTile.src = 'data:image/jpeg;base64,' + data.image;
         });
+
+        socket.on('status', function(data) {
+            console.log('Received status data:', data);
+            document.getElementById('status').innerText = data.status;
+        });
         
     }     
 </script>

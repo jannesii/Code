@@ -106,6 +106,33 @@ class TimelapseController:
         self.streaming_thread = threading.Thread(
             target=self.continuous_stream_update, daemon=True)
         self.streaming_thread.start()
+        
+        self.status_thread = threading.Thread(
+            target=self.send_status, daemon=True)
+        self.status_thread.start()
+        
+    def send_status(self):
+        """Send the current status of the timelapse to the server."""
+        while True:
+            try:
+                if self.timelapse_paused:
+                    status = "paused"
+                elif self.timelapse_active:
+                    status = "active"
+                else:
+                    status = "inactive"
+                
+                url = f"{self.server}/3d/status"
+                data = {'status': status}
+                print(f"Sending status to {url}...", flush=True)
+                response = requests.post(url, json=data, timeout=10)
+                if response.status_code == 200:
+                    print("Status sent successfully.", flush=True)
+                else:
+                    print(f"Failed to send status: {response.status_code, response.text}", flush=True)
+            except Exception as e:
+                print(f"Error sending status: {e}", flush=True)
+            sleep(10)  
     
     def send_image(self, image):
         """Send the captured image to the server."""
@@ -380,14 +407,14 @@ def main():
     keyboard_thread = threading.Thread(target=keyboard_monitor, daemon=True)
     keyboard_thread.start()
 
+    # Create a new timelapse controller session.
+    controller = TimelapseController(
+        red_led, yellow_led, green_led, capture_button)
+    # Set the global current controller.
+    current_controller = controller
+    
     try:
         while True:
-            # Create a new timelapse controller session.
-            controller = TimelapseController(
-                red_led, yellow_led, green_led, capture_button)
-            # Set the global current controller.
-            current_controller = controller
-
             print(
                 f"Press the button {controller.startup_count} times (within {controller.cutoff_time} sec between presses) to start timelapse capture.\n"
                 "Or just press ENTER to simulate a button press.\n"

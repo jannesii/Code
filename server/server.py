@@ -86,9 +86,7 @@ def update_timelapse_status():
     if not data or 'status' not in data:
         abort(400, 'Invalid status data')
 
-    status = data['status']
-    # Process the status data as needed
-    print(f"Received timelapse status: {status}")
+    socketio.emit('status', data)
 
     # Send a response back to the client
     return json.dumps({'status': 'success', 'message': 'Timelapse status received successfully'})
