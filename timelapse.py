@@ -137,6 +137,7 @@ class TimelapseController:
             self.captured_files.append(filename)
             ret, jpeg = cv2.imencode('.jpg', image_bgr)
             if ret:
+                print("Capturing image...")
                 self.send_image(jpeg.tobytes())  # Send the image to the server.
         except Exception as e:
             print("Error capturing image:", e)
@@ -145,7 +146,7 @@ class TimelapseController:
         """
         Continuously capture frames at a low framerate and update the shared stream image.
         """
-        
+        sleep(5)  # Allow time for the camera to warm up
         while self.streaming_active and not self.timelapse_active:
             with camera_lock:
                 print("Capturing frame for streaming...")
