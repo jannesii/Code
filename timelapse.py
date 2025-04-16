@@ -45,7 +45,7 @@ class TimelapseController:
         self.yellow_led = yellow_led
         self.green_led = green_led
         
-        self.server = "http://httpbin.org"
+        self.server = "192.168.1.125:5555"
 
         # Initialize and configure the camera.
         self.picam2 = Picamera2()
@@ -105,12 +105,10 @@ class TimelapseController:
         """Start threads for continuous streaming and timelapse control."""
         self.streaming_thread = threading.Thread(
             target=self.continuous_stream_update, daemon=True)
-        print("Starting continuous streaming thread...")
         self.streaming_thread.start()
     
     def send_image(self, image):
         """Send the captured image to the server."""
-        print("Sending image to server...", flush=True)
         try:
             url = f"{self.server}/3d/image"
             # Convert the binary JPEG data into a base64-encoded string.
@@ -118,7 +116,6 @@ class TimelapseController:
             data = {'image': encoded_image}
             print(f"Sending image to {url}...", flush=True)
             response = requests.post(url, json=data, timeout=10)
-            print("Got response from server", flush=True)
             if response.status_code == 200:
                 print("Image sent successfully.", flush=True)
             else:
@@ -151,7 +148,6 @@ class TimelapseController:
         """
         while self.streaming_active and not self.timelapse_active:
             
-            print("Capturing frame for streaming...")
             self.capture_photo()  # Capture a frame
                 
             sleep(5)  # Adjust sleep time for desired FPS
