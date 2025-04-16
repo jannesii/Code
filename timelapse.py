@@ -149,11 +149,10 @@ class TimelapseController:
         """
         Continuously capture frames at a low framerate and update the shared stream image.
         """
-        sleep(5)  # Allow time for the camera to warm up
         while self.streaming_active and not self.timelapse_active:
-            with camera_lock:
-                print("Capturing frame for streaming...")
-                self.capture_photo()  # Capture a frame
+            
+            print("Capturing frame for streaming...")
+            self.capture_photo()  # Capture a frame
                 
             sleep(5)  # Adjust sleep time for desired FPS
         print("Continuous streaming stopped.")
