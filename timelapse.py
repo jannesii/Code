@@ -243,7 +243,7 @@ class TimelapseController:
 
             try:
                 video_filename = f"Timelapses/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_timelapse.mp4"
-                fourcc = cv2.VideoWriter_fourcc("avc1")
+                fourcc = cv2.VideoWriter_fourcc(*"avc1")
                 video_writer = cv2.VideoWriter(
                     video_filename, fourcc, fps, (width, height))
                 
@@ -257,8 +257,10 @@ class TimelapseController:
                         print(f"Warning: Could not read {fname}. Skipping.")
                         continue
                     video_writer.write(frame)
+                    
                 if not video_writer.isOpened():
                     raise Exception("Failed to open the video writer. Please check the codec and device configuration.")
+                
                 video_writer.release()
                 print(f"Timelapse video created as {os.path.basename(video_filename)}\n")
             except Exception as e:
