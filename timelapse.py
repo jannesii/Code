@@ -357,7 +357,7 @@ def continuous_stream_update(camera, controller):
             # Convert the binary JPEG data into a base64-encoded string.
             encoded_image = base64.b64encode(jpeg.tobytes()).decode('utf-8')
             
-            controller.send_image(encoded_image)
+            controller.send_image(jpeg.tobytes())  # Send the image to the server.
 
             
         sleep(5)  # Adjust sleep time for desired FPS
