@@ -338,7 +338,8 @@ def continuous_stream_update(camera, controller):
             
             with open("frame.jpg", "wb") as f:
                 f.write(jpeg.tobytes())  # Save the frame for debugging
-            sys.exit(0)  # Exit after saving the frame for debugging
+            print("Frame saved for debugging.")
+            return  # Exit after saving the frame for debugging
         sleep(0.1)  # Adjust sleep time for desired FPS
 
 
