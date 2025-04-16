@@ -98,8 +98,11 @@ class TimelapseController:
         
     def get_api_key(self):
         with open("config.json") as f:
-            self.API_KEY = json.load(f)
-
+            config = json.load(f)
+            self.API_KEY = config["api_key"]
+            if not self.API_KEY:
+                print("API key not found in config.json")
+                sys.exit(1)
     def red_led_off(self):
         self.red_led.off()
 
@@ -153,6 +156,7 @@ class TimelapseController:
                 sleep(10)
             except Exception as e:
                 print(f"Error sending temperature and humidity: {e}", flush=True)
+                sleep(5)  # Retry after a short delay
 
     def send_status(self):
         """Send the current status of the timelapse to the server."""
@@ -177,6 +181,7 @@ class TimelapseController:
                 sleep(10)
             except Exception as e:
                 print(f"Error sending status: {e}", flush=True)
+                sleep(5)  # Retry after a short delay
 
     def send_image(self, image):
         """Send the captured image to the server."""
