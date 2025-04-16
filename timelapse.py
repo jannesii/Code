@@ -103,6 +103,7 @@ class TimelapseController:
         """Start threads for continuous streaming and timelapse control."""
         self.streaming_thread = threading.Thread(
             target=self.continuous_stream_update, daemon=True)
+        print("Starting continuous streaming thread...")
         self.streaming_thread.start()
     
     def send_image(self, image):
@@ -146,6 +147,7 @@ class TimelapseController:
         
         while self.streaming_active and not self.timelapse_active:
             with camera_lock:
+                print("Capturing frame for streaming...")
                 self.capture_photo()  # Capture a frame
                 
             sleep(5)  # Adjust sleep time for desired FPS
