@@ -77,8 +77,8 @@ class TimelapseController:
 
         self.cutoff_time = 0.3  # maximum time gap between presses
         
-        self.temp = 0.0
-        self.hum = 0.0
+        self.temp = "N/A"
+        self.hum = "N/A"
         self.thread_flag = True
 
         # Attach button event handlers.
