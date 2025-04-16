@@ -1,3 +1,4 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="fi">
 <head>
@@ -17,9 +18,31 @@
       color: #fff; /* Vaalea teksti */
       font-family: Arial, sans-serif;
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: center;
       min-height: 100vh;
+    }
+
+    /* Navigaatiopalkki */
+    nav.navbar {
+      width: 100%;
+      background-color: #1e1e1e;
+      border-bottom: 1px solid #333;
+      padding: 10px 20px;
+    }
+    nav.navbar ul {
+      list-style: none;
+      display: flex;
+      gap: 20px;
+    }
+    nav.navbar a {
+      color: #fff;
+      text-decoration: none;
+      font-weight: bold;
+      transition: color 0.3s;
+    }
+    nav.navbar a:hover {
+      color: #bbb;
     }
 
     /* Ruudukon kontti */
@@ -65,6 +88,16 @@
   </style>
 </head>
 <body>
+  <!-- Navigaatiopalkki -->
+  <nav class="navbar">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/3d">3D Dashboard</a></li>
+      <!-- Lisää linkkejä tarvittaessa -->
+    </ul>
+  </nav>
+
+  <!-- Pääsisältö -->
   <div class="container">
     <a class="tile" href="/3d">3d</a>
     <a class="tile" href="#">Neliö 2</a>

@@ -1,3 +1,4 @@
+<!-- 3d.html -->
 <!DOCTYPE html>
 <html lang="fi">
 <head>
@@ -17,9 +18,31 @@
     color: #fff; /* Vaalea teksti */
     font-family: Arial, sans-serif;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
     min-height: 100vh;
+    }
+
+    /* Navigaatiopalkki */
+    nav.navbar {
+      width: 100%;
+      background-color: #1e1e1e;
+      border-bottom: 1px solid #333;
+      padding: 10px 20px;
+    }
+    nav.navbar ul {
+      list-style: none;
+      display: flex;
+      gap: 20px;
+    }
+    nav.navbar a {
+      color: #fff;
+      text-decoration: none;
+      font-weight: bold;
+      transition: color 0.3s;
+    }
+    nav.navbar a:hover {
+      color: #bbb;
     }
 
     .container {
@@ -72,48 +95,43 @@
 </style>
 </head>
 <body onload="init()">
-<div class="container">
-    <!-- Kuvatile, joka kattaa koko rivin leveyden -->
-    <div class="tile image-tile">
-    <img src="data:image/jpeg;base64,{{ last_image['image'] }}" alt="Sensor Image">
-    </div>
-    <!-- Sensoridatan ruudukko -->
-    <div class="data-grid">
-    <div class="tile">Temperature: <strong id="temperature">Waiting...</strong></div>
-    <div class="tile">Humidity: <strong id="humidity">Waiting...</strong></div>
-    <div class="tile">Status: <strong id="status">Waiting...</strong></div>
-    </div>
-</div>
-<script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.min.js"></script>
-<script type="text/javascript">
-    function init() {
-        const socket = io.connect('http://195.148.20.90:5555'); // http://192.168.1.125:5555
-        socket.on('connect_error', function(err) {
-            console.error('Connection error:', err);
-        });
-        socket.on('connect', function() {
-            console.log('Connected to server');
-        });
+  <!-- Navigaatiopalkki -->
+  <nav class="navbar">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/3d">3D Dashboard</a></li>
+      <!-- Lisää linkkejä tarvittaessa -->
+    </ul>
+  </nav>
 
-        socket.on('image', function(data) {
-            console.log('Received image data:', data);
-            const imageTile = document.querySelector('.image-tile img');
-            // Prepend the correct data URL scheme.
-            imageTile.src = 'data:image/jpeg;base64,' + data.image;
-        });
-
-        socket.on('status', function(data) {
-            console.log('Received status data:', data);
-            document.getElementById('status').innerText = data.status;
-        });
-
-        socket.on('temphum', function(data) {
-            console.log('Received temperature and humidity data:', data);
-            document.getElementById('temperature').innerText = data.temperature + '°C';
-            document.getElementById('humidity').innerText = data.humidity + '%';
-        });
-        
-    }     
-</script>
+  <div class="container">
+      <!-- Kuvatile, joka kattaa koko rivin leveyden -->
+      <div class="tile image-tile">
+      <img src="data:image/jpeg;base64,{{ last_image['image'] }}" alt="Sensor Image">
+      </div>
+      <!-- Sensoridatan ruudukko -->
+      <div class="data-grid">
+      <div class="tile">Temperature: <strong id="temperature">Waiting...</strong></div>
+      <div class="tile">Humidity: <strong id="humidity">Waiting...</strong></div>
+      <div class="tile">Status: <strong id="status">Waiting...</strong></div>
+      </div>
+  </div>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.min.js"></script>
+  <script type="text/javascript">
+      function init() {
+          const socket = io.connect('http://195.148.20.90:5555'); // adjust as needed
+          socket.on('connect_error', err => console.error('Connection error:', err));
+          socket.on('connect', () => console.log('Connected to server'));
+          socket.on('image', data => {
+              console.log('Received image data:', data);
+              document.querySelector('.image-tile img').src = 'data:image/jpeg;base64,' + data.image;
+          });
+          socket.on('status', data => document.getElementById('status').innerText = data.status);
+          socket.on('temphum', data => {
+              document.getElementById('temperature').innerText = data.temperature + '°C';
+              document.getElementById('humidity').innerText = data.humidity + '%';
+          });
+      }
+  </script>
 </body>
 </html>
