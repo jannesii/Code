@@ -45,7 +45,7 @@ class TimelapseController:
         self.yellow_led = yellow_led
         self.green_led = green_led
         
-        self.server = "192.168.1.125:5555"
+        self.server = "http://192.168.1.125:5555"
 
         # Initialize and configure the camera.
         self.picam2 = Picamera2()
