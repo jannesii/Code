@@ -190,14 +190,12 @@ class TimelapseController:
             print(f"{YELLOW}pause{RESET}")
         elif count == self.end_count:
             print(f"{RED}end{RESET}\n")
-            self.timelapse_active = False
             self.timelapse_stop = True
             self.create_timelapse = True
             self.red_led.off()
             self.green_led.off()
         elif count == self.end_no_video_count:
             print(f"{RED}end NO VIDEO{RESET}\n")
-            self.timelapse_active = False
             self.timelapse_stop = True
             self.create_timelapse = False
             self.red_led.off()
@@ -382,6 +380,8 @@ def main():
                     elif controller.timelapse_stop:
                         print("Timelapse ended by button press.\n")
                         break
+            
+            controller.timelapse_active = False  # Reset the timelapse state.
 
             # Finalize the timelapse (create video, clean up photos, and reset LEDs).
             controller.finalize_timelapse()
