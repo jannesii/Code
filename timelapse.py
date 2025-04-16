@@ -242,7 +242,7 @@ class TimelapseController:
 
             try:
                 video_filename = f"Timelapses/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_timelapse.mp4"
-                fourcc = cv2.VideoWriter_fourcc(*"avc1")
+                fourcc = cv2.VideoWriter_fourcc("avc1")
                 video_writer = cv2.VideoWriter(
                     video_filename, fourcc, fps, (width, height))
 
