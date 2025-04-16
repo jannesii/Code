@@ -39,7 +39,7 @@ YELLOW = "\033[33m"
 RED = "\033[31m"
 RESET = "\033[0m"
 
-server = "http://127.0.0.1:5555"
+server = "http://192.168.1.125:5555"  # Replace with your server address
 class TimelapseController:
     def __init__(self, red_led, yellow_led, green_led, capture_button):
         self.red_led = red_led
