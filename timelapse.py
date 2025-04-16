@@ -38,13 +38,13 @@ YELLOW = "\033[33m"
 RED = "\033[31m"
 RESET = "\033[0m"
 
- 
+
 class TimelapseController:
     def __init__(self, red_led, yellow_led, green_led, capture_button):
         self.red_led = red_led
         self.yellow_led = yellow_led
         self.green_led = green_led
-        
+
         self.server = "http://192.168.1.125:5555"
 
         # Initialize and configure the camera.
@@ -76,7 +76,7 @@ class TimelapseController:
         self.end_no_video_count = 5  # 5 quick presses to end timelapse without video
 
         self.cutoff_time = 0.3  # maximum time gap between presses
-        
+
         self.temp = "N/A"
         self.hum = "N/A"
         self.thread_flag = True
@@ -86,7 +86,7 @@ class TimelapseController:
         capture_button.when_released = self.red_led_off
 
         self.enable_autofocus()
-        
+
         self.start_threads()
 
     def red_led_off(self):
@@ -110,39 +110,41 @@ class TimelapseController:
         self.streaming_thread = threading.Thread(
             target=self.continuous_stream_update, daemon=True)
         self.streaming_thread.start()
-        
+
         self.status_thread = threading.Thread(
             target=self.send_status, daemon=True)
         self.status_thread.start()
-        
+
         self.temphum_thread = threading.Thread(
             target=self.send_temperature_humidity, daemon=True)
         self.temphum_thread.start()
-        
+
     def stop_threads(self):
         """Stop all threads."""
         self.thread_flag = False
         self.streaming_thread.join()
         self.status_thread.join()
         self.temphum_thread.join()
-        
+
     def send_temperature_humidity(self):
         """Send the current temperature and humidity to the server."""
         while self.thread_flag:
             try:
                 url = f"{self.server}/3d/temphum"
                 data = {'temperature': self.temp, 'humidity': self.hum}
-                #print(f"Sending temperature and humidity to {url}...", flush=True)
+                # print(f"Sending temperature and humidity to {url}...", flush=True)
                 response = requests.post(url, json=data, timeout=10)
                 if response.status_code == 200:
                     pass
-                    #print("Temperature and humidity sent successfully.", flush=True)
+                    # print("Temperature and humidity sent successfully.", flush=True)
                 else:
-                    print(f"Failed to send temperature and humidity: {response.status_code, response.text}", flush=True)
-                sleep(10) 
+                    print(
+                        f"Failed to send temperature and humidity: {response.status_code, response.text}", flush=True)
+                sleep(10)
             except Exception as e:
-                print(f"Error sending temperature and humidity: {e}", flush=True)
-        
+                print(
+                    f"Error sending temperature and humidity: {e}", flush=True)
+
     def send_status(self):
         """Send the current status of the timelapse to the server."""
         while self.thread_flag:
@@ -153,20 +155,21 @@ class TimelapseController:
                     status = "active"
                 else:
                     status = "inactive"
-                
+
                 url = f"{self.server}/3d/status"
                 data = {'status': status}
-                #print(f"Sending status to {url}...", flush=True)
+                # print(f"Sending status to {url}...", flush=True)
                 response = requests.post(url, json=data, timeout=10)
                 if response.status_code == 200:
                     pass
-                    #print("Status sent successfully.", flush=True)
+                    # print("Status sent successfully.", flush=True)
                 else:
-                    print(f"Failed to send status: {response.status_code, response.text}", flush=True)
-                sleep(10)  
+                    print(
+                        f"Failed to send status: {response.status_code, response.text}", flush=True)
+                sleep(10)
             except Exception as e:
                 print(f"Error sending status: {e}", flush=True)
-    
+
     def send_image(self, image):
         """Send the captured image to the server."""
         try:
@@ -174,16 +177,16 @@ class TimelapseController:
             # Convert the binary JPEG data into a base64-encoded string.
             encoded_image = base64.b64encode(image).decode('utf-8')
             data = {'image': encoded_image}
-            #print(f"Sending image to {url}...", flush=True)
+            # print(f"Sending image to {url}...", flush=True)
             response = requests.post(url, json=data, timeout=10)
             if response.status_code == 200:
                 pass
-                #print("Image sent successfully.", flush=True)
+                # print("Image sent successfully.", flush=True)
             else:
-                print(f"Failed to send image: {response.status_code, response.text}", flush=True)
+                print(
+                    f"Failed to send image: {response.status_code, response.text}", flush=True)
         except Exception as e:
             print(f"Error sending image: {e}", flush=True)
-
 
     def capture_photo(self):
         """Capture a photo, update the streaming image, and save it."""
@@ -191,30 +194,31 @@ class TimelapseController:
             with camera_lock:
                 image = self.picam2.capture_array()
             image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-            
+
             if not self.streaming_active:
                 filename = f"Photos/capture_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.jpg"
                 cv2.imwrite(filename, image_bgr)
-                print(f"Image captured at {datetime.now().strftime('%H-%M-%S')}.")
+                print(
+                    f"Image captured at {datetime.now().strftime('%H-%M-%S')}.")
                 self.captured_files.append(filename)
-                
+
             ret, jpeg = cv2.imencode('.jpg', image_bgr)
             if ret:
-                self.send_image(jpeg.tobytes())  # Send the image to the server.
+                # Send the image to the server.
+                self.send_image(jpeg.tobytes())
         except Exception as e:
             print("Error capturing image:", e)
-            
+
     def continuous_stream_update(self):
         """
         Continuously capture frames at a low framerate and update the shared stream image.
         """
         while self.streaming_active and not self.timelapse_active and self.thread_flag:
-            
+
             self.capture_photo()  # Capture a frame
-                
+
             sleep(5)  # Adjust sleep time for desired FPS
         print("Continuous streaming stopped.")
-
 
     def reset_timer(self):
         """Reset (or start) the timer that waits for the end of the press sequence."""
@@ -240,7 +244,6 @@ class TimelapseController:
         RED = "\033[31m"
         RESET = "\033[0m"
 
-        
         count = self.button_press_count
         print(f"Seq: {count} -> ", end="")  # Short sequence count
         self.button_press_count = 0  # reset counter
@@ -414,6 +417,7 @@ class TimelapseController:
         self.shutdown_camera()
         self.stop_threads()
 
+
 def keyboard_monitor():
     """
     Monitor keyboard input to simulate the button press.
@@ -428,12 +432,9 @@ def keyboard_monitor():
             current_controller.red_led_off()
 
 
-
-
 def main():
     global current_controller
     # Reset the streaming flag at the beginning.
-
 
     # Initialize LEDs and button.
     red_led = LED(RED_LED_PIN)
@@ -450,7 +451,7 @@ def main():
         red_led, yellow_led, green_led, capture_button)
     # Set the global current controller.
     current_controller = controller
-    
+
     try:
         while True:
             print(
@@ -477,7 +478,6 @@ def main():
 
             # Shutdown the camera to release the resource before starting a new session.
             controller.shutdown_camera()
-
 
             print(f"{GREEN}Ready for a new timelapse session.{RESET}\n")
 
