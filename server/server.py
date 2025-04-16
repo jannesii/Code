@@ -23,7 +23,7 @@ def update_image():
     
     image_data = data['image']
     # Process the image data as needed
-    print(f"Received image data.")
+    print(f"Received image data: {image_data}")
     
     # Send a response back to the client
     return json.dumps({'status': 'success', 'message': 'Image received successfully'})

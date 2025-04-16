@@ -339,7 +339,7 @@ def continuous_stream_update(camera, controller):
             # Convert the binary JPEG data into a base64-encoded string.
             encoded_image = base64.b64encode(jpeg.tobytes()).decode('utf-8')
             data = {
-                'image': encoded_image,
+                'image': "encoded_image",
             }
             
             try:
