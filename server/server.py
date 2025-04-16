@@ -1,11 +1,8 @@
 from flask import Flask, render_template, request, abort
 import json
 from datetime import datetime
-import random
-from flask_socketio import SocketIO, emit
-import base64
-import cv2
-import numpy as np
+from flask_socketio import SocketIO
+
 
 server = Flask(__name__)
 socketio = SocketIO(server, cors_allowed_origins="*")
@@ -35,31 +32,10 @@ def update_image():
     with open('last_image.json', 'w') as f:
         json.dump(data, f)
 
-    # Decode the base64 string to get the original binary data.
     try:
-        decoded_data = base64.b64decode(image_data)
-    except Exception as e:
-        abort(400, f"Decoding error: {e}")
-
-    # If you need to convert the binary data into an image for processing,
-    # you can use numpy and OpenCV:
-    try:
-        # Convert the bytes into a NumPy array.
-        nparr = np.frombuffer(decoded_data, np.uint8)
-        # Decode the NumPy array as an image.
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        if img is None:
-            abort(400, "Failed to decode image into an array")
         socketio.emit('image', {'image': image_data})
     except Exception as e:
         abort(400, f"Image processing error: {e}")
-
-    # Now you have the image as a NumPy array (img), and you can proceed to process it as needed.
-    print(f"Received image decoded successfully. Image shape: {img.shape}")
-    
-    # Optionally, save the image to verify correct decoding:
-    #cv2.imwrite('received_image.jpg', img)
-
 
     # Return a success response.
     return json.dumps({'status': 'success', 'message': 'Image received and decoded successfully'})
