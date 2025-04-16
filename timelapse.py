@@ -266,7 +266,7 @@ class TimelapseController:
                 video_writer.release()
                 
                 # Transcode the video to H.264 using FFMPEG.
-                self.encode_video(video_filename)
+                #self.encode_video(video_filename)
                 
                 print(f"Timelapse video created as {os.path.basename(video_filename)}\n")
             except Exception as e:
