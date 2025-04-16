@@ -245,6 +245,9 @@ class TimelapseController:
                 fourcc = cv2.VideoWriter_fourcc("avc1")
                 video_writer = cv2.VideoWriter(
                     video_filename, fourcc, fps, (width, height))
+                
+                if not video_writer.isOpened():
+                    raise Exception("Failed to open the video writer. Please check the codec and device configuration.")
 
                 for fname in self.captured_files:
                     if not os.path.exists(fname):
