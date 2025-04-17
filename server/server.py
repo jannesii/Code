@@ -38,6 +38,7 @@ def get_3d_page():
             last_image = json.load(f)
     except FileNotFoundError:
         last_image = None
+        
     return render_template('3d.html', last_image=last_image)
 
 @server.route('/3d/image', methods=['POST'])
@@ -46,14 +47,17 @@ def update_image():
     data = request.get_json()
     if not data or 'image' not in data:
         abort(400, 'Invalid image data')
+        
     # Save the latest image JSON
     with open('last_image.json', 'w') as f:
         json.dump(data, f)
+        
     # Emit via SocketIO
     try:
         socketio.emit('image', {'image': data['image']})
     except Exception as e:
         abort(500, f"SocketIO emit error: {e}")
+        
     return jsonify(status='success', message='Image received successfully')
 
 @server.route('/3d/temphum', methods=['POST'])
@@ -62,8 +66,19 @@ def update_temperature_humidity():
     data = request.get_json()
     if not data or 'temperature' not in data or 'humidity' not in data:
         abort(400, 'Invalid temperature/humidity data')
-    socketio.emit('temphum', data)
+        
+    # Save the latest temperature and humidity JSON
+    with open('last_temphum.json', 'w') as f:
+        json.dump(data, f)
+        
+    # Emit via SocketIO
+    try:
+        socketio.emit('temphum', data)
+    except Exception as e:
+        abort(500, f"SocketIO emit error: {e}")
+        
     print(f"Received temperature: {data['temperature']}, humidity: {data['humidity']}")
+    
     return jsonify(status='success', message='Temperature and humidity received successfully')
 
 @server.route('/3d/status', methods=['POST'])
@@ -72,8 +87,17 @@ def update_timelapse_status():
     data = request.get_json()
     if not data or 'status' not in data:
         abort(400, 'Invalid status data')
-    socketio.emit('status', data)
+
+    with open('last_status.json', 'w') as f:
+        json.dump(data, f)
+        
+    try:
+        socketio.emit('status', data)
+    except Exception as e:
+        abort(500, f"SocketIO emit error: {e}")
+        
     print(f"Received timelapse status: {data['status']}")
+    
     return jsonify(status='success', message='Timelapse status received successfully')
 
 if __name__ == '__main__':
