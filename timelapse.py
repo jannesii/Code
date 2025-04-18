@@ -155,7 +155,7 @@ class TimelapseController:
                         f"Failed to send temperature and humidity: {response.status_code}, {response.text}",
                         flush=True
                     ) """
-                self.sio.emit('get_temphum', {'temperature': self.temp, 'humidity': self.hum})
+                self.sio.emit('temphum', {'temperature': self.temp, 'humidity': self.hum})
                 sleep(10)
             except Exception as e:
                 print(
