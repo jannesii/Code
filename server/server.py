@@ -10,7 +10,13 @@ from datetime import datetime
 
 # Initialize Flask and SocketIO
 server = Flask(__name__)
-socketio = SocketIO(server, cors_allowed_origins="*")
+socketio = SocketIO(
+    server,
+    cors_allowed_origins="*",
+    max_http_buffer_size=10 * 1024 * 1024,  
+    ping_timeout=60,                         
+    ping_interval=25
+)
 
 # Load API key from configuration file
 with open('config.json', 'r') as f:

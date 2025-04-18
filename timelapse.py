@@ -30,6 +30,8 @@ YELLOW_LED_PIN = 23
 GREEN_LED_PIN = 27
 CAPTURE_BUTTON_PIN = 22  # Button for capture & commands
 
+DHT_PIN = 24
+
 # ANSI escape codes for colors.
 GREEN = "\033[32m"
 YELLOW = "\033[33m"
