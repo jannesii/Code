@@ -86,7 +86,6 @@ def handle_image(data, auth):
         json.dump(data, f)
 
     # Emit via SocketIO
-
     socketio.emit('image', {'image': data['image']})
 
 

@@ -458,6 +458,8 @@ class SocketIOClient:
     def emit(self, event, data):
         """Emit an event to the server."""
         try:
+            
+            print(data.keys())
             self.sio.emit(event, data, self.auth)
         except Exception as e:
             print(f"Error emitting event '{event}': {e}")
