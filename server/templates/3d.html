@@ -135,8 +135,8 @@
             console.log('Received image data:', data);
             document.querySelector('.image-tile img').src = 'data:image/jpeg;base64,' + data.image;
         });
-        socket.on('status', data => document.getElementById('status').innerText = data.status);
-        socket.on('temphum', data => {
+        socket.on('status2v', data => document.getElementById('status').innerText = data.status);
+        socket.on('temphum2v', data => {
             document.getElementById('temperature').innerText = data.temperature + '°C';
             document.getElementById('humidity').innerText = data.humidity + '%';
         });

@@ -13,8 +13,8 @@ server = Flask(__name__)
 socketio = SocketIO(
     server,
     cors_allowed_origins="*",
-    max_http_buffer_size=10 * 1024 * 1024,  
-    ping_timeout=60,                         
+    max_http_buffer_size=10 * 1024 * 1024,
+    ping_timeout=60,
     ping_interval=25
 )
 
@@ -56,26 +56,6 @@ def get_3d_page():
     return render_template('3d.html', last_image=last_image, api_key=API_KEY)
 
 
-@server.route('/3d/image', methods=['POST'])
-@require_api_key
-def update_image():
-    data = request.get_json()
-    if not data or 'image' not in data:
-        abort(400, 'Invalid image data')
-
-    # Save the latest image JSON
-    with open('last_image.json', 'w') as f:
-        json.dump(data, f)
-
-    # Emit via SocketIO
-    try:
-        socketio.emit('image2v', {'image': data['image']})
-    except Exception as e:
-        abort(500, f"SocketIO emit error: {e}")
-
-    return jsonify(status='success', message='Image received successfully')
-
-
 @socketio.on('image')
 def handle_image(data):
     """ if not handle_auth(data):
@@ -94,29 +74,6 @@ def handle_image(data):
     # Emit via SocketIO
     socketio.emit('image', {'image': data['image']})
     print(f"📡 Broadcast image:")
-
-
-@server.route('/3d/temphum', methods=['POST'])
-@require_api_key
-def update_temperature_humidity():
-    data = request.get_json()
-    if not data or 'temperature' not in data or 'humidity' not in data:
-        abort(400, 'Invalid temperature/humidity data')
-
-    # Save the latest temperature and humidity JSON
-    with open('last_temphum.json', 'w') as f:
-        json.dump(data, f)
-
-    # Emit via SocketIO
-    try:
-        socketio.emit('temphum', data)
-    except Exception as e:
-        abort(500, f"SocketIO emit error: {e}")
-
-    print(
-        f"Received temperature: {data['temperature']}, humidity: {data['humidity']}")
-
-    return jsonify(status='success', message='Temperature and humidity received successfully')
 
 
 @socketio.on('temphum')
@@ -140,22 +97,20 @@ def handle_temphum(data):
         json.dump(data, f)
 
     # Lähetä kaikille muille asiakkaille
-    socketio.emit('temphum', data)
+    socketio.emit('temphum2v', data)
     print(f"📡 Broadcast temphum: temp={temp}, hum={hum}")
 
 
-@server.route('/3d/status', methods=['POST'])
-@require_api_key
-def update_timelapse_status():
-    data = request.get_json()
+@socketio.on('status')
+def handle_status(data):
     if not data or 'status' not in data:
-        abort(400, 'Invalid status data')
+        socketio.emit('error', {'message': 'Invalid status data'})
 
     with open('last_status.json', 'w') as f:
         json.dump(data, f)
 
     try:
-        socketio.emit('status', data)
+        socketio.emit('status2v', data)
     except Exception as e:
         abort(500, f"SocketIO emit error: {e}")
 

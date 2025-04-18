@@ -196,14 +196,14 @@ class TimelapseController:
             # Convert the binary JPEG data into a base64-encoded string.
             encoded_image = base64.b64encode(image).decode('utf-8')
             data = {'image': encoded_image}
-            response = requests.post(
+            """ response = requests.post(
                 url, json=data, headers=self.headers, timeout=10)
             if response.status_code != 200:
                 print(
                     f"Failed to send image: {response.status_code}, {response.text}",
                     flush=True
-                )
-            #self.sio.emit('image', data)
+                ) """
+            self.sio.emit('image', data)
         except Exception as e:
             print(f"Error sending image: {e}", flush=True)
 
@@ -236,7 +236,7 @@ class TimelapseController:
 
             self.capture_photo()  # Capture a frame
 
-            sleep(0.1)  # Adjust sleep time for desired FPS
+            sleep(2)  # Adjust sleep time for desired FPS
         print("Continuous streaming stopped.")
 
     def reset_timer(self):
