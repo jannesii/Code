@@ -449,6 +449,7 @@ class SocketIOClient:
         self.auth = { 'api_key': API_KEY }
         self.sio.on('connect', handler=self.on_connect)
         self.sio.on('disconnect', handler=self.on_disconnect)
+        self.sio.on('error', handler=self.on_error)
 
     def start(self):
         self.sio.connect(self.server_url, auth=self.auth)
@@ -465,6 +466,9 @@ class SocketIOClient:
 
     def on_disconnect(self):
         print("👋 Disconnected from server")
+        
+    def on_error(self, data):
+        print(f"⚠️ Error: {data['message']}")
 
 
 def keyboard_monitor():

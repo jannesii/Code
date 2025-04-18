@@ -84,14 +84,14 @@ def update_temperature_humidity():
     
     return jsonify(status='success', message='Temperature and humidity received successfully')
 
-""" @socketio.on('get_temphum')
+@socketio.on('temphum')
 def handle_temphum(data):
     # Validointi
     temp = data.get('temperature')
     hum  = data.get('humidity')
     if temp is None or hum is None:
         # Voit halutessasi lähettää virheilmoituksen clientille
-        print('error', {'message': 'Invalid temperature/humidity data'})
+        socketio.emit('error', {'message': 'Invalid temperature/humidity data'})
         return
 
     # Tallenna tiedot
@@ -100,7 +100,7 @@ def handle_temphum(data):
 
     # Lähetä kaikille muille asiakkaille
     socketio.emit('temphum', data)
-    print(f"📡 Broadcast temphum: temp={temp}, hum={hum}") """
+    print(f"📡 Broadcast temphum: temp={temp}, hum={hum}")
 
 @server.route('/3d/status', methods=['POST'])
 @require_api_key
