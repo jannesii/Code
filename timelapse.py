@@ -52,9 +52,8 @@ class TimelapseController:
         self.get_api_key()
 
         self.sio = SocketIOClient(self, self.server, self.API_KEY)
-        asd = self.sio.start()
-        print(asd)
-
+        self.sio.start()
+        
         # Initialize and configure the camera.
         self.picam2 = Picamera2()
         self.config = self.picam2.create_still_configuration()
@@ -147,7 +146,7 @@ class TimelapseController:
         """Send the current temperature and humidity to the server."""
         while self.thread_flag:
             try:
-                url = f"{self.server}/3d/temphum"
+                """ url = f"{self.server}/3d/temphum"
                 data = {'temperature': self.temp, 'humidity': self.hum}
                 response = requests.post(
                     url, json=data, headers=self.headers, timeout=10)
@@ -155,7 +154,8 @@ class TimelapseController:
                     print(
                         f"Failed to send temperature and humidity: {response.status_code}, {response.text}",
                         flush=True
-                    )
+                    ) """
+                self.sio.emit('get_temphum', {'temperature': self.temp, 'humidity': self.hum})
                 sleep(10)
             except Exception as e:
                 print(
@@ -452,8 +452,14 @@ class SocketIOClient:
 
     def start(self):
         self.sio.connect(self.server_url, auth=self.auth)
-        print("Connecting to server...")
 
+    def emit(self, event, data):
+        """Emit an event to the server."""
+        try:
+            self.sio.emit(event, data, namespace='/3d')
+        except Exception as e:
+            print(f"Error emitting event '{event}': {e}")
+    
     def on_connect(self):
         print("⚡ Connected to server")
 
