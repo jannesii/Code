@@ -69,7 +69,7 @@ def update_image():
 
     # Emit via SocketIO
     try:
-        socketio.emit('image', {'image': data['image']})
+        socketio.emit('image2v', {'image': data['image']})
     except Exception as e:
         abort(500, f"SocketIO emit error: {e}")
 

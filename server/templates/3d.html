@@ -131,7 +131,7 @@
         });
         socket.on('connect_error', err => console.error('Connection error:', err));
         socket.on('connect', () => console.log('✅ Yhdistetty palvelimeen'));
-        socket.on('image', data => {
+        socket.on('image2v', data => {
             console.log('Received image data:', data);
             document.querySelector('.image-tile img').src = 'data:image/jpeg;base64,' + data.image;
         });
