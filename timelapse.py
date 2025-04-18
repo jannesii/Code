@@ -450,11 +450,11 @@ class SocketIOClient:
         self.sio.on('connect', handler=self.on_connect)
         self.sio.on('disconnect', handler=self.on_disconnect)
 
-    async def start(self):
+    def start(self):
         self.sio.connect(self.server_url, headers=self.headers)
         print("Connecting to server...")
 
-    async def on_connect(self):
+    def on_connect(self):
         print("⚡ Connected to server")
 
     def on_disconnect(self):
