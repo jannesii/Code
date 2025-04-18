@@ -49,7 +49,6 @@ class DHT22Sensor:
             humidity, temperature = Adafruit_DHT.read_retry(
                 self.sensor,
                 self.pin,
-                retry_count=1,
                 delay_seconds=self.delay
             )
             if humidity is not None and temperature is not None:
