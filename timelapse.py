@@ -201,7 +201,7 @@ class TimelapseController:
                     f"Failed to send image: {response.status_code}, {response.text}",
                     flush=True
                 ) """
-            #self.sio.emit('image', data)
+            self.sio.emit('image', data)
         except Exception as e:
             print(f"Error sending image: {e}", flush=True)
 
@@ -458,9 +458,9 @@ class SocketIOClient:
     def emit(self, event, data):
         """Emit an event to the server."""
         try:    
-            print(data)  
+            #print(data)  
             data.update(self.auth)  # Add auth to the data payload
-            print(data)
+            #print(data)
             self.sio.emit(event, data)
         except Exception as e:
             print(f"Error emitting event '{event}': {e}")
