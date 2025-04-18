@@ -11,7 +11,8 @@ import requests
 import base64
 import json
 import socketio
-#from socketio import Client as SIOClient
+
+from dht import DHT22Sensor
 
 from gpiozero import LED, Button
 from picamera2 import Picamera2
@@ -56,6 +57,8 @@ class TimelapseController:
         self.sio = SocketIOClient(self, self.server, self.API_KEY)
         self.sio.start()
         
+        self.dht = DHT22Sensor(DHT_PIN)
+        self.dht.read()
         # Initialize and configure the camera.
         self.picam2 = Picamera2()
         self.config = self.picam2.create_still_configuration()
