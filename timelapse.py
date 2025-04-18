@@ -10,8 +10,8 @@ import threading
 import requests
 import base64
 import json
-import asyncio
 import socketio
+#from socketio import Client as SIOClient
 
 from gpiozero import LED, Button
 from picamera2 import Picamera2
@@ -50,10 +50,11 @@ class TimelapseController:
             self.server = "http://192.168.1.125:5555"
 
         self.get_api_key()
-        
+
         self.sio = SocketIOClient(self, self.server, self.API_KEY)
-        asyncio.run(self.sio.start())
-        
+        asd = self.sio.start()
+        print(asd)
+
         # Initialize and configure the camera.
         self.picam2 = Picamera2()
         self.config = self.picam2.create_still_configuration()
@@ -428,34 +429,37 @@ class TimelapseController:
             print("Error during camera shutdown:", e)
 
     def __del__(self):
-        """Ensure the camera is shut down when the object is deleted."""
-        self.shutdown_camera()
-        self.stop_threads()
+        # Varmista, että attribuutit on olemassa ennen kutsua
+        if hasattr(self, 'picam2'):
+            try:
+                self.shutdown_camera()
+            except Exception:
+                pass
+        try:
+            self.stop_threads()
+        except Exception:
+            pass
+
 
 class SocketIOClient:
     def __init__(self, controller, server_url, API_KEY):
-        self.sio = socketio.AsyncClient()
+        self.sio = socketio.Client()
         self.controller = controller
         self.server_url = server_url
         self.headers = {'X-API-KEY': API_KEY}
         self.sio.on('connect', handler=self.on_connect)
         self.sio.on('disconnect', handler=self.on_disconnect)
-        
+
     async def start(self):
-        
-        await self.sio.connect(
-            self.server_url,
-            headers=self.headers
-        )
-        await self.sio.wait()
-        
+        self.sio.connect(self.server_url, headers=self.headers)
+        print("Connecting to server...")
+
     async def on_connect(self):
         print("⚡ Connected to server")
 
     def on_disconnect(self):
         print("👋 Disconnected from server")
 
-    
 
 def keyboard_monitor():
     """
