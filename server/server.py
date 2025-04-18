@@ -70,12 +70,12 @@ def update_image():
     return jsonify(status='success', message='Image received successfully')
 
 
-@socketio.on('image', namespace='/3d')
+@socketio.on('image')
 def handle_image(data):
-    if not handle_auth(data):
+    """ if not handle_auth(data):
         print("❌ Virheellinen API‑avain SocketIO‑handle_imagessa")
         socketio.emit('error', {'message': 'Invalid API key'})
-        return False
+        return False """
 
     if not data or 'image' not in data:
         socketio.emit('error', {'message': 'Invalid image data'})
@@ -112,12 +112,12 @@ def update_temperature_humidity():
     return jsonify(status='success', message='Temperature and humidity received successfully')
 
 
-@socketio.on('temphum', namespace='/3d')
+@socketio.on('temphum')
 def handle_temphum(data):
-    if not handle_auth(data):
+    """ if not handle_auth(data):
         socketio.emit(
             'error', {'message': '❌ Virheellinen API‑avain SocketIO‑handle_temphumissa'})
-        return False
+        return False """
 
     # Validointi
     temp = data.get('temperature')
