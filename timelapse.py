@@ -236,7 +236,7 @@ class TimelapseController:
 
             self.capture_photo()  # Capture a frame
 
-            sleep(10)  # Adjust sleep time for desired FPS
+            sleep(0.1)  # Adjust sleep time for desired FPS
         print("Continuous streaming stopped.")
 
     def reset_timer(self):
