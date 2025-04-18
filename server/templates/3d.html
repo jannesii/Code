@@ -94,7 +94,7 @@
     }
 </style>
 </head>
-<body onload="init()">
+<body onload="init('{{ api_key }}')">
   <!-- Navigaatiopalkki -->
   <nav class="navbar">
     <ul>
@@ -115,12 +115,12 @@
       <div class="tile">Humidity:<br> <strong id="humidity">Waiting...</strong></div>
       <div class="tile">Status:<br> <strong id="status">Waiting...</strong></div>
       
-      </div>
+    </div>
   </div>
   <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.min.js"></script>
   <script type="text/javascript">
-      function init() {
-          const socket = io.connect('http://128.214.254.152:5555'); // adjust as needed
+    function init(api_key) {
+          const socket = io.connect('http://128.214.254.152:5555', headers={'X-API-KEY': api_key}); // adjust as needed
           socket.on('connect_error', err => console.error('Connection error:', err));
           socket.on('connect', () => console.log('Connected to server'));
           socket.on('image', data => {

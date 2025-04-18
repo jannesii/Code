@@ -39,7 +39,7 @@ def get_3d_page():
     except FileNotFoundError:
         last_image = None
         
-    return render_template('3d.html', last_image=last_image)
+    return render_template('3d.html', last_image=last_image, api_key=API_KEY)
 
 @server.route('/3d/image', methods=['POST'])
 @require_api_key
