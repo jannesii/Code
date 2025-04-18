@@ -71,8 +71,8 @@ def update_image():
 
 
 @socketio.on('image')
-def handle_image(data, auth):
-    if not handle_auth(auth):
+def handle_image(data):
+    if not handle_auth(data.get('api_key')):
         print("❌ Virheellinen API‑avain SocketIO‑handle_imagessa")
         socketio.emit('error', {'message': 'Invalid API key'})
         return False
@@ -113,8 +113,8 @@ def update_temperature_humidity():
 
 
 @socketio.on('temphum')
-def handle_temphum(data, auth):
-    if not handle_auth(auth):
+def handle_temphum(data):
+    if not handle_auth(data.get('api_key')):
         socketio.emit(
             'error', {'message': '❌ Virheellinen API‑avain SocketIO‑handle_temphumissa'})
         return False
