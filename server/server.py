@@ -52,8 +52,20 @@ def get_3d_page():
             last_image = json.load(f)
     except FileNotFoundError:
         last_image = None
+        
+    try:
+        with open('last_temphum.json', 'r') as f:
+            last_temphum = json.load(f)
+    except FileNotFoundError:
+        last_temphum = None
+        
+    try:
+        with open('last_status.json', 'r') as f:
+            last_status = json.load(f)
+    except FileNotFoundError:
+        last_status = None
 
-    return render_template('3d.html', last_image=last_image, api_key=API_KEY)
+    return render_template('3d.html', last_image=last_image, api_key=API_KEY, last_temphum=last_temphum, last_status=last_status)
 
 
 @socketio.on('image')
