@@ -94,7 +94,7 @@
     }
 </style>
 </head>
-<body onload="init('{{ api_key }}')">
+<body onload="init()">
   <!-- Navigaatiopalkki -->
   <nav class="navbar">
     <ul>
@@ -119,15 +119,17 @@
   </div>
   <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.min.js"></script>
   <script type="text/javascript">
-    function init(api_key) {
-        console.log('Initializing with API key:', api_key);
-        if (!api_key) {
-            console.error('API key is missing!');
-            return;
+    const API_KEY = '{{ api_key|tojson }}';
+      function init() {
+        if (!API_KEY) {
+          console.error('API key puuttuu!');
+          return;
         }
-        const socket = io.connect('http://128.214.254.152:5555', headers={'X-API-KEY': api_key}); // adjust as needed
+        const socket = io('http://128.214.254.152:5555', {
+          auth: { api_key: API_KEY }
+        });
         socket.on('connect_error', err => console.error('Connection error:', err));
-        socket.on('connect', () => console.log('Connected to server'));
+        socket.on('connect', () => console.log('✅ Yhdistetty palvelimeen'));
         socket.on('image', data => {
             console.log('Received image data:', data);
             document.querySelector('.image-tile img').src = 'data:image/jpeg;base64,' + data.image;

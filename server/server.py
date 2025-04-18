@@ -1,3 +1,6 @@
+# server.py
+# This is a Flask server that serves a web interface and handles real-time updates via SocketIO.
+
 from flask import Flask, render_template, request, abort, jsonify
 from flask_socketio import SocketIO
 from functools import wraps
@@ -101,10 +104,13 @@ def update_timelapse_status():
     return jsonify(status='success', message='Timelapse status received successfully')
 
 @socketio.on('connect')
-@require_api_key
-def handle_connect():
+def handle_connect(auth):
+    # auth on dict, jos client lähetti { auth: { api_key: ... } }
+    api_key = (auth or {}).get('api_key')
+    if not api_key or not hmac.compare_digest(api_key, API_KEY):
+        print("❌ Virheellinen API‑avain SocketIO‑connectissa")
+        return False    # kieltäytyy yhteydestä
     print(f"Client connected: {request.sid}")
-    return True
 
 @socketio.on('disconnect')
 def handle_disconnect():
