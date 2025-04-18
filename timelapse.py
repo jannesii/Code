@@ -17,11 +17,6 @@ from gpiozero import LED, Button
 from picamera2 import Picamera2
 from libcamera import controls
 
-# Import shared streaming state and web server
-import stream_state
-import stream_server
-from stream_server import socketio  # import the SocketIO instance
-
 # Global lock to prevent concurrent camera access.
 camera_lock = threading.Lock()
 
