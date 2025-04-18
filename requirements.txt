@@ -6,3 +6,4 @@ Flask-SocketIO
 wheel
 rpi-libcamera 
 rpi-kms 
+python-socketio[client]

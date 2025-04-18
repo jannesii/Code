@@ -10,6 +10,8 @@ import threading
 import requests
 import base64
 import json
+import asyncio
+import socketio
 
 from gpiozero import LED, Button
 from picamera2 import Picamera2
@@ -53,7 +55,10 @@ class TimelapseController:
             self.server = "http://192.168.1.125:5555"
 
         self.get_api_key()
-
+        
+        self.sio = SocketIOClient(self, self.server, self.API_KEY)
+        asyncio.run(self.sio.start())
+        
         # Initialize and configure the camera.
         self.picam2 = Picamera2()
         self.config = self.picam2.create_still_configuration()
@@ -100,6 +105,7 @@ class TimelapseController:
         with open("config.json") as f:
             config = json.load(f)
             self.API_KEY = config["api_key"]
+            self.headers = {'X-API-KEY': self.API_KEY}
             if not self.API_KEY:
                 print("API key not found in config.json")
                 sys.exit(1)
@@ -143,13 +149,12 @@ class TimelapseController:
 
     def send_temperature_humidity(self):
         """Send the current temperature and humidity to the server."""
-        headers = {'X-API-KEY': self.API_KEY}
         while self.thread_flag:
             try:
                 url = f"{self.server}/3d/temphum"
                 data = {'temperature': self.temp, 'humidity': self.hum}
                 response = requests.post(
-                    url, json=data, headers=headers, timeout=10)
+                    url, json=data, headers=self.headers, timeout=10)
                 if response.status_code != 200:
                     print(
                         f"Failed to send temperature and humidity: {response.status_code}, {response.text}",
@@ -163,7 +168,6 @@ class TimelapseController:
 
     def send_status(self):
         """Send the current status of the timelapse to the server."""
-        headers = {'X-API-KEY': self.API_KEY}
         while self.thread_flag:
             try:
                 if self.timelapse_paused:
@@ -176,7 +180,7 @@ class TimelapseController:
                 url = f"{self.server}/3d/status"
                 data = {'status': status}
                 response = requests.post(
-                    url, json=data, headers=headers, timeout=10)
+                    url, json=data, headers=self.headers, timeout=10)
                 if response.status_code != 200:
                     print(
                         f"Failed to send status: {response.status_code}, {response.text}",
@@ -189,14 +193,13 @@ class TimelapseController:
 
     def send_image(self, image):
         """Send the captured image to the server."""
-        headers = {'X-API-KEY': self.API_KEY}
         try:
             url = f"{self.server}/3d/image"
             # Convert the binary JPEG data into a base64-encoded string.
             encoded_image = base64.b64encode(image).decode('utf-8')
             data = {'image': encoded_image}
             response = requests.post(
-                url, json=data, headers=headers, timeout=10)
+                url, json=data, headers=self.headers, timeout=10)
             if response.status_code != 200:
                 print(
                     f"Failed to send image: {response.status_code}, {response.text}",
@@ -434,6 +437,30 @@ class TimelapseController:
         self.shutdown_camera()
         self.stop_threads()
 
+class SocketIOClient:
+    def __init__(self, controller, server_url, API_KEY):
+        self.sio = socketio.AsyncClient()
+        self.controller = controller
+        self.server_url = server_url
+        self.headers = {'X-API-KEY': API_KEY}
+        self.sio.on('connect', handler=self.on_connect)
+        self.sio.on('disconnect', handler=self.on_disconnect)
+        
+    async def start(self):
+        
+        await self.sio.connect(
+            self.server_url,
+            headers=self.headers
+        )
+        await self.sio.wait()
+        
+    async def on_connect(self):
+        print("⚡ Connected to server")
+
+    def on_disconnect(self):
+        print("👋 Disconnected from server")
+
+    
 
 def keyboard_monitor():
     """

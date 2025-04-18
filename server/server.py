@@ -100,5 +100,15 @@ def update_timelapse_status():
     
     return jsonify(status='success', message='Timelapse status received successfully')
 
+@socketio.on('connect')
+@require_api_key
+def handle_connect():
+    print(f"Client connected: {request.sid}")
+    return True
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print(f"Client disconnected: {request.sid}")
+
 if __name__ == '__main__':
     socketio.run(server, host='0.0.0.0', port=5555, debug=True)
