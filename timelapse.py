@@ -201,7 +201,7 @@ class TimelapseController:
                     f"Failed to send image: {response.status_code}, {response.text}",
                     flush=True
                 ) """
-            self.sio.emit('image', {'image': encoded_image})
+            self.sio.emit('image', {'image': data})
         except Exception as e:
             print(f"Error sending image: {e}", flush=True)
 
