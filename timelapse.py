@@ -148,7 +148,7 @@ class TimelapseController:
         """Send the current temperature and humidity to the server."""
         while self.thread_flag:
             try:
-                url = f"{self.server}/3d/temphum"
+                """ url = f"{self.server}/3d/temphum"
                 data = {'temperature': self.temp, 'humidity': self.hum}
                 response = requests.post(
                     url, json=data, headers=self.headers, timeout=10)
@@ -156,8 +156,8 @@ class TimelapseController:
                     print(
                         f"Failed to send temperature and humidity: {response.status_code}, {response.text}",
                         flush=True
-                    )
-                #self.sio.emit('temphum', {'temperature': self.temp, 'humidity': self.hum})
+                    ) """
+                self.sio.emit('temphum', {'temperature': self.temp, 'humidity': self.hum})
                 sleep(10)
             except Exception as e:
                 print(
@@ -196,14 +196,14 @@ class TimelapseController:
             # Convert the binary JPEG data into a base64-encoded string.
             encoded_image = base64.b64encode(image).decode('utf-8')
             data = {'image': encoded_image}
-            """ response = requests.post(
+            response = requests.post(
                 url, json=data, headers=self.headers, timeout=10)
             if response.status_code != 200:
                 print(
                     f"Failed to send image: {response.status_code}, {response.text}",
                     flush=True
-                ) """
-            self.sio.emit('image', data)
+                )
+            #self.sio.emit('image', data)
         except Exception as e:
             print(f"Error sending image: {e}", flush=True)
 
