@@ -63,6 +63,29 @@ def update_image():
         
     return jsonify(status='success', message='Image received successfully')
 
+@socketio.on('image')
+def handle_image(data, auth):
+    if not handle_auth(auth):
+        print("❌ Virheellinen API‑avain SocketIO‑handle_imagessa")
+        socketio.emit('error', {'message': 'Invalid API key'})
+        return False
+    
+    data = request.get_json()
+    if not data or 'image' not in data:
+        abort(400, 'Invalid image data')
+        
+    # Save the latest image JSON
+    with open('last_image.json', 'w') as f:
+        json.dump(data, f)
+        
+    # Emit via SocketIO
+    try:
+        socketio.emit('image', {'image': data['image']})
+    except Exception as e:
+        abort(500, f"SocketIO emit error: {e}")
+        
+    return jsonify(status='success', message='Image received successfully')
+
 @server.route('/3d/temphum', methods=['POST'])
 @require_api_key
 def update_temperature_humidity():
@@ -85,7 +108,11 @@ def update_temperature_humidity():
     return jsonify(status='success', message='Temperature and humidity received successfully')
 
 @socketio.on('temphum')
-def handle_temphum(data):
+def handle_temphum(data, auth):
+    if not handle_auth(auth):
+        socketio.emit('error', {'message': '❌ Virheellinen API‑avain SocketIO‑handle_temphumissa'})
+        return False
+    
     # Validointi
     temp = data.get('temperature')
     hum  = data.get('humidity')
@@ -124,15 +151,21 @@ def update_timelapse_status():
 @socketio.on('connect')
 def handle_connect(auth):
     # auth on dict, jos client lähetti { auth: { api_key: ... } }
-    api_key = (auth or {}).get('api_key')
-    if not api_key or not hmac.compare_digest(api_key, API_KEY):
-        print("❌ Virheellinen API‑avain SocketIO‑connectissa")
+    if not handle_auth(auth):
+        socketio.emit('error', {'message': '❌ Virheellinen API‑avain SocketIO‑connectissa'})
         return False    # kieltäytyy yhteydestä
     print(f"Client connected: {request.sid}")
 
 @socketio.on('disconnect')
 def handle_disconnect():
     print(f"Client disconnected: {request.sid}")
+    
+def handle_auth(auth):
+    api_key = (auth or {}).get('api_key')
+    if not api_key or not hmac.compare_digest(api_key, API_KEY):
+        return False 
+    else:
+        return True
 
 if __name__ == '__main__':
     socketio.run(server, host='0.0.0.0', port=5555, debug=True)
