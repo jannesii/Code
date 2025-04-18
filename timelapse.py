@@ -151,7 +151,7 @@ class TimelapseController:
         """Send the current temperature and humidity to the server."""
         while self.thread_flag:
             try:
-                self.sio.emit('temphum', {'temperature': self.temp, 'humidity': self.hum})
+                self.sio.emit('temphum', self.dht.read())
                 sleep(10)
             except Exception as e:
                 print(

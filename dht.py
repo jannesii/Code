@@ -44,7 +44,7 @@ class DHT22Sensor:
             self.logger.addHandler(handler)
         self.logger.setLevel(logging.INFO)
 
-    def read(self) -> tuple[float, float]:
+    def read(self) -> dict:
         """
         Try up to self.retries times to read temperature and humidity.
 
@@ -59,7 +59,7 @@ class DHT22Sensor:
                     self.temperature = temp
                     self.humidity = hum
                     self.logger.info(f"Read OK: {temp:.1f}°C, {hum:.1f}%")
-                    return temp, hum
+                    return {'temperature': self.temperature, 'humidity': self.humidity}
             except RuntimeError as e:
                 self.logger.warning(
                     f"Attempt {attempt} failed ({e}), retrying in {self.delay}s...")
