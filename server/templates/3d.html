@@ -120,19 +120,24 @@
   <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.min.js"></script>
   <script type="text/javascript">
     function init(api_key) {
-          const socket = io.connect('http://128.214.254.152:5555', headers={'X-API-KEY': api_key}); // adjust as needed
-          socket.on('connect_error', err => console.error('Connection error:', err));
-          socket.on('connect', () => console.log('Connected to server'));
-          socket.on('image', data => {
-              console.log('Received image data:', data);
-              document.querySelector('.image-tile img').src = 'data:image/jpeg;base64,' + data.image;
-          });
-          socket.on('status', data => document.getElementById('status').innerText = data.status);
-          socket.on('temphum', data => {
-              document.getElementById('temperature').innerText = data.temperature + '°C';
-              document.getElementById('humidity').innerText = data.humidity + '%';
-          });
-      }
+        console.log('Initializing with API key:', api_key);
+        if (!api_key) {
+            console.error('API key is missing!');
+            return;
+        }
+        const socket = io.connect('http://128.214.254.152:5555', headers={'X-API-KEY': api_key}); // adjust as needed
+        socket.on('connect_error', err => console.error('Connection error:', err));
+        socket.on('connect', () => console.log('Connected to server'));
+        socket.on('image', data => {
+            console.log('Received image data:', data);
+            document.querySelector('.image-tile img').src = 'data:image/jpeg;base64,' + data.image;
+        });
+        socket.on('status', data => document.getElementById('status').innerText = data.status);
+        socket.on('temphum', data => {
+            document.getElementById('temperature').innerText = data.temperature + '°C';
+            document.getElementById('humidity').innerText = data.humidity + '%';
+        });
+    }
   </script>
 </body>
 </html>
