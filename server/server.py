@@ -72,8 +72,8 @@ def handle_image(data):
         json.dump(data, f)
 
     # Emit via SocketIO
-    socketio.emit('image', {'image': data['image']})
-    print(f"📡 Broadcast image:")
+    socketio.emit('image2v', {'image': data['image']})
+    print(f"📡 Broadcasting image.")
 
 
 @socketio.on('temphum')
@@ -98,7 +98,7 @@ def handle_temphum(data):
 
     # Lähetä kaikille muille asiakkaille
     socketio.emit('temphum2v', data)
-    print(f"📡 Broadcast temphum: temp={temp}, hum={hum}")
+    print(f"📡 Broadcasting temphum: temp={temp}, hum={hum}")
 
 
 @socketio.on('status')
@@ -109,15 +109,9 @@ def handle_status(data):
     with open('last_status.json', 'w') as f:
         json.dump(data, f)
 
-    try:
-        socketio.emit('status2v', data)
-    except Exception as e:
-        abort(500, f"SocketIO emit error: {e}")
-
-    print(f"Received timelapse status: {data['status']}")
-
-    return jsonify(status='success', message='Timelapse status received successfully')
-
+    socketio.emit('status2v', data)
+    
+    print(f"📡 Broadcasting status: {data['status']}")
 
 @socketio.on('connect')
 def handle_connect(auth):
