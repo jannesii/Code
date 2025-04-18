@@ -87,6 +87,7 @@ def handle_image(data):
 
     # Emit via SocketIO
     socketio.emit('image', {'image': data['image']})
+    print(f"📡 Broadcast image:")
 
 
 @server.route('/3d/temphum', methods=['POST'])
