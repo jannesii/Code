@@ -461,7 +461,7 @@ class SocketIOClient:
             #print(data)  
             data.update(self.auth)  # Add auth to the data payload
             #print(data)
-            self.sio.emit(event, data)
+            self.sio.emit(event, data, namespace='/3d')
         except Exception as e:
             print(f"Error emitting event '{event}': {e}")
     
