@@ -446,14 +446,12 @@ class SocketIOClient:
         self.sio = socketio.Client()
         self.controller = controller
         self.server_url = server_url
-        self.auth = {
-          'auth': { 'api_key': API_KEY }
-        }
+        self.auth = { 'api_key': API_KEY }
         self.sio.on('connect', handler=self.on_connect)
         self.sio.on('disconnect', handler=self.on_disconnect)
 
     def start(self):
-        self.sio.connect(self.server_url, self.auth)
+        self.sio.connect(self.server_url, auth=self.auth)
         print("Connecting to server...")
 
     def on_connect(self):
