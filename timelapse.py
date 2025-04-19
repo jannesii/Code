@@ -48,7 +48,7 @@ class TimelapseController:
 
         csc = True
         if csc:
-            self.server = "http://128.214.254.152:5555"
+            self.server = "https://128.214.254.152:5555"
         else:
             self.server = "http://192.168.1.125:5555"
 
