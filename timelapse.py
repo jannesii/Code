@@ -47,11 +47,7 @@ class TimelapseController:
         self.yellow_led = yellow_led
         self.green_led = green_led
 
-        csc = True
-        if csc:
-            self.server = "https://128.214.254.152:5555"
-        else:
-            self.server = "http://192.168.1.125:5555"
+        self.server = "https://jannenkoti.com/socket.io/socket.io.min.js"
 
         self.get_api_key()
 
