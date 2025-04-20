@@ -8,7 +8,7 @@ from time import sleep, time
 from datetime import datetime
 import threading
 import requests
-import urllib3
+import ssl
 import base64
 import json
 import socketio
@@ -430,12 +430,22 @@ class SocketIOClient:
         self.server_url = server_url
         self.auth = { 'api_key': API_KEY }
         
+        # 1) HTTP polling uses this session:
         session = requests.Session()
+        # point to your self‑signed cert as a CA bundle
         session.verify = 'cert.pem'
 
-        # pass it into the socketio client
-        self.sio = socketio.Client(http_session=session)
-        
+        # 2) WebSocket transport needs ssl options too:
+        sslopt = {
+            'cert_reqs': ssl.CERT_REQUIRED,
+            'ca_certs': 'cert.pem'
+        }
+
+        self.sio = socketio.Client(
+            http_session=session,
+            ssl_verify=True,  # leave on
+            websocket_extra_options={'sslopt': sslopt}
+        )
         self.sio.connect(self.server_url, auth=self.auth)
 
         self.sio.on('connect', handler=self.on_connect)
