@@ -94,6 +94,10 @@
       }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="{{ url_for('static', filename='js/socket.io.js') }}"></script>
+  <!-- expose the API_KEY to our external script -->
+  <script>window.API_KEY = {{ api_key|tojson }};</script>
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 </head>
 <body onload="init()">
   <!-- Navigaatiopalkki -->
@@ -142,109 +146,5 @@
       <canvas id="chartCanvas" height="200"></canvas>
     </div>
   </div>
-  <script src="{{ url_for('static', filename='js/socket.io.js') }}"></script>
-  <script type="text/javascript">
-    const API_KEY = {{ api_key|tojson }};
-    // console.log('API_KEY:', API_KEY, typeof API_KEY); // Debugging: tulosta API_KEY konsoliin
-      function init() {
-        if (!API_KEY) {
-          console.error('API key puuttuu!');
-          return;
-        }
-        const socket = io('https://jannenkoti.com', {
-          auth: { api_key: API_KEY },
-          transports: ['websocket','polling']
-        });
-        socket.on('connect_error', err => console.error('Connection error:', err));
-        socket.on('connect', () => console.log('✅ Yhdistetty palvelimeen'));
-        socket.on('image2v', data => {
-            console.log('Received image data:', data);
-            document.querySelector('.image-tile img').src = 'data:image/jpeg;base64,' + data.image;
-        });
-        socket.on('status2v', data => document.getElementById('status').innerText = data.status);
-        socket.on('temphum2v', data => {
-            document.getElementById('temperature').innerText = data.temperature + '°C';
-            document.getElementById('humidity').innerText = data.humidity + '%';
-        });
-    }
-
-    // --- Chart logic ---
-    const modal       = document.getElementById('chartModal');
-    const titleEl     = document.getElementById('chartTitle');
-    const dateEl      = document.getElementById('currentDate');
-    const prevBtn     = document.getElementById('prevDay');
-    const nextBtn     = document.getElementById('nextDay');
-    const closeBtn    = document.getElementById('closeModal');
-    const ctx         = document.getElementById('chartCanvas').getContext('2d');
-    let currentDate   = new Date();            // starts today
-    let currentField  = 'temperature';         // or 'humidity'
-    let chartInstance = null;
-
-    // Helpers
-    function formatDate(d) {
-      return d.toISOString().split('T')[0];
-    }
-    function openModal() { modal.style.display = 'flex'; }
-    function closeModal() { modal.style.display = 'none'; }
-
-    function fetchAndRender(field) {
-      const dateStr = formatDate(currentDate);
-      dateEl.textContent = dateStr;
-      titleEl.textContent = field==='temperature'
-        ? `Lämpötila (${dateStr})`
-        : `Kosteus (${dateStr})`;
-    
-      fetch(`/api/temphum?date=${dateStr}`)
-        .then(r => r.json())
-        .then(data => {
-          const labels = data.map(d => d.timestamp.slice(11,19));
-          const values = data.map(d => d[field]);
-    
-          // --- NEW: compute averages ---
-          const temps = data.map(d => d.temperature);
-          const hums  = data.map(d => d.humidity);
-          const avgTemp = temps.length
-            ? temps.reduce((a,b)=>a+b,0)/temps.length
-            : NaN;
-          const avgHum  = hums.length
-            ? hums.reduce((a,b)=>a+b,0)/hums.length
-            : NaN;
-    
-          document.getElementById('avgTemp').textContent =
-            temps.length
-              ? `Lämpötila: ${avgTemp.toFixed(1)}°C`
-              : 'Lämpötila: –';
-          document.getElementById('avgHum').textContent =
-            hums.length
-              ? `Kosteus: ${avgHum.toFixed(1)}%`
-              : 'Kosteus: –';
-    
-          if (!chartInstance) {
-            chartInstance = new Chart(ctx, {
-              type: 'line',
-              data: {
-                labels,
-                datasets: [{
-                  label: field==='temperature' ? '°C' : '%',
-                  data: values,
-                  fill: false,
-                }]
-              },
-              options: {
-                scales: {
-                  x: { display: true, title: { display: true, text: 'Aika' } },
-                  y: { beginAtZero: true }
-                }
-              }
-            });
-          } else {
-            chartInstance.data.labels = labels;
-            chartInstance.data.datasets[0].data = values;
-            chartInstance.data.datasets[0].label = field==='temperature' ? '°C' : '%';
-            chartInstance.update();
-          }
-        });
-    }    
-  </script>
 </body>
 </html>
