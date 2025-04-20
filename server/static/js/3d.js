@@ -17,13 +17,15 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('connect_error', err => console.error('Connection error:', err));
     socket.on('connect', () => console.log('✅ Yhdistetty palvelimeen'));
     socket.on('image2v', data => {
-      console.log('Received image data:', data);
+      console.log('Received image data.');
       document.querySelector('.image-tile img').src = 'data:image/jpeg;base64,' + data.image;
     });
     socket.on('status2v', data => {
+      console.log('Received status data.');
       document.getElementById('status').innerText = data.status;
     });
     socket.on('temphum2v', data => {
+      console.log('Received temperature/humidity data.');
       document.getElementById('temperature').innerText = data.temperature + '°C';
       document.getElementById('humidity').innerText = data.humidity + '%';
     });
