@@ -2,97 +2,98 @@
 <!DOCTYPE html>
 <html lang="fi">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sensor Dashboard</title>
-<style>
-    /* Yleiset tyylit */
-    * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sensor Dashboard</title>
+  <style>
+      /* Yleiset tyylit */
+      * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      }
 
-    body {
-    background-color: #121212; /* Tumma tausta */
-    color: #fff; /* Vaalea teksti */
-    font-family: Arial, sans-serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    min-height: 100vh;
-    }
-
-    /* Navigaatiopalkki */
-    nav.navbar {
-      width: 100%;
-      background-color: #1e1e1e;
-      border-bottom: 1px solid #333;
-      padding: 10px 20px;
-    }
-    nav.navbar ul {
-      list-style: none;
+      body {
+      background-color: #121212; /* Tumma tausta */
+      color: #fff; /* Vaalea teksti */
+      font-family: Arial, sans-serif;
       display: flex;
-      gap: 20px;
-    }
-    nav.navbar a {
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      }
+
+      /* Navigaatiopalkki */
+      nav.navbar {
+        width: 100%;
+        background-color: #1e1e1e;
+        border-bottom: 1px solid #333;
+        padding: 10px 20px;
+      }
+      nav.navbar ul {
+        list-style: none;
+        display: flex;
+        gap: 20px;
+      }
+      nav.navbar a {
+        color: #fff;
+        text-decoration: none;
+        font-weight: bold;
+        transition: color 0.3s;
+      }
+      nav.navbar a:hover {
+        color: #bbb;
+      }
+
+      .container {
+      max-width: 800px;
+      width: 100%;
+      padding: 20px;
+      }
+
+      /* Perustyyli kaikille ruutuja kuvaaville laatikoille */
+      .tile {
+      background-color: #1e1e1e;
+      border: 1px solid #333;
+      padding: 30px;
+      border-radius: 10px;
+      text-align: center;
       color: #fff;
-      text-decoration: none;
-      font-weight: bold;
-      transition: color 0.3s;
-    }
-    nav.navbar a:hover {
-      color: #bbb;
-    }
+      font-size: 1.2em;
+      transition: background-color 0.3s, transform 0.3s;
+      }
 
-    .container {
-    max-width: 800px;
-    width: 100%;
-    padding: 20px;
-    }
+      .tile:hover {
+      background-color: #272727;
+      transform: scale(1.05);
+      }
 
-    /* Perustyyli kaikille ruutuja kuvaaville laatikoille */
-    .tile {
-    background-color: #1e1e1e;
-    border: 1px solid #333;
-    padding: 30px;
-    border-radius: 10px;
-    text-align: center;
-    color: #fff;
-    font-size: 1.2em;
-    transition: background-color 0.3s, transform 0.3s;
-    }
+      /* Kuvan laatikko, joka ulottuu koko riville */
+      .image-tile {
+      margin-bottom: 20px;
+      }
 
-    .tile:hover {
-    background-color: #272727;
-    transform: scale(1.05);
-    }
+      .image-tile img {
+      width: 100%;
+      height: auto;
+      border-radius: 10px;
+      }
 
-    /* Kuvan laatikko, joka ulottuu koko riville */
-    .image-tile {
-    margin-bottom: 20px;
-    }
+      /* Data-ruudukko sensoritiedoille */
+      .data-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      }
 
-    .image-tile img {
-    width: 100%;
-    height: auto;
-    border-radius: 10px;
-    }
-
-    /* Data-ruudukko sensoritiedoille */
-    .data-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-    }
-
-    /* Responsiivisuus: jos näyttö on kapea, aseta data ruudukko yhdelle sarakkeelle */
-    @media (max-width: 600px) {
-    .data-grid {
-        grid-template-columns: 1fr;
-    }
-    }
-</style>
+      /* Responsiivisuus: jos näyttö on kapea, aseta data ruudukko yhdelle sarakkeelle */
+      @media (max-width: 600px) {
+      .data-grid {
+          grid-template-columns: 1fr;
+      }
+      }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body onload="init()">
   <!-- Navigaatiopalkki -->
@@ -107,15 +108,31 @@
   <div class="container">
       <!-- Kuvatile, joka kattaa koko rivin leveyden -->
       <div class="tile image-tile">
-      <img src="data:image/jpeg;base64,{{ last_image['image'] }}" alt="Sensor Image">
+        <img src="data:image/jpeg;base64,{{ last_image['image'] }}" alt="Sensor Image">
       </div>
       <!-- Sensoridatan ruudukko -->
       <div class="data-grid">
-      <div class="tile">Temperature:<br> <strong id="temperature">{{ last_temphum['temperature'] }}°C</strong></div>
-      <div class="tile">Humidity:<br> <strong id="humidity">{{ last_temphum['humidity'] }}%</strong></div>
-      <div class="tile">Status:<br> <strong id="status">{{ last_status['status'] }}</strong></div>
-      
+        <div class="tile" id="tempTile">Temperature:<br> <strong id="temperature">{{ last_temphum['temperature'] }}°C</strong></div>
+        <div class="tile" id="humTile">Humidity:<br> <strong id="humidity">{{ last_temphum['humidity'] }}%</strong></div>
+        <div class="tile">Status:<br> <strong id="status">{{ last_status['status'] }}</strong></div>
+      </div>
+  </div>
+  <!-- Chart Modal -->
+  <div id="chartModal" style="
+  display:none;
+  position:fixed; top:0; left:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.8); align-items:center; justify-content:center;
+  ">
+  <div style="background:#1e1e1e; padding:1rem; border-radius:8px; width:90%; max-width:600px;">
+    <button id="closeModal" style="float:right;">✕</button>
+    <h3 id="chartTitle" style="text-align:center; margin-bottom:0.5rem;"></h3>
+    <div style="text-align:center; margin-bottom:0.5rem;">
+      <button id="prevDay">← Edellinen</button>
+      <span id="currentDate"></span>
+      <button id="nextDay">Seuraava →</button>
     </div>
+    <canvas id="chartCanvas" height="200"></canvas>
+  </div>
   </div>
   <script src="{{ url_for('static', filename='js/socket.io.js') }}"></script>
   <script type="text/javascript">
@@ -142,6 +159,90 @@
             document.getElementById('humidity').innerText = data.humidity + '%';
         });
     }
+
+    // --- Chart logic ---
+    const modal       = document.getElementById('chartModal');
+    const titleEl     = document.getElementById('chartTitle');
+    const dateEl      = document.getElementById('currentDate');
+    const prevBtn     = document.getElementById('prevDay');
+    const nextBtn     = document.getElementById('nextDay');
+    const closeBtn    = document.getElementById('closeModal');
+    const ctx         = document.getElementById('chartCanvas').getContext('2d');
+    let currentDate   = new Date();            // starts today
+    let currentField  = 'temperature';         // or 'humidity'
+    let chartInstance = null;
+
+    // Helpers
+    function formatDate(d) {
+      return d.toISOString().split('T')[0];
+    }
+    function openModal() { modal.style.display = 'flex'; }
+    function closeModal() { modal.style.display = 'none'; }
+
+    function fetchAndRender(field) {
+      const dateStr = formatDate(currentDate);
+      dateEl.textContent = dateStr;
+      titleEl.textContent = field==='temperature'
+        ? `Lämpötila (${dateStr})`
+        : `Kosteus (${dateStr})`;
+
+      fetch(`/api/temphum?date=${dateStr}`)
+        .then(r => r.json())
+        .then(data => {
+          const labels = data.map(d => d.timestamp.slice(11,19));
+          const values = data.map(d => d[field]);
+          if (!chartInstance) {
+            chartInstance = new Chart(ctx, {
+              type: 'line',
+              data: {
+                labels,
+                datasets: [{
+                  label: field==='temperature' ? '°C' : '%',
+                  data: values,
+                  fill: false,
+                }]
+              },
+              options: {
+                scales: {
+                  x: { display: true, title: { display: true, text: 'Aika' } },
+                  y: { beginAtZero: true }
+                }
+              }
+            });
+          } else {
+            chartInstance.data.labels = labels;
+            chartInstance.data.datasets[0].data = values;
+            chartInstance.data.datasets[0].label = field==='temperature' ? '°C' : '%';
+            chartInstance.update();
+          }
+        });
+    }
+
+    // Tile click handlers
+    document.getElementById('tempTile').addEventListener('click', () => {
+      currentField = 'temperature'; currentDate = new Date(); openModal();
+      fetchAndRender(currentField);
+    });
+    document.getElementById('humTile').addEventListener('click', () => {
+      currentField = 'humidity'; currentDate = new Date(); openModal();
+      fetchAndRender(currentField);
+    });
+
+    // Prev/Next date
+    prevBtn.addEventListener('click', () => {
+      currentDate.setDate(currentDate.getDate() - 1);
+      fetchAndRender(currentField);
+    });
+    nextBtn.addEventListener('click', () => {
+      currentDate.setDate(currentDate.getDate() + 1);
+      fetchAndRender(currentField);
+    });
+
+    // Close
+    closeBtn.addEventListener('click', closeModal);
+    window.addEventListener('click', e => {
+      if (e.target === modal) closeModal();
+    });
   </script>
 </body>
 </html>

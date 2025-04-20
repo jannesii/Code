@@ -1,5 +1,5 @@
 # controller.py
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -68,6 +68,30 @@ class Controller:
             id=row['id'], timestamp=row['timestamp'],
             temperature=row['temperature'], humidity=row['humidity']
         )
+
+    def get_temphum_for_date(self, date_str: str) -> List[TemperatureHumidity]:
+        """
+        Returns all TemperatureHumidity rows whose timestamp falls on `date_str`
+        (ISO date, e.g. '2025-04-20'), ordered by timestamp.
+        """
+        rows = self.db.fetchall(
+            """
+            SELECT id, timestamp, temperature, humidity
+              FROM temphum
+             WHERE date(timestamp) = ?
+             ORDER BY timestamp
+            """,
+            (date_str,)
+        )
+        return [
+            TemperatureHumidity(
+                id=row['id'],
+                timestamp=row['timestamp'],
+                temperature=row['temperature'],
+                humidity=row['humidity']
+            )
+            for row in rows
+        ]
 
     def record_status(self, status: str) -> Status:
         now = datetime.utcnow().isoformat()

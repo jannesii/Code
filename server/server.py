@@ -4,7 +4,7 @@
 
 from flask import (
     Flask, render_template, request, abort, redirect,
-    url_for, flash, session
+    url_for, flash, session, jsonify
 )
 from flask_socketio import SocketIO
 from flask_login import (
@@ -16,14 +16,14 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import hmac
 import json
-from datetime import timedelta
+from datetime import timedelta, datetime
 from dataclasses import asdict
 
 # ——————————————
 # Domain imports
 # ——————————————
 from models import (
-    User       as DomainUser,
+    User as DomainUser,
     TemperatureHumidity,
     Status,
     ImageData
@@ -57,7 +57,7 @@ socketio = SocketIO(
 with open('config.json', 'r') as f:
     config = json.load(f)
 
-API_KEY     = config.get('api_key')
+API_KEY = config.get('api_key')
 WEB_USERNAME = config.get('web_username')
 WEB_PASSWORD = config.get('web_password')
 
@@ -82,10 +82,13 @@ login_manager = LoginManager()
 login_manager.login_view = 'login'
 login_manager.init_app(server)
 
+
 class AuthUser(UserMixin):
     """Flask‑Login user."""
+
     def __init__(self, username: str):
         self.id = username
+
 
 @login_manager.user_loader
 def load_user(user_id: str):
@@ -94,25 +97,15 @@ def load_user(user_id: str):
     return None
 
 # ——————————————
-# Optional decorator for REST endpoints
-# ——————————————
-def require_api_key(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        provided = request.headers.get('X-API-KEY') or request.args.get('api_key')
-        if not provided or not hmac.compare_digest(provided, API_KEY):
-            abort(401, 'Unauthorized: invalid or missing API key')
-        return f(*args, **kwargs)
-    return decorated
-
-# ——————————————
 # Authentication routes
 # ——————————————
-@server.route('/login', methods=['GET','POST'])
+
+
+@server.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form.get('username','')
-        password = request.form.get('password','')
+        username = request.form.get('username', '')
+        password = request.form.get('password', '')
         remember = request.form.get('remember') == 'on'
 
         user_rec = users.get(username)
@@ -136,6 +129,8 @@ def logout():
 # ——————————————
 # Web interface (protected)
 # ——————————————
+
+
 @server.route('/')
 @login_required
 def get_home_page():
@@ -147,13 +142,13 @@ def get_home_page():
 def get_3d_page():
     # Fetch latest records via Controller
     img_obj = ctrl.get_last_image()
-    th_obj  = ctrl.get_last_temphum()
-    st_obj  = ctrl.get_last_status()
+    th_obj = ctrl.get_last_temphum()
+    st_obj = ctrl.get_last_status()
 
     # Convert dataclass → dict for Jinja
-    last_image   = asdict(img_obj) if img_obj else None
-    last_temphum = asdict(th_obj)  if th_obj  else None
-    last_status  = asdict(st_obj)  if st_obj  else None
+    last_image = asdict(img_obj) if img_obj else None
+    last_temphum = asdict(th_obj) if th_obj else None
+    last_status = asdict(st_obj) if st_obj else None
 
     return render_template(
         '3d.html',
@@ -166,6 +161,8 @@ def get_3d_page():
 # ——————————————
 # SocketIO handlers
 # ——————————————
+
+
 @socketio.on('connect')
 def handle_connect(auth):
     # refuse if no valid API key
@@ -173,9 +170,11 @@ def handle_connect(auth):
         return False
     print(f"Client connected: {request.sid}")
 
+
 @socketio.on('disconnect')
 def handle_disconnect():
     print(f"Client disconnected: {request.sid}")
+
 
 @socketio.on('image')
 def handle_image(data):
@@ -186,19 +185,23 @@ def handle_image(data):
     socketio.emit('image2v', {'image': saved.image})
     print("📡 Broadcasting image.")
 
+
 @socketio.on('temphum')
 def handle_temphum(data):
     temp = data.get('temperature')
-    hum  = data.get('humidity')
+    hum = data.get('humidity')
     if temp is None or hum is None:
-        socketio.emit('error', {'message': 'Invalid temperature/humidity data'})
+        socketio.emit(
+            'error', {'message': 'Invalid temperature/humidity data'})
         return
     saved = ctrl.record_temphum(temp, hum)
     socketio.emit('temphum2v', {
         'temperature': saved.temperature,
         'humidity':    saved.humidity
     })
-    print(f"📡 Broadcasting temphum: temp={saved.temperature}, hum={saved.humidity}")
+    print(
+        f"📡 Broadcasting temphum: temp={saved.temperature}, hum={saved.humidity}")
+
 
 @socketio.on('status')
 def handle_status(data):
@@ -210,9 +213,36 @@ def handle_status(data):
     socketio.emit('status2v', {'status': saved.status})
     print(f"📡 Broadcasting status: {saved.status}")
 
+
+@server.route('/api/temphum')
+@login_required
+def api_temphum():
+    """
+    Query string:
+      ?date=YYYY-MM-DD   (defaults to today in UTC)
+    Returns JSON array of:
+      [{ timestamp: "...", temperature: 23.5, humidity: 56.2 }, ...]
+    """
+    date_str = request.args.get(
+        'date',
+        datetime.utcnow().date().isoformat()
+    )
+    data = ctrl.get_temphum_for_date(date_str)
+    return jsonify([
+        {
+            'timestamp':      d.timestamp,
+            'temperature':    d.temperature,
+            'humidity':       d.humidity
+        }
+        for d in data
+    ])
+    
+    
 # ——————————————
 # Helper for socket auth
 # ——————————————
+
+
 def handle_auth(auth: dict) -> bool:
     key = (auth or {}).get('api_key')
     return bool(key and hmac.compare_digest(key, API_KEY))
