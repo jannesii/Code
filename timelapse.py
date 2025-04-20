@@ -435,15 +435,20 @@ class SocketIOClient:
     def start(self):
         self.sio.connect(self.server_url, auth=self.auth)
 
-    def emit(self, event, data):
-        """Emit an event to the server."""
-        try:    
-            #print(data)  
-            #data.update(self.auth)  # Add auth to the data payload
-            #print(data)
-            self.sio.emit(event, data)
-        except Exception as e:
-            print(f"Error emitting event '{event}': {e}")
+    def emit(self, event, data, max_retries: int = 3, delay: float = 2.0):
+        """Emit an event to the server, retrying on error after `delay` seconds."""
+        attempt = 0
+        while True:
+            try:
+                self.sio.emit(event, data)
+                return  # success, exit
+            except Exception as e:
+                attempt += 1
+                print(f"Error emitting event '{event}' (attempt {attempt}): {e!r}")
+                if attempt >= max_retries:
+                    print(f"Giving up after {attempt} failed attempts.")
+                    return
+                sleep(delay)
     
     def on_connect(self):
         print("⚡ Connected to server")
