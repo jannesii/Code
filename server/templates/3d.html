@@ -117,7 +117,7 @@
       
     </div>
   </div>
-  <script src="https://jannenkoti.com/socket.io/socket.io.min.js"></script>
+  <script src="{{ url_for('static', filename='js/socket.io.js') }}"></script>
   <script type="text/javascript">
     const API_KEY = {{ api_key|tojson }};
     // console.log('API_KEY:', API_KEY, typeof API_KEY); // Debugging: tulosta API_KEY konsoliin
@@ -126,9 +126,9 @@
           console.error('API key puuttuu!');
           return;
         }
-        const socket = io({
+        const socket = io('https://jannenkoti.com', {
           auth: { api_key: API_KEY },
-          transports: ['websocket','polling']  // optional, ensures websocket support
+          transports: ['websocket','polling']
         });
         socket.on('connect_error', err => console.error('Connection error:', err));
         socket.on('connect', () => console.log('✅ Yhdistetty palvelimeen'));
