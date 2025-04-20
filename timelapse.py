@@ -157,7 +157,7 @@ class TimelapseController:
             except Exception as e:
                 print(
                     f"Error sending temperature and humidity: {e}", flush=True)
-                sleep(5)  # Retry after a short delay
+                sleep(60)  # Retry after a short delay
 
     def send_status(self):
         """Send the current status of the timelapse to the server."""

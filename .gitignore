@@ -1,6 +1,7 @@
 *.json
 *.jpg
 *.mp4
+*.crt
 .venv/
 myenv/
 __pycache__/
