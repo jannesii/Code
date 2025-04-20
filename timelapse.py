@@ -423,14 +423,17 @@ class TimelapseController:
 class SocketIOClient:
     def __init__(self, controller, server_url, API_KEY):
         self.controller = controller
+        self.server_url = server_url
         self.auth = { 'api_key': API_KEY }
         
         self.sio = socketio.Client()
-        self.sio.connect(server_url, auth=self.auth)
 
         self.sio.on('connect', handler=self.on_connect)
         self.sio.on('disconnect', handler=self.on_disconnect)
         self.sio.on('error', handler=self.on_error)
+
+    def start(self):
+        self.sio.connect(self.server_url, auth=self.auth)
 
     def emit(self, event, data):
         """Emit an event to the server."""
