@@ -1,15 +1,48 @@
 # server.py
-# This is a Flask server that serves a web interface and handles real-time updates via SocketIO.
+# Flask server with login (username/password + "remember me") for web interface
+# and API key authentication for socket clients, using Controller & models.
 
-from flask import Flask, render_template, request, abort, jsonify
+from flask import (
+    Flask, render_template, request, abort, redirect,
+    url_for, flash, session
+)
 from flask_socketio import SocketIO
+from flask_login import (
+    LoginManager, UserMixin,
+    login_user, login_required,
+    logout_user
+)
+from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import hmac
 import json
-from datetime import datetime
+from datetime import timedelta
+from dataclasses import asdict
 
-# Initialize Flask and SocketIO
+# ——————————————
+# Domain imports
+# ——————————————
+from models import (
+    User       as DomainUser,
+    TemperatureHumidity,
+    Status,
+    ImageData
+)
+
+# ——————————————
+# Controller
+# ——————————————
+from controller import Controller
+ctrl = Controller('app.db')
+
+# ——————————————
+# Flask App & Config
+# ——————————————
 server = Flask(__name__)
+server.config['SECRET_KEY'] = 'replace-with-a-secure-random-key'
+# “Remember me” sessions last 7 days
+server.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+
 socketio = SocketIO(
     server,
     cors_allowed_origins="*",
@@ -18,139 +51,177 @@ socketio = SocketIO(
     ping_interval=25
 )
 
-# Load API key from configuration file
+# ——————————————
+# Load config.json
+# ——————————————
 with open('config.json', 'r') as f:
     config = json.load(f)
-API_KEY = config.get('api_key')
+
+API_KEY     = config.get('api_key')
+WEB_USERNAME = config.get('web_username')
+WEB_PASSWORD = config.get('web_password')
+
 if not API_KEY:
     raise RuntimeError("API key not found in config.json")
+if not WEB_USERNAME or not WEB_PASSWORD:
+    raise RuntimeError("Web username/password not configured in config.json")
 
-# Decorator to require a valid API key
+# ——————————————
+# In‑memory Auth store (for demonstration)
+# ——————————————
+users = {
+    WEB_USERNAME: {
+        'password_hash': generate_password_hash(WEB_PASSWORD)
+    }
+}
 
+# ——————————————
+# Flask‑Login setup
+# ——————————————
+login_manager = LoginManager()
+login_manager.login_view = 'login'
+login_manager.init_app(server)
 
+class AuthUser(UserMixin):
+    """Flask‑Login user."""
+    def __init__(self, username: str):
+        self.id = username
+
+@login_manager.user_loader
+def load_user(user_id: str):
+    if user_id in users:
+        return AuthUser(user_id)
+    return None
+
+# ——————————————
+# Optional decorator for REST endpoints
+# ——————————————
 def require_api_key(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        # Look for the key in headers or query parameters
-        provided_key = request.headers.get(
-            'X-API-KEY') or request.args.get('api_key')
-        if not provided_key or not hmac.compare_digest(provided_key, API_KEY):
+        provided = request.headers.get('X-API-KEY') or request.args.get('api_key')
+        if not provided or not hmac.compare_digest(provided, API_KEY):
             abort(401, 'Unauthorized: invalid or missing API key')
         return f(*args, **kwargs)
     return decorated
 
+# ——————————————
+# Authentication routes
+# ——————————————
+@server.route('/login', methods=['GET','POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username','')
+        password = request.form.get('password','')
+        remember = request.form.get('remember') == 'on'
 
+        user_rec = users.get(username)
+        if user_rec and check_password_hash(user_rec['password_hash'], password):
+            session.permanent = remember
+            login_user(AuthUser(username), remember=remember)
+            next_page = request.args.get('next') or url_for('get_home_page')
+            return redirect(next_page)
+
+        flash('Virheellinen käyttäjätunnus tai salasana', 'error')
+
+    return render_template('login.html')
+
+
+@server.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
+
+# ——————————————
+# Web interface (protected)
+# ——————————————
 @server.route('/')
+@login_required
 def get_home_page():
     return render_template('index.html')
 
 
 @server.route('/3d')
+@login_required
 def get_3d_page():
-    try:
-        with open('last_image.json', 'r') as f:
-            last_image = json.load(f)
-    except FileNotFoundError:
-        last_image = None
-        
-    try:
-        with open('last_temphum.json', 'r') as f:
-            last_temphum = json.load(f)
-    except FileNotFoundError:
-        last_temphum = None
-        
-    try:
-        with open('last_status.json', 'r') as f:
-            last_status = json.load(f)
-    except FileNotFoundError:
-        last_status = None
+    # Fetch latest records via Controller
+    img_obj = ctrl.get_last_image()
+    th_obj  = ctrl.get_last_temphum()
+    st_obj  = ctrl.get_last_status()
 
-    return render_template('3d.html', last_image=last_image, api_key=API_KEY, last_temphum=last_temphum, last_status=last_status)
+    # Convert dataclass → dict for Jinja
+    last_image   = asdict(img_obj) if img_obj else None
+    last_temphum = asdict(th_obj)  if th_obj  else None
+    last_status  = asdict(st_obj)  if st_obj  else None
 
+    return render_template(
+        '3d.html',
+        last_image=last_image,
+        last_temphum=last_temphum,
+        last_status=last_status,
+        api_key=API_KEY
+    )
 
-@socketio.on('image')
-def handle_image(data):
-    """ if not handle_auth(data):
-        print("❌ Virheellinen API‑avain SocketIO‑handle_imagessa")
-        socketio.emit('error', {'message': 'Invalid API key'})
-        return False """
-
-    if not data or 'image' not in data:
-        socketio.emit('error', {'message': 'Invalid image data'})
-        return
-
-    # Save the latest image JSON
-    with open('last_image.json', 'w') as f:
-        json.dump(data, f)
-
-    # Emit via SocketIO
-    socketio.emit('image2v', {'image': data['image']})
-    print(f"📡 Broadcasting image.")
-
-
-@socketio.on('temphum')
-def handle_temphum(data):
-    """ if not handle_auth(data):
-        socketio.emit(
-            'error', {'message': '❌ Virheellinen API‑avain SocketIO‑handle_temphumissa'})
-        return False """
-
-    # Validointi
-    temp = data.get('temperature')
-    hum = data.get('humidity')
-    if temp is None or hum is None:
-        # Voit halutessasi lähettää virheilmoituksen clientille
-        socketio.emit(
-            'error', {'message': 'Invalid temperature/humidity data'})
-        return
-
-    # Tallenna tiedot
-    with open('last_temphum.json', 'w') as f:
-        json.dump(data, f)
-
-    # Lähetä kaikille muille asiakkaille
-    socketio.emit('temphum2v', data)
-    print(f"📡 Broadcasting temphum: temp={temp}, hum={hum}")
-
-
-@socketio.on('status')
-def handle_status(data):
-    if not data or 'status' not in data:
-        socketio.emit('error', {'message': 'Invalid status data'})
-
-    with open('last_status.json', 'w') as f:
-        json.dump(data, f)
-
-    socketio.emit('status2v', data)
-    
-    print(f"📡 Broadcasting status: {data['status']}")
-
+# ——————————————
+# SocketIO handlers
+# ——————————————
 @socketio.on('connect')
 def handle_connect(auth):
-    # auth on dict, jos client lähetti { auth: { api_key: ... } }
+    # refuse if no valid API key
     if not handle_auth(auth):
-        socketio.emit(
-            'error', {'message': '❌ Virheellinen API‑avain SocketIO‑connectissa'})
-        return False    # kieltäytyy yhteydestä
+        return False
     print(f"Client connected: {request.sid}")
-
 
 @socketio.on('disconnect')
 def handle_disconnect():
     print(f"Client disconnected: {request.sid}")
 
+@socketio.on('image')
+def handle_image(data):
+    if not data or 'image' not in data:
+        socketio.emit('error', {'message': 'Invalid image data'})
+        return
+    saved = ctrl.record_image(data['image'])
+    socketio.emit('image2v', {'image': saved.image})
+    print("📡 Broadcasting image.")
 
-def handle_auth(auth):
-    api_key = (auth or {}).get('api_key')
-    if not api_key or not hmac.compare_digest(api_key, API_KEY):
-        return False
-    else:
-        return True
+@socketio.on('temphum')
+def handle_temphum(data):
+    temp = data.get('temperature')
+    hum  = data.get('humidity')
+    if temp is None or hum is None:
+        socketio.emit('error', {'message': 'Invalid temperature/humidity data'})
+        return
+    saved = ctrl.record_temphum(temp, hum)
+    socketio.emit('temphum2v', {
+        'temperature': saved.temperature,
+        'humidity':    saved.humidity
+    })
+    print(f"📡 Broadcasting temphum: temp={saved.temperature}, hum={saved.humidity}")
+
+@socketio.on('status')
+def handle_status(data):
+    status = data.get('status')
+    if status is None:
+        socketio.emit('error', {'message': 'Invalid status data'})
+        return
+    saved = ctrl.record_status(status)
+    socketio.emit('status2v', {'status': saved.status})
+    print(f"📡 Broadcasting status: {saved.status}")
+
+# ——————————————
+# Helper for socket auth
+# ——————————————
+def handle_auth(auth: dict) -> bool:
+    key = (auth or {}).get('api_key')
+    return bool(key and hmac.compare_digest(key, API_KEY))
 
 
 if __name__ == '__main__':
-    socketio.run(server, 
-                 host='0.0.0.0', 
-                 port=5555, 
-                 debug=True,
-                 )
+    socketio.run(
+        server,
+        host='0.0.0.0',
+        port=5555,
+        debug=True
+    )
