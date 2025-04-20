@@ -47,7 +47,7 @@ class TimelapseController:
         self.yellow_led = yellow_led
         self.green_led = green_led
 
-        self.server = "https://jannenkoti.com/socket.io/socket.io.min.js"
+        self.server = 'https://jannenkoti.com'
 
         self.get_api_key()
 
@@ -437,11 +437,12 @@ class SocketIOClient:
             'ca_certs': 'cert.pem'
         }
 
-        self.sio = socketio.Client(
+        """ self.sio = socketio.Client(
             http_session=session,
             ssl_verify=True,  # leave on
-            websocket_extra_options={'sslopt': sslopt}
-        )
+            websocket_xtra_options={'sslopt': sslopt}
+        ) """
+        self.sio = socketio.Client()
         self.sio.connect(self.server_url, auth=self.auth)
 
         self.sio.on('connect', handler=self.on_connect)
