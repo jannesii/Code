@@ -119,20 +119,28 @@
   </div>
   <!-- Chart Modal -->
   <div id="chartModal" style="
-  display:none;
-  position:fixed; top:0; left:0; width:100%; height:100%;
-  background:rgba(0,0,0,0.8); align-items:center; justify-content:center;
+    display:none;
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    background:rgba(0,0,0,0.8); align-items:center; justify-content:center;
   ">
-  <div style="background:#1e1e1e; padding:1rem; border-radius:8px; width:90%; max-width:600px;">
-    <button id="closeModal" style="float:right;">✕</button>
-    <h3 id="chartTitle" style="text-align:center; margin-bottom:0.5rem;"></h3>
-    <div style="text-align:center; margin-bottom:0.5rem;">
-      <button id="prevDay">← Edellinen</button>
-      <span id="currentDate"></span>
-      <button id="nextDay">Seuraava →</button>
+    <div style="background:#1e1e1e; padding:1rem; border-radius:8px; width:90%; max-width:600px;">
+      <button id="closeModal" style="float:right;">✕</button>
+      <h3 id="chartTitle" style="text-align:center; margin-bottom:0.5rem;"></h3>
+
+      <div style="text-align:center; margin-bottom:0.5rem;">
+        <button id="prevDay">← Edellinen</button>
+        <span id="currentDate"></span>
+        <button id="nextDay">Seuraava →</button>
+      </div>
+
+      <!-- NEW: Averages display -->
+      <div id="averages" style="text-align:center; margin-bottom:0.5rem; color:#ccc;">
+        <span id="avgTemp">Lämpötila: –</span> &nbsp;|&nbsp;
+        <span id="avgHum">Kosteus: –</span>
+      </div>
+
+      <canvas id="chartCanvas" height="200"></canvas>
     </div>
-    <canvas id="chartCanvas" height="200"></canvas>
-  </div>
   </div>
   <script src="{{ url_for('static', filename='js/socket.io.js') }}"></script>
   <script type="text/javascript">
@@ -185,12 +193,32 @@
       titleEl.textContent = field==='temperature'
         ? `Lämpötila (${dateStr})`
         : `Kosteus (${dateStr})`;
-
+    
       fetch(`/api/temphum?date=${dateStr}`)
         .then(r => r.json())
         .then(data => {
           const labels = data.map(d => d.timestamp.slice(11,19));
           const values = data.map(d => d[field]);
+    
+          // --- NEW: compute averages ---
+          const temps = data.map(d => d.temperature);
+          const hums  = data.map(d => d.humidity);
+          const avgTemp = temps.length
+            ? temps.reduce((a,b)=>a+b,0)/temps.length
+            : NaN;
+          const avgHum  = hums.length
+            ? hums.reduce((a,b)=>a+b,0)/hums.length
+            : NaN;
+    
+          document.getElementById('avgTemp').textContent =
+            temps.length
+              ? `Lämpötila: ${avgTemp.toFixed(1)}°C`
+              : 'Lämpötila: –';
+          document.getElementById('avgHum').textContent =
+            hums.length
+              ? `Kosteus: ${avgHum.toFixed(1)}%`
+              : 'Kosteus: –';
+    
           if (!chartInstance) {
             chartInstance = new Chart(ctx, {
               type: 'line',
@@ -216,33 +244,7 @@
             chartInstance.update();
           }
         });
-    }
-
-    // Tile click handlers
-    document.getElementById('tempTile').addEventListener('click', () => {
-      currentField = 'temperature'; currentDate = new Date(); openModal();
-      fetchAndRender(currentField);
-    });
-    document.getElementById('humTile').addEventListener('click', () => {
-      currentField = 'humidity'; currentDate = new Date(); openModal();
-      fetchAndRender(currentField);
-    });
-
-    // Prev/Next date
-    prevBtn.addEventListener('click', () => {
-      currentDate.setDate(currentDate.getDate() - 1);
-      fetchAndRender(currentField);
-    });
-    nextBtn.addEventListener('click', () => {
-      currentDate.setDate(currentDate.getDate() + 1);
-      fetchAndRender(currentField);
-    });
-
-    // Close
-    closeBtn.addEventListener('click', closeModal);
-    window.addEventListener('click', e => {
-      if (e.target === modal) closeModal();
-    });
+    }    
   </script>
 </body>
 </html>
