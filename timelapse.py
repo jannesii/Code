@@ -423,34 +423,14 @@ class TimelapseController:
 class SocketIOClient:
     def __init__(self, controller, server_url, API_KEY):
         self.controller = controller
-        self.server_url = server_url
         self.auth = { 'api_key': API_KEY }
         
-        # 1) HTTP polling uses this session:
-        session = requests.Session()
-        # point to your self‑signed cert as a CA bundle
-        session.verify = 'cert.pem'
-
-        # 2) WebSocket transport needs ssl options too:
-        sslopt = {
-            'cert_reqs': ssl.CERT_REQUIRED,
-            'ca_certs': 'cert.pem'
-        }
-
-        """ self.sio = socketio.Client(
-            http_session=session,
-            ssl_verify=True,  # leave on
-            websocket_xtra_options={'sslopt': sslopt}
-        ) """
         self.sio = socketio.Client()
-        self.sio.connect(self.server_url, auth=self.auth)
+        self.sio.connect(server_url, auth=self.auth)
 
         self.sio.on('connect', handler=self.on_connect)
         self.sio.on('disconnect', handler=self.on_disconnect)
         self.sio.on('error', handler=self.on_error)
-
-    def start(self):
-        pass
 
     def emit(self, event, data):
         """Emit an event to the server."""
