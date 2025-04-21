@@ -16,7 +16,7 @@
   .image-tile img {
     display: block;
     width: 100%;
-    max-width: 100%;
+    max-width: 1200px;
     height: auto;
     border-radius: 10px;
   }
