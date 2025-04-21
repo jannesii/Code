@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Poista käyttäjä</title>
+  <style>
+    /* Yleiset tyylit */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #121212;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    /* Navigaatiopalkki */
+    nav.navbar {
+      width: 100%;
+      background-color: #1e1e1e;
+      border-bottom: 1px solid #333;
+      padding: 10px 20px;
+    }
+    nav.navbar ul {
+      list-style: none;
+      display: flex;
+      gap: 20px;
+    }
+    nav.navbar a {
+      color: #fff;
+      text-decoration: none;
+      font-weight: bold;
+      transition: color 0.3s;
+    }
+    nav.navbar a:hover {
+      color: #bbb;
+    }
+  </style>
+</head>
+<body>
+    <nav class="navbar">
+        <ul>
+          <li><a href="{{ url_for('get_home_page') }}">Home</a></li>
+          <li><a href="{{ url_for('get_3d_page') }}">3D Dashboard</a></li>
+          <li><a href="{{ url_for('settings') }}">Asetukset</a></li>
+          <li><a href="{{ url_for('logout') }}">Kirjaudu Ulos</a></li>
+        </ul>
+    </nav>
+      
+
+    <div class="container">
+        <div class="tile" style="height:auto; padding:30px;">
+        <form id="deleteForm" method="post">
+            <div>
+            <label for="username">Valitse käyttäjä poistettavaksi</label><br>
+            <select id="username" name="username" required>
+                {% for u in users %}
+                <option value="{{ u.username }}">{{ u.username }}</option>
+                {% endfor %}
+            </select>
+            </div>
+            <button type="submit" style="margin-top:1em;">Poista</button>
+        </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+</body>
+</html>

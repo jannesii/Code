@@ -7,16 +7,18 @@ from models import User, TemperatureHumidity, Status, ImageData
 from database import DatabaseManager
 import pytz
 
+
 class Controller:
     def __init__(self, db_path: str = 'app.db'):
         self.db = DatabaseManager(db_path)
         self.finland_tz = pytz.timezone('Europe/Helsinki')
-        
+
     # --- User operations ---
     def register_user(self, username: str, password: str) -> User:
         # Check if user exists
         existing = self.db.fetchone(
-            "SELECT id, username, password_hash FROM users WHERE username = ?", (username,)
+            "SELECT id, username, password_hash FROM users WHERE username = ?", (
+                username,)
         )
         if existing is not None:
             raise ValueError("Username already exists")
@@ -28,7 +30,8 @@ class Controller:
         )
         # Retrieve inserted user
         row = self.db.fetchone(
-            "SELECT id, username, password_hash FROM users WHERE username = ?", (username,)
+            "SELECT id, username, password_hash FROM users WHERE username = ?", (
+                username,)
         )
         if row is None:
             raise RuntimeError("Failed to retrieve newly created user")
@@ -43,9 +46,28 @@ class Controller:
             return False
         return check_password_hash(row['password_hash'], password)
 
+    def get_all_users(self) -> list[User]:
+        """Palauttaa listan kaikista käyttäjistä."""
+        rows = self.db.fetchall(
+            "SELECT id, username, password_hash FROM users",
+            ()
+        )
+        return [
+            User(id=row['id'], username=row['username'],
+                 password_hash=row['password_hash'])
+            for row in rows
+        ]
+
+    def delete_user(self, username: str) -> None:
+        """Poistaa käyttäjän annetulla käyttäjätunnuksella."""
+        self.db.execute_query(
+            "DELETE FROM users WHERE username = ?",
+            (username,)
+        )
+
     # --- Sensor data operations ---
     def record_temphum(self, temperature: float, humidity: float) -> TemperatureHumidity:
-        now = datetime.now(self.finland_tz).isoformat()  
+        now = datetime.now(self.finland_tz).isoformat()
         self.db.execute_query(
             "INSERT INTO temphum (timestamp, temperature, humidity) VALUES (?, ?, ?)",
             (now, temperature, humidity)

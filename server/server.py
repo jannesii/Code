@@ -10,7 +10,7 @@ from flask_socketio import SocketIO
 from flask_login import (
     LoginManager, UserMixin,
     login_user, login_required,
-    logout_user
+    logout_user, current_user
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
@@ -159,6 +159,55 @@ def get_3d_page():
         api_key=API_KEY
     )
 
+
+@server.route('/settings')
+@login_required
+def settings():
+    """Settings landing page with tiles."""
+    return render_template('settings.html')
+
+
+@server.route('/settings/add_user', methods=['GET', 'POST'])
+@login_required
+def add_user():
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        try:
+            ctrl.register_user(username, password)
+            flash(f"Käyttäjä «{username}» lisätty onnistuneesti.", "success")
+            return redirect(url_for('settings'))
+        except ValueError as ve:
+            flash(str(ve), "error")
+    return render_template('add_user.html')
+
+
+@server.route('/settings/delete_user', methods=['GET', 'POST'])
+@login_required
+def delete_user():
+    users_list = ctrl.get_all_users()
+
+    if request.method == 'POST':
+        username = request.form.get('username')
+        # Jos ei valittu käyttäjää, näytä virhe ja palaa
+        if not username:
+            flash("Valitse ensin käyttäjä.", "error")
+            return redirect(url_for('settings'))
+
+        # estetään oman tilin poisto
+        if username == current_user.get_id():
+            flash("Et voi poistaa omaa tiliäsi.", "error")
+        else:
+            try:
+                ctrl.delete_user(username)
+                flash(f"Käyttäjä «{username}» poistettu.", "success")
+            except Exception as e:
+                flash(f"Poisto epäonnistui: {e}", "error")
+
+        return redirect(url_for('settings'))
+
+    return render_template('delete_user.html', users=users_list)
+
 # ——————————————
 # SocketIO handlers
 # ——————————————
@@ -238,8 +287,8 @@ def api_temphum():
         }
         for d in data
     ])
-    
-    
+
+
 # ——————————————
 # Helper for socket auth
 # ——————————————

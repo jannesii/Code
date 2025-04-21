@@ -103,11 +103,13 @@
   <!-- Navigaatiopalkki -->
   <nav class="navbar">
     <ul>
-      <li><a href="/">Home</a></li>
-      <li><a href="/3d">3D Dashboard</a></li>
-      <!-- Lisää linkkejä tarvittaessa -->
+      <li><a href="{{ url_for('get_home_page') }}">Home</a></li>
+      <li><a href="{{ url_for('get_3d_page') }}">3D Dashboard</a></li>
+      <li><a href="{{ url_for('settings') }}">Asetukset</a></li>
+      <li><a href="{{ url_for('logout') }}">Kirjaudu Ulos</a></li>
     </ul>
   </nav>
+  
 
   <div class="container">
       <!-- Kuvatile, joka kattaa koko rivin leveyden -->
