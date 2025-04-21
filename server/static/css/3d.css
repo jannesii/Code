@@ -1,36 +1,4 @@
-/* 3d.css */
-
-/* 1) Full‑width flex container */
-.container {
-  width: 100%;
-  align-self: stretch;     /* override body’s align-items:center */
-  padding: 20px;
-  box-sizing: border-box;
-}
-
-/* 2) IMAGE TILE: center it, max at 1200px */
-.tile.image-tile {
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto 20px auto;  /* bottom gap plus horizontal centering */
-  box-sizing: border-box;
-}
-.image-tile img {
-  display: block;
-  width: 100%;
-  height: auto;
-  border-radius: 10px;
-}
-
-/* 3) DATA GRID: exactly 3 columns, each min 200px / max 400px, centered */
-.data-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(200px, 400px));
-  gap: 20px;
-  justify-content: center;   /* center the whole grid in the container */
-}
-
-/* 4) TILE BASE STYLES */
+/* 3d.html – sensor dashboard */
 .tile {
   background-color: #1e1e1e;
   border: 1px solid #333;
@@ -41,12 +9,28 @@
   font-size: 1.2em;
   transition: background-color 0.3s, transform 0.3s;
 }
+
 .tile:hover {
   background-color: #272727;
   transform: scale(1.05);
 }
 
-/* 5) NARROW SCREENS FALLBACK */
+.image-tile {
+  margin-bottom: 20px;
+}
+
+.image-tile img {
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+}
+
+.data-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
 @media (max-width: 600px) {
   .data-grid {
     grid-template-columns: 1fr;
