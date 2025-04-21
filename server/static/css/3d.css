@@ -1,35 +1,32 @@
-/* static/css/3d.css */
-
-/* 1. Page wrapper: full‑width up to 1200px, centered */
+/* 1. Page container: full‑width up to 1200px, centered */
 .container {
-    width: 100%;
     max-width: 1200px;
-    margin: 20px auto;
+    margin: 20px auto;   /* vertical spacing + horizontal centering */
     padding: 20px;
     box-sizing: border-box;
   }
   
-  /* 2. Full‑width image tile */
-  .image-tile {
-    margin-bottom: 20px;
+  /* 2. Make sure the image‑wrapper spans the full container */
+  .tile.image-tile {
+    width: 100%;
   }
+  
+  /* 3. Image itself never grows beyond its parent */
   .image-tile img {
     display: block;
-    width: 100%;
-    max-width: 1200px;
+    max-width: 100%;
     height: auto;
     border-radius: 10px;
   }
   
-  /* 3. Sensor data grid: responsively fill the row */
+  /* 4. Data grid: each column is at least 200px, then flexes */
   .data-grid {
     display: grid;
-    /* auto‑fit lets tiles wrap as screen narrows; each is at least 200px wide */
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 20px;
   }
   
-  /* 4. All other tiles */
+  /* 5. Standard tile styling */
   .tile {
     background-color: #1e1e1e;
     border: 1px solid #333;
@@ -45,7 +42,7 @@
     transform: scale(1.05);
   }
   
-  /* 5. On very narrow screens, one‑column layout */
+  /* 6. Fallback to one column on narrow screens */
   @media (max-width: 600px) {
     .data-grid {
       grid-template-columns: 1fr;
