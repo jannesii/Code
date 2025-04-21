@@ -1,57 +1,59 @@
 /* 3d.css */
 
-/* 1. Force the container to fill 100% up to 1200px, and center it */
+/* 1. Container: use 95% of viewport but never exceed 1200px, centered */
 .container {
-    width: 100%;            /* fill available flex width */
-    max-width: 1200px;      /* cap at a reasonable maximum */
-    margin: 20px auto;      /* vertical spacing + horizontal centering */
-    padding: 20px;
-    box-sizing: border-box; /* include padding in that width */
-    align-self: stretch;    /* in case parent flex is constraining it */
-  }
-  
-  /* 2. Make the image‑tile span the full container */
-  .tile.image-tile {
-    width: 100%;
-  }
-  
-  /* 3. Prevent the image inside from ever exceeding its parent */
-  .image-tile img {
-    display: block;
-    width: 100%;
-    max-width: 100%;
-    height: auto;
-    border-radius: 10px;
-  }
-  
-  /* 4. Responsive data grid: min 200px per column, then flex */
+  width: 95vw;            /* fill most of viewport */
+  max-width: 1200px;      /* cap at 1200px */
+  margin: 20px auto;      /* center it */
+  padding: 20px;
+  box-sizing: border-box; /* include padding in width */
+}
+
+/* 2. Make the image tile itself never exceed its parent */
+.tile.image-tile {
+  width: 100%;            /* be as wide as the container */
+  max-width: 100%;        /* but no wider */
+  overflow: hidden;       /* in case anything overflows */
+  box-sizing: border-box;
+}
+
+/* 3. Clamp the actual <img> so it can’t overflow */
+.image-tile img {
+  display: block;
+  width: 100%;            /* fill its parent */
+  max-width: 100%;        /* never exceed parent */
+  height: auto;           /* keep aspect ratio */
+  object-fit: contain;    /* just in case */
+  border-radius: 10px;
+}
+
+/* 4. Responsive data grid: each col at least 200px, then flex */
+.data-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+/* 5. Tiles styling */
+.tile {
+  background-color: #1e1e1e;
+  border: 1px solid #333;
+  padding: 30px;
+  border-radius: 10px;
+  text-align: center;
+  color: #fff;
+  font-size: 1.2em;
+  transition: background-color 0.3s, transform 0.3s;
+}
+
+.tile:hover {
+  background-color: #272727;
+  transform: scale(1.05);
+}
+
+/* 6. One‑column fallback */
+@media (max-width: 600px) {
   .data-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
+    grid-template-columns: 1fr;
   }
-  
-  /* 5. Standard tile styling */
-  .tile {
-    background-color: #1e1e1e;
-    border: 1px solid #333;
-    padding: 30px;
-    border-radius: 10px;
-    text-align: center;
-    color: #fff;
-    font-size: 1.2em;
-    transition: background-color 0.3s, transform 0.3s;
-  }
-  
-  .tile:hover {
-    background-color: #272727;
-    transform: scale(1.05);
-  }
-  
-  /* 6. Fallback to single‑column on narrow screens */
-  @media (max-width: 600px) {
-    .data-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-  
+}
