@@ -6,46 +6,45 @@
     box-sizing: border-box;
   }
   
-  /* 2. Make sure the image‑wrapper spans the full container */
-  .tile.image-tile {
-    width: 100%;
-  }
-  
-  /* 3. Image itself never grows beyond its parent */
-  .image-tile img {
-    display: block;
-    max-width: 100%;
-    height: auto;
-    border-radius: 10px;
-  }
-  
-  /* 4. Data grid: each column is at least 200px, then flexes */
-  .data-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
-  }
-  
-  /* 5. Standard tile styling */
-  .tile {
-    background-color: #1e1e1e;
-    border: 1px solid #333;
-    padding: 30px;
-    border-radius: 10px;
-    text-align: center;
-    color: #fff;
-    font-size: 1.2em;
-    transition: background-color 0.3s, transform 0.3s;
-  }
-  .tile:hover {
-    background-color: #272727;
-    transform: scale(1.05);
-  }
-  
-  /* 6. Fallback to one column on narrow screens */
-  @media (max-width: 600px) {
-    .data-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-  
+/* 2. Make sure the image‑wrapper spans the full container */
+.tile.image-tile {
+width: 100%;
+}
+
+/* 3. Image itself never grows beyond its parent */
+.image-tile img {
+display: block;
+max-width: 100%;
+height: auto;
+border-radius: 10px;
+}
+
+/* 4. Data grid: each column is at least 200px, then flexes */
+.data-grid {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+gap: 20px;
+}
+
+/* 5. Standard tile styling */
+.tile {
+background-color: #1e1e1e;
+border: 1px solid #333;
+padding: 30px;
+border-radius: 10px;
+text-align: center;
+color: #fff;
+font-size: 1.2em;
+transition: background-color 0.3s, transform 0.3s;
+}
+.tile:hover {
+background-color: #272727;
+transform: scale(1.05);
+}
+
+/* 6. Fallback to one column on narrow screens */
+@media (max-width: 600px) {
+.data-grid {
+    grid-template-columns: 1fr;
+}
+}
