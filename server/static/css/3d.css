@@ -1,12 +1,22 @@
-/* 3d.html – sensor dashboard */
+/* static/css/3d.css */
 
+/* Container now fluid: 95% of viewport up to 1200px, centered */
 .container {
-    max-width: 800px;
-    width: 100%;
+    width: 95%;
+    max-width: 1200px;
+    margin: 20px auto;
     padding: 20px;
-}
-
-.tile {
+  }
+  
+  /* Sensor–data grid stays 3 columns, but those columns flex to fill the container */
+  .data-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  
+  /* Tile style unchanged */
+  .tile {
     background-color: #1e1e1e;
     border: 1px solid #333;
     padding: 30px;
@@ -16,28 +26,22 @@
     font-size: 1.2em;
     transition: background-color 0.3s, transform 0.3s;
   }
-  
   .tile:hover {
     background-color: #272727;
     transform: scale(1.05);
   }
   
+  /* Image tile spans full width of the container */
   .image-tile {
     margin-bottom: 20px;
   }
-  
   .image-tile img {
     width: 100%;
     height: auto;
     border-radius: 10px;
   }
   
-  .data-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-  }
-  
+  /* On very narrow screens: stack into one column */
   @media (max-width: 600px) {
     .data-grid {
       grid-template-columns: 1fr;
