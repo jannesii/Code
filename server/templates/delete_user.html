@@ -54,7 +54,23 @@
           <li><a href="{{ url_for('logout') }}">Kirjaudu Ulos</a></li>
         </ul>
     </nav>
-      
+    
+    <!-- FLASHIT -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-container" style="max-width:800px; margin:20px auto;">
+          {% for category, msg in messages %}
+            <div class="flash {{ category }}" style="
+              padding:10px; border-radius:5px; margin-bottom:10px;
+              {% if category=='success' %}background:#2a572a;{% else %}background:#572a2a;{% endif %}
+              color:#fff;
+            ">
+              {{ msg }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
 
     <div class="container">
         <div class="tile" style="height:auto; padding:30px;">

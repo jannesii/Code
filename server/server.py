@@ -194,7 +194,7 @@ def delete_user():
             return redirect(url_for('settings'))
 
         # estetään oman tilin poisto
-        if username == current_user.get_id():
+        elif username == current_user.get_id():
             flash("Et voi poistaa omaa tiliäsi.", "error")
         else:
             try:
@@ -203,7 +203,8 @@ def delete_user():
             except Exception as e:
                 flash(f"Poisto epäonnistui: {e}", "error")
 
-        return redirect(url_for('settings'))
+        # takaisin delete_user-näkymään, jotta lista päivittyy
+        return redirect(url_for('delete_user'))
 
     return render_template('delete_user.html', users=users_list)
 
