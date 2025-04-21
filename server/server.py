@@ -67,14 +67,13 @@ if not API_KEY:
 if not WEB_USERNAME or not WEB_PASSWORD:
     raise RuntimeError("Web username/password not configured in config.json")
 
-# ——————————————
-# In‑memory Auth store (for demonstration)
-# ——————————————
-users = {
-    WEB_USERNAME: {
-        'password_hash': generate_password_hash(WEB_PASSWORD)
-    }
-}
+# — Seed admin user into DB if missing —
+try:
+    ctrl.register_user(WEB_USERNAME, WEB_PASSWORD)
+except ValueError:
+    # already exists, ignore
+    pass
+
 
 # ——————————————
 # Flask‑Login setup
@@ -93,7 +92,8 @@ class AuthUser(UserMixin):
 
 @login_manager.user_loader
 def load_user(user_id: str):
-    if user_id in users:
+    # only return a user if they exist in the DB
+    if ctrl.get_user_by_username(user_id):
         return AuthUser(user_id)
     return None
 
@@ -105,12 +105,11 @@ def load_user(user_id: str):
 @server.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form.get('username', '')
+        username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
         remember = request.form.get('remember') == 'on'
 
-        user_rec = users.get(username)
-        if user_rec and check_password_hash(user_rec['password_hash'], password):
+        if ctrl.authenticate_user(username, password):
             session.permanent = remember
             login_user(AuthUser(username), remember=remember)
             next_page = request.args.get('next') or url_for('get_home_page')

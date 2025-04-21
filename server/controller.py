@@ -57,6 +57,19 @@ class Controller:
                  password_hash=row['password_hash'])
             for row in rows
         ]
+        
+    def get_user_by_username(self, username: str) -> User | None:
+        row = self.db.fetchone(
+            "SELECT id, username, password_hash FROM users WHERE username = ?",
+            (username,)
+        )
+        if not row:
+            return None
+        return User(
+            id=row['id'],
+            username=row['username'],
+            password_hash=row['password_hash']
+        )
 
     def delete_user(self, username: str) -> None:
         """Poistaa käyttäjän annetulla käyttäjätunnuksella."""
