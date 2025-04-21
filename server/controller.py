@@ -5,11 +5,13 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import User, TemperatureHumidity, Status, ImageData
 from database import DatabaseManager
+import pytz
 
 class Controller:
     def __init__(self, db_path: str = 'app.db'):
         self.db = DatabaseManager(db_path)
-
+        self.finland_tz = pytz.timezone('Europe/Helsinki')
+        
     # --- User operations ---
     def register_user(self, username: str, password: str) -> User:
         # Check if user exists
@@ -43,7 +45,7 @@ class Controller:
 
     # --- Sensor data operations ---
     def record_temphum(self, temperature: float, humidity: float) -> TemperatureHumidity:
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(self.finland_tz).isoformat()  
         self.db.execute_query(
             "INSERT INTO temphum (timestamp, temperature, humidity) VALUES (?, ?, ?)",
             (now, temperature, humidity)
@@ -94,7 +96,7 @@ class Controller:
         ]
 
     def record_status(self, status: str) -> Status:
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(self.finland_tz).isoformat()
         self.db.execute_query(
             "INSERT INTO status (timestamp, status) VALUES (?, ?)",
             (now, status)
@@ -115,7 +117,7 @@ class Controller:
         return Status(id=row['id'], timestamp=row['timestamp'], status=row['status'])
 
     def record_image(self, image_base64: str) -> ImageData:
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(self.finland_tz).isoformat()
         self.db.execute_query(
             "INSERT INTO images (timestamp, image) VALUES (?, ?)",
             (now, image_base64)

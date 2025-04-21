@@ -18,6 +18,7 @@ import hmac
 import json
 from datetime import timedelta, datetime
 from dataclasses import asdict
+import pytz
 
 # ——————————————
 # Domain imports
@@ -223,9 +224,10 @@ def api_temphum():
     Returns JSON array of:
       [{ timestamp: "...", temperature: 23.5, humidity: 56.2 }, ...]
     """
+    finland_tz = pytz.timezone('Europe/Helsinki')
     date_str = request.args.get(
         'date',
-        datetime.utcnow().date().isoformat()
+        datetime.now(finland_tz).date().isoformat()
     )
     data = ctrl.get_temphum_for_date(date_str)
     return jsonify([
