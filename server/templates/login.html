@@ -5,85 +5,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kirjaudu sisään</title>
-  <style>
-    /* Yleiset tyylit */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    body {
-      background-color: #121212;
-      color: #fff;
-      font-family: Arial, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-    form.login-form {
-      background-color: #1e1e1e;
-      padding: 2rem;
-      border: 1px solid #333;
-      border-radius: 10px;
-      width: 320px;
-    }
-    form.login-form h2 {
-      margin-bottom: 1.5rem;
-      text-align: center;
-      font-size: 1.4rem;
-    }
-    form.login-form .form-group {
-      margin-bottom: 1rem;
-    }
-    form.login-form label {
-      display: block;
-      margin-bottom: 0.5rem;
-      font-size: 0.9rem;
-    }
-    form.login-form input[type="text"],
-    form.login-form input[type="password"] {
-      width: 100%;
-      padding: 0.5rem;
-      background-color: #272727;
-      border: 1px solid #333;
-      border-radius: 5px;
-      color: #fff;
-      font-size: 1rem;
-    }
-    form.login-form .checkbox-group {
-      display: flex;
-      align-items: center;
-      margin-bottom: 1rem;
-      font-size: 0.9rem;
-    }
-    form.login-form .checkbox-group input {
-      margin-right: 0.5rem;
-    }
-    form.login-form button {
-      width: 100%;
-      padding: 0.6rem;
-      background-color: #3a3a3a;
-      border: none;
-      border-radius: 5px;
-      color: #fff;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-    form.login-form button:hover {
-      background-color: #505050;
-    }
-    .flash-messages {
-      margin-bottom: 1rem;
-      color: #f66;
-      font-size: 0.9rem;
-      list-style: none;
-    }
-    .flash-messages li {
-      margin-bottom: 0.5rem;
-    }
-  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
 </head>
 <body>
   <form class="login-form" method="POST" action="{{ url_for('login') }}">

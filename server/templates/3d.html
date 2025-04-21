@@ -5,94 +5,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sensor Dashboard</title>
-  <style>
-      /* Yleiset tyylit */
-      * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      }
-
-      body {
-      background-color: #121212; /* Tumma tausta */
-      color: #fff; /* Vaalea teksti */
-      font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
-      }
-
-      /* Navigaatiopalkki */
-      nav.navbar {
-        width: 100%;
-        background-color: #1e1e1e;
-        border-bottom: 1px solid #333;
-        padding: 10px 20px;
-      }
-      nav.navbar ul {
-        list-style: none;
-        display: flex;
-        gap: 20px;
-      }
-      nav.navbar a {
-        color: #fff;
-        text-decoration: none;
-        font-weight: bold;
-        transition: color 0.3s;
-      }
-      nav.navbar a:hover {
-        color: #bbb;
-      }
-
-      .container {
-      max-width: 800px;
-      width: 100%;
-      padding: 20px;
-      }
-
-      /* Perustyyli kaikille ruutuja kuvaaville laatikoille */
-      .tile {
-      background-color: #1e1e1e;
-      border: 1px solid #333;
-      padding: 30px;
-      border-radius: 10px;
-      text-align: center;
-      color: #fff;
-      font-size: 1.2em;
-      transition: background-color 0.3s, transform 0.3s;
-      }
-
-      .tile:hover {
-      background-color: #272727;
-      transform: scale(1.05);
-      }
-
-      /* Kuvan laatikko, joka ulottuu koko riville */
-      .image-tile {
-      margin-bottom: 20px;
-      }
-
-      .image-tile img {
-      width: 100%;
-      height: auto;
-      border-radius: 10px;
-      }
-
-      /* Data-ruudukko sensoritiedoille */
-      .data-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
-      }
-
-      /* Responsiivisuus: jos näyttö on kapea, aseta data ruudukko yhdelle sarakkeelle */
-      @media (max-width: 600px) {
-      .data-grid {
-          grid-template-columns: 1fr;
-      }
-      }
-  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/3d.css') }}">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="{{ url_for('static', filename='js/socket.io.js') }}"></script>
   <!-- expose the API_KEY to our external script -->

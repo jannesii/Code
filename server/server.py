@@ -124,6 +124,8 @@ def login():
 @login_required
 def logout():
     logout_user()
+    # poista kaikki odottavat flash‑viestit, etteivät ne näy login-sivulla
+    session.pop('_flashes', None)
     return redirect(url_for('login'))
 
 # ——————————————
