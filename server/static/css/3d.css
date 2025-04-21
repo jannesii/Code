@@ -1,4 +1,11 @@
 /* 3d.html – sensor dashboard */
+
+.container {
+    max-width: 800px;
+    width: 100%;
+    padding: 20px;
+}
+
 .tile {
     background-color: #1e1e1e;
     border: 1px solid #333;
@@ -20,7 +27,7 @@
   }
   
   .image-tile img {
-    width: 80%;
+    width: 100%;
     height: auto;
     border-radius: 10px;
   }
