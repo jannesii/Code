@@ -1,44 +1,36 @@
 /* 3d.css */
 
-/* 1. Container: use 95% of viewport but never exceed 1200px, centered */
+/* 1) Full‑width flex container */
 .container {
-  width: 95vw;            /* fill most of viewport */
-  max-width: 1200px;      /* cap at 1200px */
-  margin: 20px auto;      /* center it */
+  width: 100%;
+  align-self: stretch;     /* override body’s align-items:center */
   padding: 20px;
-  box-sizing: border-box; /* include padding in width */
-}
-
-/* 2. Make the image tile itself never exceed its parent */
-.tile.image-tile {
-  width: 100%;            /* be as wide as the container */
-  max-width: 100%;        /* but no wider */
-  overflow: hidden;       /* in case anything overflows */
   box-sizing: border-box;
 }
 
-/* 3. Clamp the actual <img> so it can’t overflow */
+/* 2) IMAGE TILE: center it, max at 1200px */
+.tile.image-tile {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto 20px auto;  /* bottom gap plus horizontal centering */
+  box-sizing: border-box;
+}
 .image-tile img {
   display: block;
-  width: 100%;            /* fill its parent */
-  max-width: 100%;        /* never exceed parent */
-  height: auto;           /* keep aspect ratio */
-  object-fit: contain;    /* just in case */
+  width: 100%;
+  height: auto;
   border-radius: 10px;
 }
 
-.sensorImage {
-  max-width: 1200px;
-}
-
-/* 4. Responsive data grid: each col at least 200px, then flex */
+/* 3) DATA GRID: exactly 3 columns, each min 200px / max 400px, centered */
 .data-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(3, minmax(200px, 400px));
   gap: 20px;
+  justify-content: center;   /* center the whole grid in the container */
 }
 
-/* 5. Tiles styling */
+/* 4) TILE BASE STYLES */
 .tile {
   background-color: #1e1e1e;
   border: 1px solid #333;
@@ -49,13 +41,12 @@
   font-size: 1.2em;
   transition: background-color 0.3s, transform 0.3s;
 }
-
 .tile:hover {
   background-color: #272727;
   transform: scale(1.05);
 }
 
-/* 6. One‑column fallback */
+/* 5) NARROW SCREENS FALLBACK */
 @media (max-width: 600px) {
   .data-grid {
     grid-template-columns: 1fr;
