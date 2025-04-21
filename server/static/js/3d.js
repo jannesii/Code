@@ -9,7 +9,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Read the API key we exposed on window
     const API_KEY = window.API_KEY;
-    console.log('🔑 API_KEY:', API_KEY);
 
     if (!API_KEY) {
       console.error('API key puuttuu!');
