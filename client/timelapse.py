@@ -28,9 +28,11 @@ DHT_PIN = 24
 
 
 def setup_logging() -> logging.Logger:
+    """
+    Configure and return the root logger for the application.
+    """
     handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter(
-        "%(asctime)s %(levelname)s: %(message)s"))
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s: %(message)s"))
     root = logging.getLogger()
     if not root.handlers:
         root.addHandler(handler)
@@ -39,6 +41,10 @@ def setup_logging() -> logging.Logger:
 
 
 def load_config(path: str = "config.json") -> dict:
+    """
+    Load JSON configuration from the given file path.
+    Ensures a default 'server' key if missing.
+    """
     with open(path) as f:
         cfg = json.load(f)
     cfg.setdefault("server", "https://jannenkoti.com")
@@ -48,18 +54,23 @@ def load_config(path: str = "config.json") -> dict:
 class CameraManager:
     """Handles camera initialization, autofocus, and frame capture."""
 
-    def __init__(self, logger: logging.Logger):
+    def __init__(self, logger: logging.Logger) -> None:
+        """
+        Initialize Picamera2, start preview, and activate autofocus.
+        """
         self.logger = logger
         self.picam2 = Picamera2()
-        config = self.picam2.create_still_configuration(
-            main={"size": (1920, 1080)})
+        config = self.picam2.create_still_configuration(main={"size": (1920, 1080)})
         self.picam2.configure(config)
         self.picam2.start_preview()
         self.picam2.start()
         time.sleep(2)
         self.enable_autofocus()
 
-    def enable_autofocus(self):
+    def enable_autofocus(self) -> None:
+        """
+        Enable continuous autofocus and autoexposure if supported.
+        """
         try:
             self.picam2.set_controls({
                 "AfMode": controls.AfModeEnum.Continuous,
@@ -72,7 +83,10 @@ class CameraManager:
             self.logger.exception("CameraManager: error activating autofocus")
 
     def capture_frame(self) -> Optional[bytes]:
-        """Capture a single frame and return it as JPEG bytes."""
+        """
+        Capture a single still frame and return it as JPEG-encoded bytes.
+        Returns None on failure.
+        """
         try:
             raw = self.picam2.capture_array()
             bgr = cv2.cvtColor(raw, cv2.COLOR_RGB2BGR)
@@ -84,8 +98,10 @@ class CameraManager:
             self.logger.exception("CameraManager: error capturing frame")
             return None
 
-    def shutdown(self):
-        """Shutdown camera preview and release resources."""
+    def shutdown(self) -> None:
+        """
+        Stop preview and release camera resources.
+        """
         try:
             self.picam2.stop_preview()
             self.picam2.close()
@@ -97,15 +113,22 @@ class CameraManager:
 class VideoEncoder:
     """Wraps ffmpeg for H.264 transcoding."""
 
-    def __init__(self, logger: logging.Logger, ffmpeg_path: str = "/usr/bin/ffmpeg"):
+    def __init__(self, logger: logging.Logger, ffmpeg_path: str = "/usr/bin/ffmpeg") -> None:
+        """
+        Initialize with a logger and optional ffmpeg binary path.
+        """
         self.logger = logger
         self.ffmpeg_path = ffmpeg_path
 
     def encode(self, input_file: str) -> bool:
+        """
+        Transcode the given MP4 file to H.264 using ffmpeg.
+        Returns True on success, False on failure.
+        """
         if not os.path.exists(self.ffmpeg_path):
-            self.logger.error(
-                "VideoEncoder: ffmpeg not found at %s", self.ffmpeg_path)
+            self.logger.error("VideoEncoder: ffmpeg not found at %s", self.ffmpeg_path)
             return False
+
         output = input_file.replace("_timelapse.mp4", "_timelapse_h264.mp4")
         cmd = [
             self.ffmpeg_path,
@@ -116,8 +139,7 @@ class VideoEncoder:
             output
         ]
         try:
-            subprocess.run(cmd, check=True, stdout=subprocess.PIPE,
-                           stderr=subprocess.PIPE)
+            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             os.remove(input_file)
             self.logger.info("VideoEncoder: created %s", output)
             return True
@@ -131,7 +153,7 @@ class VideoEncoder:
 
 
 class ButtonHandler:
-    """Counts button presses within a timeout and dispatches callbacks."""
+    """Counts GPIO button presses within a timeout and dispatches callbacks."""
 
     def __init__(
         self,
@@ -139,7 +161,12 @@ class ButtonHandler:
         timeout: float,
         callbacks: Dict[int, Callable[[], None]],
         logger: logging.Logger
-    ):
+    ) -> None:
+        """
+        button: gpiozero.Button instance
+        timeout: max seconds between presses for a sequence
+        callbacks: map of press-count to function
+        """
         self.button = button
         self.timeout = timeout
         self.callbacks = callbacks
@@ -151,7 +178,11 @@ class ButtonHandler:
         self.button.when_pressed = self._on_press
         self.button.when_released = lambda: None
 
-    def _on_press(self):
+    def _on_press(self) -> None:
+        """
+        Internal handler for each button press.
+        Increments count and resets the sequence timer.
+        """
         now = time.time()
         delta = now - self.last_time if self.last_time else 0.0
         self.last_time = now
@@ -162,27 +193,35 @@ class ButtonHandler:
         self.timer = threading.Timer(self.timeout, self._process)
         self.timer.start()
 
-    def _process(self):
+    def _process(self) -> None:
+        """
+        Called when the press-sequence timer expires.
+        Invokes the callback for the counted presses.
+        """
         cb = self.callbacks.get(self.count)
         if cb:
-            self.logger.info(
-                "ButtonHandler: invoking callback for count %d", self.count)
+            self.logger.info("ButtonHandler: invoking callback for count %d", self.count)
             try:
                 cb()
             except Exception:
                 self.logger.exception("ButtonHandler: callback error")
         else:
-            self.logger.info(
-                "ButtonHandler: no action for count %d", self.count)
+            self.logger.info("ButtonHandler: no action for count %d", self.count)
         self.count = 0
 
-    def cancel(self):
+    def cancel(self) -> None:
+        """
+        Cancel any pending sequence timer.
+        """
         if self.timer:
             self.timer.cancel()
 
 
 class TimelapseSession:
-    """Manages timelapse state, photo storage, video creation, image callbacks, and LEDs."""
+    """
+    Manages timelapse state, photo storage, video creation,
+    image callbacks, and RGB LED indicators.
+    """
 
     def __init__(
         self,
@@ -193,7 +232,13 @@ class TimelapseSession:
         green_led: LED,
         root_dir: str,
         logger: logging.Logger
-    ):
+    ) -> None:
+        """
+        camera: CameraManager instance
+        encoder: VideoEncoder instance
+        red_led, yellow_led, green_led: gpiozero.LED instances
+        root_dir: base directory for Photos/Timelapses
+        """
         self.camera = camera
         self.encoder = encoder
         self.red_led = red_led
@@ -215,40 +260,37 @@ class TimelapseSession:
                 os.makedirs(path)
                 self.logger.info("TimelapseSession: created %s", path)
 
-        # initial LED state: streaming preview
+        # initialize to streaming-preview LED state
         self._set_streaming_leds()
 
-    def _set_streaming_leds(self):
+    def _set_streaming_leds(self) -> None:
+        """Turn on red LED for streaming, others off."""
         self.red_led.on()
         self.yellow_led.off()
         self.green_led.off()
 
-    def _set_active_leds(self):
+    def _set_active_leds(self) -> None:
+        """Turn on green LED when timelapse active."""
         self.red_led.off()
         self.yellow_led.off()
         self.green_led.on()
 
-    def _set_paused_leds(self):
+    def _set_paused_leds(self) -> None:
+        """Turn on yellow LED when timelapse paused."""
         self.red_led.off()
         self.yellow_led.on()
         self.green_led.off()
 
-    def _set_stopped_leds(self):
+    def _set_stopped_leds(self) -> None:
+        """Turn all LEDs off when timelapse stopped."""
         self.red_led.off()
         self.yellow_led.off()
         self.green_led.off()
 
-    def _red_led_on_off(self):
-        self.red_led.on()
-        time.sleep(0.2)
-        self.red_led.off()
-
-    def _red_led_off_on(self):
-        self.red_led.off()
-        time.sleep(0.2)
-        self.red_led.on()
-
-    def start_and_stop(self):
+    def start_and_stop(self) -> None:
+        """
+        Toggle timelapse: start if inactive, otherwise stop with video.
+        """
         if self.active:
             self.stop(create_video=True)
         else:
@@ -258,7 +300,10 @@ class TimelapseSession:
             self.logger.info("TimelapseSession: started")
             self._set_active_leds()
 
-    def pause_and_resume(self):
+    def pause_and_resume(self) -> None:
+        """
+        Pause if active and not already paused, otherwise resume.
+        """
         if self.active:
             if not self.paused:
                 self.paused = True
@@ -267,39 +312,44 @@ class TimelapseSession:
             else:
                 self.resume()
 
-    def resume(self):
+    def resume(self) -> None:
+        """
+        Resume a paused timelapse.
+        """
         if self.active and self.paused:
             self.paused = False
             self.logger.info("TimelapseSession: resumed")
             self._set_active_leds()
 
-    def stop(self, create_video: bool = True):
+    def stop(self, create_video: bool = True) -> None:
+        """
+        Stop timelapse and optionally assemble video.
+        create_video: if False, skip video creation.
+        """
         self.active = False
         self.should_create = create_video
-        self.logger.info(
-            "TimelapseSession: stopped, create_video=%s", create_video)
+        self.logger.info("TimelapseSession: stopped, create_video=%s", create_video)
         self._set_stopped_leds()
         self.finalize()
 
-    def capture(self):
-        # always grab a frame
+    def capture(self) -> None:
+        """
+        Capture one frame, send immediately if callback set,
+        and save to disk if timelapse active and not paused.
+        """
         data = self.camera.capture_frame()
         if data is None:
             return
 
-        # immediately send it if callback is set
+        # send preview or timelapse frame immediately
         if self.image_callback:
             self.image_callback(data)
 
-        # if timelapse is active and not paused, save for video
+        # save frames for timelapse video
         if self.active and not self.paused:
-            # Blink the red LED to indicate capture
-            threading.Thread(target=self._red_led_on_off).start()
-
-            
+            threading.Thread(target=self._blink_red_led, args=(False, 0.2)).start()
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            filename = os.path.join(
-                self.root, "Photos", f"capture_{timestamp}.jpg")
+            filename = os.path.join(self.root, "Photos", f"capture_{timestamp}.jpg")
             try:
                 with open(filename, "wb") as f:
                     f.write(data)
@@ -308,7 +358,22 @@ class TimelapseSession:
             except Exception:
                 self.logger.exception("TimelapseSession: error saving image")
 
-    def finalize(self):
+    def _blink_red_led(self, reverse, delay) -> None:
+        """Briefly blink the red LED to indicate a capture."""
+        if reverse:
+            self.red_led.off()
+            time.sleep(delay)
+            self.red_led.on()
+        else:
+            self.red_led.on()
+            time.sleep(delay)
+            self.red_led.off()
+
+    def finalize(self) -> None:
+        """
+        Assemble captured images into a video if requested,
+        then clean up image files and reset LEDs.
+        """
         if not self.images:
             self.logger.info("TimelapseSession: no images to assemble")
         elif self.should_create:
@@ -334,31 +399,30 @@ class TimelapseSession:
                     if frame is not None:
                         writer.write(frame)
                 writer.release()
-                self.logger.info(
-                    "TimelapseSession: video created %s", video_name)
+                self.logger.info("TimelapseSession: video created %s", video_name)
                 if not self.encoder.encode(video_name):
                     self.logger.warning(
                         "TimelapseSession: encoder fallback, video kept as-is")
             except Exception:
                 self.logger.exception("TimelapseSession: error creating video")
         else:
-            self.logger.info(
-                "TimelapseSession: video creation skipped by user")
+            self.logger.info("TimelapseSession: video creation skipped by user")
 
         for img in self.images:
             try:
                 os.remove(img)
                 self.logger.info("TimelapseSession: deleted %s", img)
             except Exception:
-                self.logger.exception(
-                    "TimelapseSession: error deleting %s", img)
+                self.logger.exception("TimelapseSession: error deleting %s", img)
         self.images.clear()
-        # after finishing, return to streaming LED state
         self._set_streaming_leds()
 
 
 class StatusReporter:
-    """Handles HTTP login, Socket.IO connection, and periodic updates including image streaming."""
+    """
+    Handles HTTP login, Socket.IO connection, and periodic updates:
+    sends status, temperature/humidity, and preview images when idle.
+    """
 
     def __init__(
         self,
@@ -366,7 +430,12 @@ class StatusReporter:
         session: TimelapseSession,
         dht: DHT22Sensor,
         logger: logging.Logger
-    ):
+    ) -> None:
+        """
+        config: dictionary of server, username, password, and delays
+        session: TimelapseSession instance
+        dht: DHT22Sensor instance for readings
+        """
         self.config = config
         self.session = session
         self.dht = dht
@@ -376,16 +445,17 @@ class StatusReporter:
         self._login()
 
         self.sio = socketio.Client(logger=True)
-        self.sio.on('connect', self.on_connect)
+        self.sio.on('connect',    self.on_connect)
         self.sio.on('disconnect', self.on_disconnect)
-        self.sio.on('error', self.on_error)
+        self.sio.on('error',      self.on_error)
         self.sio.on('timelapse_conf', self.on_config)
 
         self.status_interval = config.get("status_delay", 10)
         self.temphum_interval = config.get("temphum_delay", 10)
         self.image_interval = config.get("image_delay", 10)
 
-    def _login(self):
+    def _login(self) -> None:
+        """Authenticate via HTTP to obtain session cookies."""
         url = f"{self.config['server']}/login"
         resp = self.rest.post(url, data={
             "username": self.config["username"],
@@ -396,9 +466,12 @@ class StatusReporter:
             sys.exit(1)
         self.logger.info("StatusReporter: logged in")
 
-    def connect(self):
-        cookies = "; ".join(
-            f"{k}={v}" for k, v in self.rest.cookies.get_dict().items())
+    def connect(self) -> None:
+        """
+        Establish Socket.IO connection and start background loops
+        for status, temphum, and preview image streaming.
+        """
+        cookies = "; ".join(f"{k}={v}" for k, v in self.rest.cookies.get_dict().items())
         self.sio.connect(
             self.config["server"],
             headers={"Cookie": cookies},
@@ -408,10 +481,11 @@ class StatusReporter:
         threading.Thread(target=self._temphum_loop, daemon=True).start()
         threading.Thread(target=self._image_loop, daemon=True).start()
 
-        # link session capture to immediate sending
+        # hook timelapse capture to immediate send
         self.session.image_callback = self.send_image
 
-    def _status_loop(self):
+    def _status_loop(self) -> None:
+        """Periodically emit the current timelapse status."""
         while True:
             try:
                 state = ("paused" if self.session.paused
@@ -422,7 +496,8 @@ class StatusReporter:
                 self.logger.exception("StatusReporter: error sending status")
             time.sleep(self.status_interval)
 
-    def _temphum_loop(self):
+    def _temphum_loop(self) -> None:
+        """Periodically read DHT22 and emit temperature/humidity."""
         while True:
             try:
                 data = self.dht.read()
@@ -431,14 +506,14 @@ class StatusReporter:
                 self.logger.exception("StatusReporter: error sending temphum")
             time.sleep(self.temphum_interval)
 
-    def _image_loop(self):
+    def _image_loop(self) -> None:
+        """
+        Stream preview images only when timelapse is not active.
+        """
         while True:
             try:
-                # only stream preview when timelapse not active
                 if not self.session.active:
-                    # Blink the red LED to indicate capture
-                    threading.Thread(target=self.session._red_led_off_on).start()
-                    
+                    threading.Thread(target=self.session._blink_red_led, args=(True, 0.2)).start()
                     jpeg = self.session.camera.capture_frame()
                     if jpeg:
                         self.send_image(jpeg)
@@ -446,23 +521,33 @@ class StatusReporter:
                 self.logger.exception("StatusReporter: error in image loop")
             time.sleep(self.image_interval)
 
-    def send_image(self, jpeg_bytes: bytes):
+    def send_image(self, jpeg_bytes: bytes) -> None:
+        """
+        Emit a base64-encoded image over Socket.IO.
+        """
         try:
             payload = base64.b64encode(jpeg_bytes).decode('utf-8')
             self.sio.emit('image', {'image': payload})
         except Exception:
             self.logger.exception("StatusReporter: error sending image")
 
-    def on_connect(self):
+    def on_connect(self) -> None:
+        """Socket.IO connect handler."""
         self.logger.info("StatusReporter: connected to server")
 
-    def on_disconnect(self):
+    def on_disconnect(self) -> None:
+        """Socket.IO disconnect handler."""
         self.logger.info("StatusReporter: disconnected from server")
 
-    def on_error(self, data):
+    def on_error(self, data: dict) -> None:
+        """Socket.IO error handler."""
         self.logger.error("StatusReporter: server error: %s", data)
 
-    def on_config(self, data):
+    def on_config(self, data: dict) -> None:
+        """
+        Handle configuration updates from server.
+        Updates image, status, and temphum intervals.
+        """
         try:
             self.image_interval = data['image_delay']
             self.status_interval = data['status_delay']
@@ -472,7 +557,10 @@ class StatusReporter:
             self.logger.warning("StatusReporter: invalid config key %s", e)
 
 
-def main():
+def main() -> None:
+    """
+    Application entry point: set up components and enter main loop.
+    """
     logger = setup_logging()
     cfg = load_config()
 
@@ -483,7 +571,10 @@ def main():
     camera = CameraManager(logger)
     encoder = VideoEncoder(logger)
     session = TimelapseSession(
-        camera, encoder, red_led, yellow_led, green_led, os.getcwd(), logger)
+        camera, encoder,
+        red_led, yellow_led, green_led,
+        os.getcwd(), logger
+    )
     dht = DHT22Sensor(DHT_PIN, logger=logger)
     reporter = StatusReporter(cfg, session, dht, logger)
 
@@ -494,8 +585,7 @@ def main():
         1: session.capture
     }
     button = Button(CAPTURE_BUTTON_PIN, pull_up=True, bounce_time=0.01)
-    handler = ButtonHandler(button, timeout=0.3,
-                            callbacks=callbacks, logger=logger)
+    handler = ButtonHandler(button, timeout=0.3, callbacks=callbacks, logger=logger)
 
     reporter.connect()
 
