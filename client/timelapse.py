@@ -483,6 +483,10 @@ class StatusReporter:
 
         # hook timelapse capture to immediate send
         self.session.image_callback = self.send_image
+        
+        conf = self.get_config()
+        if conf:
+            self.on_config(conf)
 
     def _status_loop(self) -> None:
         """Periodically emit the current timelapse status."""
@@ -555,7 +559,25 @@ class StatusReporter:
             self.logger.info("StatusReporter: config updated %r", data)
         except KeyError as e:
             self.logger.warning("StatusReporter: invalid config key %s", e)
-
+            
+    def get_config(self) -> Optional[dict]:
+        """
+        Return the current configuration settings.
+        """
+        url = f"{self.config['server']}/api/timelapse_config"
+        
+        resp = self.rest.get(url)
+        if resp.status_code == 200:
+            try:
+                data = resp.json()
+                self.logger.info("StatusReporter: config retrieved %r", data)
+                return data
+            except json.JSONDecodeError:
+                self.logger.error("StatusReporter: error decoding JSON response")
+        else:
+            self.logger.error("StatusReporter: failed to retrieve config, status code: %d", resp.status_code)
+            return None
+        return None
 
 def main() -> None:
     """
