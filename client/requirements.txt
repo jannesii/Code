@@ -9,4 +9,3 @@ rpi-kms
 socketio
 setuptools 
 wheel
-symbol
