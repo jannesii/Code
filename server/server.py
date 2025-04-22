@@ -12,8 +12,6 @@ from flask_login import (
     login_user, login_required,
     logout_user, current_user
 )
-from werkzeug.security import generate_password_hash, check_password_hash
-from functools import wraps
 import hmac
 import json
 from datetime import timedelta, datetime
