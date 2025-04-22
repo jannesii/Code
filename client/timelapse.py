@@ -240,12 +240,12 @@ class TimelapseSession:
 
     def _red_led_on_off(self):
         self.red_led.on()
-        time.sleep(0.1)
+        time.sleep(0.2)
         self.red_led.off()
 
     def _red_led_off_on(self):
         self.red_led.off()
-        time.sleep(0.1)
+        time.sleep(0.2)
         self.red_led.on()
 
     def start_and_stop(self):
@@ -294,8 +294,8 @@ class TimelapseSession:
         # if timelapse is active and not paused, save for video
         if self.active and not self.paused:
             # Blink the red LED to indicate capture
-            t = threading.Thread(target=self._red_led_on_off)
-            t.start()
+            threading.Thread(target=self._red_led_on_off).start()
+
             
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             filename = os.path.join(
@@ -437,11 +437,7 @@ class StatusReporter:
                 # only stream preview when timelapse not active
                 if not self.session.active:
                     # Blink the red LED to indicate capture
-                    t = threading.Thread(target=self.session._red_led_off_on)
-                    t.start()
-                    
-                    # ensure LEDs reflect streaming
-                    # self.session._set_streaming_leds()
+                    threading.Thread(target=self.session._red_led_off_on).start()
                     
                     jpeg = self.session.camera.capture_frame()
                     if jpeg:
