@@ -366,10 +366,9 @@ class TimelapseController:
                 video_writer.release()
 
                 # Transcode the video to H.264 using FFMPEG.
-                self.encode_video(video_filename)
-
-                self.logger.info(
-                    f"Timelapse video created as {video_filename}\n")
+                if not self.encode_video(video_filename):
+                    self.logger.info(
+                        f"Timelapse video created as {video_filename}\n")
             except Exception as e:
                 self.logger.info(f"Error creating timelapse video: {e}")
                 sys.exit(1)
@@ -387,7 +386,7 @@ class TimelapseController:
                 self.logger.info(f"{fname} already deleted or not found.")
         self.logger.info("Photos deleted.\n")
 
-    def encode_video(self, input_file):
+    def encode_video(self, input_file) -> bool:
         self.logger.info(f"Transcoding {input_file} to H.264 format…")
 
         # Pre-flight: ensure ffmpeg binary exists
