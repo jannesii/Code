@@ -57,6 +57,28 @@ class DatabaseManager:
         }
         for name, schema in tables.items():
             self.cursor.execute(f"CREATE TABLE IF NOT EXISTS {name} ({schema})")
+        
+        triggers = {
+            'keep_only_last_10_images': """
+            CREATE TRIGGER IF NOT EXISTS keep_only_last_10_images
+            AFTER INSERT ON images
+            FOR EACH ROW
+            BEGIN
+                DELETE FROM images
+                WHERE id NOT IN (
+                    SELECT id
+                    FROM images
+                    ORDER BY timestamp DESC
+                    LIMIT 10
+                );
+            END;
+            """
+        }
+
+        for name, trigger_sql in triggers.items():
+            self.cursor.executescript(trigger_sql)
+
+        
         self.conn.commit()
 
     def execute_query(
