@@ -22,6 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
       transports: ['websocket','polling']
     });
 
+    window.addEventListener('beforeunload', () => {
+      socket.disconnect();
+    });    
+
     socket.on('connect_error', err => {
       console.error('Connection error:', err);
     });
