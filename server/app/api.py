@@ -23,3 +23,19 @@ def get_temphum():
         {'timestamp': d.timestamp, 'temperature': d.temperature, 'humidity': d.humidity}
         for d in data
     ])
+
+@api_bp.route('/timelapse_config')
+@login_required
+def get_timelapse_config():
+    ctrl = current_app.ctrl
+    conf = ctrl.get_timelapse_conf()
+    vals = {
+        'image_delay':   conf.image_delay,
+        'temphum_delay': conf.temphum_delay,
+        'status_delay':  conf.status_delay
+    }
+    logger.info(
+        "API /timelapse_config by %s",
+        current_user.get_id()
+    )
+    return jsonify(vals)

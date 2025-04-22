@@ -454,6 +454,11 @@ class SocketIOClient:
         self.sio.on('disconnect',    handler=self.on_disconnect)
         self.sio.on('error',         handler=self.on_error)
         self.sio.on('timelapse_conf', handler=self.on_timelapse_conf)
+        
+        timelapse_conf = self.get_timelapse_conf()
+        if timelapse_conf:
+            self.on_timelapse_conf(timelapse_conf)
+            self.logger.info("Timelapse configuration retrieved and applied.")
 
     def login(self):
         """Perform a POST /login to grab the session cookie."""
@@ -470,11 +475,11 @@ class SocketIOClient:
     def start(self):
         """Connect using the cookie from self.session, no API key in auth."""
         # build Cookie header string
-        cookie_header = '; '.join(f"{k}={v}"
+        self.cookie_header = '; '.join(f"{k}={v}"
                                   for k, v in self.session.cookies.get_dict().items())
         self.sio.connect(
             self.server_url,
-            headers={'Cookie': cookie_header},
+            headers={'Cookie': self.cookie_header},
             transports=['websocket', 'polling']
         )
 
@@ -494,6 +499,19 @@ class SocketIOClient:
                     self.logger.info("Giving up after maximum retries.")
                     return
                 sleep(delay)
+                
+    def get_timelapse_conf(self):
+        url = f"{self.server_url}/api/timelapse_config"
+        resp = self.session.get(url)
+        if resp.ok:
+            return resp.json()
+        self.logger.error(
+            "Failed to fetch timelapse configuration [%d]: %s",
+            resp.status_code,
+            resp.text
+        )
+        return None
+
 
     def on_timelapse_conf(self, data):
         """Handle the timelapse configuration update from the server."""
