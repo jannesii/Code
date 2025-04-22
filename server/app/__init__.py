@@ -7,11 +7,12 @@ from flask_socketio import SocketIO
 from flask_login import LoginManager
 from .controller import Controller
 
+
 def create_app(config_path: str):
     # — Initialize logging
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
-    logging.getLogger('engineio.server').setLevel(logging.INFO)
+    logging.getLogger('engineio.server').setLevel(logging.ERROR)
     logger.info("Starting application")
 
     # — Load config
@@ -20,7 +21,8 @@ def create_app(config_path: str):
 
     # — Flask app
     app = Flask(__name__)
-    app.config['SECRET_KEY'] = cfg.get('secret_key', 'replace-with-a-secure-random-key')
+    app.config['SECRET_KEY'] = cfg.get(
+        'secret_key', 'replace-with-a-secure-random-key')
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
     app.config['WEB_USERNAME'] = cfg['web_username']
     app.config['WEB_PASSWORD'] = cfg['web_password']
@@ -32,7 +34,8 @@ def create_app(config_path: str):
 
     # — Seed admin user
     try:
-        app.ctrl.register_user(app.config['WEB_USERNAME'], app.config['WEB_PASSWORD'])
+        app.ctrl.register_user(
+            app.config['WEB_USERNAME'], app.config['WEB_PASSWORD'])
         logger.info("Seeded admin user %s", app.config['WEB_USERNAME'])
     except ValueError:
         logger.info("Admin user already exists")
