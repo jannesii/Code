@@ -4,7 +4,7 @@ from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import User, TemperatureHumidity, Status, ImageData, TimelapseConf
-from database import DatabaseManager
+from .database import DatabaseManager
 import pytz
 
 
