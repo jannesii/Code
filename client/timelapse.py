@@ -13,6 +13,7 @@ import base64
 import json
 import socketio
 import logging
+import shutil
 
 from dht import DHT22Sensor
 
@@ -387,32 +388,47 @@ class TimelapseController:
         self.logger.info("Photos deleted.\n")
 
     def encode_video(self, input_file):
-        # Run FFMPEG to transcode the video.
-        self.logger.info(f"Transcoding {input_file} to H.264 format...")
-        # Ensure the output filename is different from the input filename.
-        output_file = input_file.replace(
-            "_timelapse.mp4", "_timelapse_h264.mp4")
+        self.logger.info(f"Transcoding {input_file} to H.264 format…")
 
-        ffmpeg_cmd = [
-            'ffmpeg',
-            '-i', input_file,
-            '-c:v', 'libx264',        # Use the software-based H.264 encoder.
-            # Set pixel format for maximum compatibility.
-            '-pix_fmt', 'yuv420p',
-            # Constant rate factor (adjust quality as needed).
-            '-crf', '23',
+        # Pre-flight: ensure ffmpeg binary exists
+        ffmpeg_path = shutil.which("ffmpeg")
+        if not ffmpeg_path:
+            self.logger.error("Cannot find 'ffmpeg' in PATH; please install it.")
+            return False
+
+        output_file = input_file.replace("_timelapse.mp4", "_timelapse_h264.mp4")
+
+        cmd = [
+            ffmpeg_path,
+            "-i", input_file,
+            "-c:v", "libx264",
+            "-pix_fmt", "yuv420p",
+            "-crf", "23",
             output_file
         ]
 
         try:
-            subprocess.run(ffmpeg_cmd, check=True)
+            # capture output in case you need it
+            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             self.logger.info(f"H.264 timelapse video created as {output_file}")
-            # Remove the original video file after transcoding.
             os.remove(input_file)
+            return True
+
+        except FileNotFoundError:
+            # should never hit this now, but good to explicitly catch
+            self.logger.error("FFmpeg binary vanished between check and run!")
+            return False
+
         except subprocess.CalledProcessError as e:
-            self.logger.error("FFMPEG transcoding failed:", e)
+            # log ffmpeg's stderr so you can see what's wrong
+            err = e.stderr.decode(errors="replace")
+            self.logger.error("FFmpeg transcoding failed:\n%s", err)
+            return False
+
         except Exception as e:
-            self.logger.error(f"Error during video encoding: {e}")
+            # unexpected
+            self.logger.exception("Unexpected error during video encoding")
+            return False
 
     def shutdown_camera(self):
         """
