@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
 </head>
 <body>
-  <form class="login-form" method="POST" action="{{ url_for('login') }}">
+  <form class="login-form" method="POST" action="{{ url_for('auth.login') }}">
     <h2>Kirjaudu sisään</h2>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
