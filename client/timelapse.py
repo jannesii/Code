@@ -410,9 +410,9 @@ class TimelapseController:
             # Remove the original video file after transcoding.
             os.remove(input_file)
         except subprocess.CalledProcessError as e:
-            self.logger.info("FFMPEG transcoding failed:", e)
+            self.logger.error("FFMPEG transcoding failed:", e)
         except Exception as e:
-            self.logger.info(f"Error during video encoding: {e}")
+            self.logger.error(f"Error during video encoding: {e}")
 
     def shutdown_camera(self):
         """
