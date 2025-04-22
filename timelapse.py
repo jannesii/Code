@@ -215,8 +215,6 @@ class TimelapseController:
         Continuously capture frames at a low framerate and update the shared stream image.
         """
         while self.streaming_active and not self.timelapse_active and self.thread_flag:
-            print(f"Timelapse conf: img: {self.image_delay}, "
-                  f"temphum: {self.temphum_delay}, status: {self.status_delay}")
             self.capture_photo()  # Capture a frame
 
             sleep(self.image_delay)  # Adjust sleep time for desired FPS
@@ -465,7 +463,8 @@ class SocketIOClient:
             self.controller.image_delay = data['image_delay']
             self.controller.temphum_delay = data['temphum_delay']
             self.controller.status_delay = data['status_delay']
-            print(f"Timelapse configuration updated: {data}")
+            self.controller.dht.logger.info(f"Timelapse configuration updated: {data}")
+            
         except KeyError as e:
             print(f"Invalid configuration data received: {e}")
 
