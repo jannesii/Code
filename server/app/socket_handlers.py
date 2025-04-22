@@ -1,56 +1,65 @@
-# app/socket_handlers.py
+import logging
 import hmac
-from flask import current_app
+from flask import current_app, request
 from flask_socketio import SocketIO
 
 class SocketEventHandler:
     def __init__(self, socketio: SocketIO, ctrl):
         self.socketio = socketio
-        self.ctrl = ctrl
-        # Register event handlers (type ignores to satisfy stub signatures)
-        self.socketio.on_event('connect', self.on_connect)    # type: ignore
-        self.socketio.on_event('disconnect', self.on_disconnect)  # type: ignore
-        self.socketio.on_event('image', self.on_image)        # type: ignore
-        self.socketio.on_event('temphum', self.on_temphum)    # type: ignore
-        self.socketio.on_event('status', self.on_status)      # type: ignore
+        self.ctrl     = ctrl
+        self.logger   = logging.getLogger(__name__)
 
-    def _auth_ok(self, auth):
-        api_key = (auth or {}).get('api_key')
-        # Ensure API_KEY from config is a string
-        api_key_config: str = current_app.config['SECRET_KEY']
-        return bool(api_key and hmac.compare_digest(api_key, api_key_config))
+        socketio.on_event('connect',    self.handle_connect)
+        socketio.on_event('disconnect', self.handle_disconnect)
+        socketio.on_event('image',      self.handle_image)
+        socketio.on_event('temphum',    self.handle_temphum)
+        socketio.on_event('status',     self.handle_status)
 
-    def on_connect(self, auth):
+    def handle_connect(self, auth):
         if not self._auth_ok(auth):
+            self.logger.warning("Socket connect refused: invalid API key")
             return False
-        print("Client connected")
+        self.logger.info("Client connected: %s", request.sid)
 
-    def on_disconnect(self):
-        print("Client disconnected")
+    def handle_disconnect(self, *args):
+        """Allow any positional args to avoid signature mismatch."""
+        self.logger.info("Client disconnected: %s", request.sid)
 
-    def on_image(self, data):
+    def handle_image(self, data):
         if not data or 'image' not in data:
             self.socketio.emit('error', {'message': 'Invalid image data'})
+            self.logger.warning("Bad image payload: %s", data)
             return
         saved = self.ctrl.record_image(data['image'])
         self.socketio.emit('image2v', {'image': saved.image})
-        print("Broadcasting image.")
+        self.logger.info("Broadcasted image")
 
-    def on_temphum(self, data):
-        temp = data.get('temperature')
-        hum = data.get('humidity')
+    def handle_temphum(self, data):
+        temp, hum = data.get('temperature'), data.get('humidity')
         if temp is None or hum is None:
-            self.socketio.emit('error', {'message': 'Invalid temphum data'})
+            self.socketio.emit('error', {'message': 'Invalid temperature/humidity data'})
+            self.logger.warning("Bad temphum payload: %s", data)
             return
         saved = self.ctrl.record_temphum(temp, hum)
-        self.socketio.emit('temphum2v', {'temperature': saved.temperature, 'humidity': saved.humidity})
-        print(f"Broadcasting temphum: {saved.temperature}, {saved.humidity}")
+        self.socketio.emit('temphum2v', {
+            'temperature': saved.temperature,
+            'humidity':    saved.humidity
+        })
+        self.logger.info("Broadcasted temphum: %s", data)
 
-    def on_status(self, data):
+    def handle_status(self, data):
         status = data.get('status')
         if status is None:
             self.socketio.emit('error', {'message': 'Invalid status data'})
+            self.logger.warning("Bad status payload: %s", data)
             return
         saved = self.ctrl.record_status(status)
         self.socketio.emit('status2v', {'status': saved.status})
-        print(f"Broadcasting status: {saved.status}")
+        self.logger.info("Broadcasted status: %s", saved.status)
+
+    def _auth_ok(self, auth: dict) -> bool:
+        key = (auth or {}).get('api_key')
+        valid = key and hmac.compare_digest(key, current_app.config['API_KEY'])
+        if not valid:
+            self.logger.debug("Socket auth failed for key: %s", key)
+        return bool(valid)

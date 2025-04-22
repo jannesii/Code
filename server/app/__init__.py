@@ -1,39 +1,50 @@
 # app/__init__.py
-# Application factory setting up Flask, extensions, and blueprints
 import json
+import logging
 from datetime import timedelta
 from flask import Flask
-from flask_login import LoginManager
 from flask_socketio import SocketIO
-
+from flask_login import LoginManager
 from .controller import Controller
-from .auth import auth_bp, login_manager as auth_login_manager
-from .web import web_bp
-from .api import api_bp
-from .socket_handlers import SocketEventHandler
 
+def create_app(config_path: str):
+    # — Initialize logging
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.info("Starting application")
 
-def create_app(config_path: str = 'config.json'):
-    # Load configuration
+    # — Load config
     with open(config_path, 'r') as f:
-        config = json.load(f)
+        cfg = json.load(f)
 
-    # Initialize Flask application
+    # — Flask app
     app = Flask(__name__)
-    app.config['SECRET_KEY'] = config.get('api_key')
+    app.config['SECRET_KEY'] = cfg.get('secret_key', 'replace-with-a-secure-random-key')
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+    app.config['API_KEY'] = cfg['api_key']
+    app.config['WEB_USERNAME'] = cfg['web_username']
+    app.config['WEB_PASSWORD'] = cfg['web_password']
 
-    # Initialize domain controller
-    db_path = config.get('db_path', 'app.db')
-    ctrl = Controller(db_path)
-    # make the controller available to blueprints via current_app.ctrl
-    app.ctrl = ctrl
+    # — Domain controller
+    app.ctrl = Controller(cfg.get('database_uri', 'app.db'))
+    logger.info("Controller initialized with DB %s", app.ctrl.db_path)
 
-    # Initialize Flask-Login
-    auth_login_manager.init_app(app)
-    auth_login_manager.login_view = 'auth.login'
+    # — Seed admin user
+    try:
+        app.ctrl.register_user(app.config['WEB_USERNAME'], app.config['WEB_PASSWORD'])
+        logger.info("Seeded admin user %s", app.config['WEB_USERNAME'])
+    except ValueError:
+        logger.info("Admin user already exists")
 
-    # Initialize SocketIO
+    # — Flask‑Login
+    login_manager = LoginManager()
+    login_manager.login_view = 'auth.login'
+    login_manager.init_app(app)
+    from .auth import load_user
+    login_manager.user_loader(load_user)
+    logger.info("Login manager configured")
+
+    # — SocketIO
     socketio = SocketIO(
         app,
         cors_allowed_origins="*",
@@ -41,15 +52,22 @@ def create_app(config_path: str = 'config.json'):
         ping_timeout=60,
         ping_interval=25
     )
+    app.socketio = socketio
+    logger.info("SocketIO initialized")
 
-    # Register Blueprints
-    app.register_blueprint(auth_bp, url_prefix='')
-    app.register_blueprint(web_bp, url_prefix='')
-    app.register_blueprint(api_bp, url_prefix='/api')
+    # — Register blueprints
+    from .auth import auth_bp
+    from .web import web_bp
+    from .api import api_bp
 
-    # Attach SocketIO event handlers
-    SocketEventHandler(socketio, ctrl)
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(web_bp)
+    app.register_blueprint(api_bp)
+    logger.info("Blueprints registered")
 
-    return app, socketio, ctrl
+    # — Socket event handlers
+    from .socket_handlers import SocketEventHandler
+    SocketEventHandler(socketio, app.ctrl)
+    logger.info("Socket handlers set up")
 
-# End of app/__init__.py
+    return app, socketio

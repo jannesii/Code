@@ -1,31 +1,38 @@
 # app/web.py
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
+import logging
+from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app
 from flask_login import login_required, current_user
 from dataclasses import asdict
 
 web_bp = Blueprint('web', __name__)
+logger = logging.getLogger(__name__)
 
 @web_bp.route('/')
 @login_required
-def home():
+def get_home_page():
+    logger.info("Rendering home for %s", current_user.get_id())
     return render_template('index.html')
 
 @web_bp.route('/3d')
 @login_required
-def page_3d():
+def get_3d_page():
     ctrl = current_app.ctrl
-    img_obj = ctrl.get_last_image()
-    th_obj = ctrl.get_last_temphum()
-    st_obj = ctrl.get_last_status()
-    last_image = asdict(img_obj) if img_obj else None
-    last_temphum = asdict(th_obj) if th_obj else None
-    last_status = asdict(st_obj) if st_obj else None
-    api_key = current_app.config.get('API_KEY')
-    return render_template('3d.html', last_image=last_image, last_temphum=last_temphum, last_status=last_status, api_key=api_key)
+    logger.info("Rendering 3D page for %s", current_user.get_id())
+    img = ctrl.get_last_image()
+    th  = ctrl.get_last_temphum()
+    st  = ctrl.get_last_status()
+    return render_template(
+        '3d.html',
+        last_image=asdict(img) if img else None,
+        last_temphum=asdict(th)  if th  else None,
+        last_status=asdict(st)   if st  else None,
+        api_key=current_app.config['API_KEY']
+    )
 
 @web_bp.route('/settings')
 @login_required
 def settings():
+    logger.info("Rendering settings for %s", current_user.get_id())
     return render_template('settings.html')
 
 @web_bp.route('/settings/add_user', methods=['GET', 'POST'])
@@ -33,14 +40,17 @@ def settings():
 def add_user():
     ctrl = current_app.ctrl
     if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '')
+        u = request.form.get('username','').strip()
+        p = request.form.get('password','')
+        logger.debug("Adding user %s", u)
         try:
-            ctrl.register_user(username, password)
-            flash(f"User '{username}' added.", "success")
+            ctrl.register_user(u, p)
+            flash(f"Käyttäjä «{u}» lisätty onnistuneesti.", "success")
+            logger.info("User %s added by %s", u, current_user.get_id())
             return redirect(url_for('web.settings'))
-        except ValueError as e:
-            flash(str(e), "error")
+        except ValueError as ve:
+            flash(str(ve), "error")
+            logger.warning("Add user failed: %s", ve)
     return render_template('add_user.html')
 
 @web_bp.route('/settings/delete_user', methods=['GET', 'POST'])
@@ -49,18 +59,22 @@ def delete_user():
     ctrl = current_app.ctrl
     users = ctrl.get_all_users()
     if request.method == 'POST':
-        username = request.form.get('username')
-        if not username:
-            flash("Select a user first.", "error")
-            return redirect(url_for('web.delete_user'))
-        if username == current_user.get_id():
-            flash("Cannot delete your own account.", "error")
+        u = request.form.get('username')
+        if not u:
+            flash("Valitse ensin käyttäjä.", "error")
+            logger.warning("No user selected for deletion")
+            return redirect(url_for('web.settings'))
+        if u == current_user.get_id():
+            flash("Et voi poistaa omaa tiliäsi.", "error")
+            logger.warning("Self‑deletion attempt by %s", u)
         else:
             try:
-                ctrl.delete_user(username)
-                flash(f"User '{username}' deleted.", "success")
+                ctrl.delete_user(u)
+                flash(f"Käyttäjä «{u}» poistettu.", "success")
+                logger.info("User %s deleted by %s", u, current_user.get_id())
             except Exception as e:
-                flash(f"Deletion failed: {e}", "error")
+                flash(f"Poisto epäonnistui: {e}", "error")
+                logger.error("Error deleting %s: %s", u, e)
         return redirect(url_for('web.delete_user'))
     return render_template('delete_user.html', users=users)
 
@@ -68,29 +82,30 @@ def delete_user():
 @login_required
 def timelapse_conf():
     ctrl = current_app.ctrl
+    vals = {}
     if request.method == 'POST':
-        image_delay = request.form.get('image_delay', '').strip()
-        temphum_delay = request.form.get('temphum_delay', '')
-        status_delay = request.form.get('status_delay', '')
+        vals = {
+            'image_delay':   int(request.form.get('image_delay','0')),
+            'temphum_delay': int(request.form.get('temphum_delay','0')),
+            'status_delay':  int(request.form.get('status_delay','0'))
+        }
         try:
-            ctrl.update_timelapse_conf(
-                image_delay=int(image_delay),
-                temphum_delay=int(temphum_delay),
-                status_delay=int(status_delay)
-            )
-            conf = {
-                'image_delay': int(image_delay),
-                'temphum_delay': int(temphum_delay),
-                'status_delay': int(status_delay)
-            }
-            current_app.extensions['socketio'].emit('timelapse_conf', conf)
-            flash("Timelapse configuration updated.", "success")
+            ctrl.update_timelapse_conf(**vals)
+            current_app.socketio.emit('timelapse_conf', vals)
+            flash("Timelapsen konfiguraatio päivitetty onnistuneesti.", "success")
+            logger.info("Timelapse updated %s by %s", vals, current_user.get_id())
             return redirect(url_for('web.settings'))
-        except ValueError as e:
-            flash(str(e), "error")
+        except ValueError as ve:
+            flash(str(ve), "error")
+            logger.warning("Invalid timelapse input: %s", ve)
     else:
-        conf = ctrl.get_timelapse_conf()
-        image_delay = conf.image_delay
-        temphum_delay = conf.temphum_delay
-        status_delay = conf.status_delay
-    return render_template('timelapse_conf.html', image_delay=image_delay, temphum_delay=temphum_delay, status_delay=status_delay)
+        conf = ctrl.get_timelapse_conf() or vals
+        vals = {
+            'image_delay':   conf.image_delay,
+            'temphum_delay': conf.temphum_delay,
+            'status_delay':  conf.status_delay
+        }
+    return render_template(
+        'timelapse_conf.html',
+        **vals
+    )
