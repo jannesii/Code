@@ -58,7 +58,9 @@ class TimelapseController:
         self.dht.read()
         # Initialize and configure the camera.
         self.picam2 = Picamera2()
-        self.config = self.picam2.create_still_configuration()
+        self.config = self.picam2.create_still_configuration(
+            main={"size": (1920, 1080)}
+        )
         self.picam2.configure(self.config)
         self.picam2.start_preview()
         self.picam2.start()
