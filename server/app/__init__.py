@@ -60,7 +60,7 @@ def create_app(config_path: str):
         ping_interval=10,   # default is 25
         ping_timeout=20,    # default is 60
         logger=True,
-        engineio_logger=True
+        #engineio_logger=True
     )
     app.socketio = socketio
     logger.info("SocketIO initialized")
