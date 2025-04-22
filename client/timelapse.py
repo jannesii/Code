@@ -237,9 +237,12 @@ class TimelapseSession:
 
     def pause(self):
         if self.active:
-            self.paused = True
-            self.logger.info("TimelapseSession: paused")
-            self._set_paused_leds()
+            if not self.paused:
+                self.paused = True
+                self.logger.info("TimelapseSession: paused")
+                self._set_paused_leds()
+            else:
+                self.resume()
 
     def resume(self):
         if self.active and self.paused:
