@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // — Socket.IO setup using cookie auth —
     console.log('🛠️ Initializing Socket.IO with session cookie');
     const socket = io('/', {
-      transports: ['websocket','polling']
+      transports: ['websocket']
     });
 
     window.addEventListener('beforeunload', () => {
