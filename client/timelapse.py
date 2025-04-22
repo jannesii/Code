@@ -267,6 +267,7 @@ class TimelapseController:
                 log_string += f"{GREEN}start{RESET}"
             else:
                 log_string += "no start"
+            self.logger.info(log_string)
             return
 
         if self.timelapse_paused:
@@ -276,6 +277,7 @@ class TimelapseController:
                 log_string += f"{GREEN}resume{RESET}"
             else:
                 log_string += "no action"
+            self.logger.info(log_string)
             return
 
         if count == 1:
