@@ -8,3 +8,5 @@ rpi-libcamera
 rpi-kms
 Adafruit_DHT
 socketio
+setuptools 
+wheel
