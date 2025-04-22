@@ -145,7 +145,7 @@ class TimelapseController:
         """Start threads for continuous streaming and timelapse control."""
         self.streaming_thread = threading.Thread(
             target=self.continuous_stream_update, daemon=True)
-        self.streaming_thread.start()
+        #self.streaming_thread.start()
 
         self.status_thread = threading.Thread(
             target=self.send_status, daemon=True)
