@@ -9,4 +9,9 @@ source .venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 
-pip install git+https://github.com/adafruit/Adafruit_Python_DHT.git
+git clone https://github.com/adafruit/Adafruit_Python_DHT.git temp‑dht
+cd temp‑dht
+python setup.py install --force-pi
+cd ..
+sudo rm -rf temp‑dht
+
