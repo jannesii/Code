@@ -1,6 +1,7 @@
 # app/__init__.py
 import json
 import logging
+import os
 from datetime import timedelta
 from flask import Flask
 from flask_socketio import SocketIO
@@ -17,8 +18,22 @@ def create_app(config_path: str):
     with open(config_path, 'r') as f:
         cfg = json.load(f)
 
-    # — Flask app
-    app = Flask(__name__)
+    # — Compute paths
+    PROJECT_ROOT = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+    TEMPLATE_DIR = os.path.join(PROJECT_ROOT, 'app', 'templates')
+    STATIC_DIR   = os.path.join(PROJECT_ROOT, 'static')
+
+    # — Flask app, pointing at top‑level templates/ and static/
+    app = Flask(
+        __name__,
+        template_folder=TEMPLATE_DIR,
+        static_folder=STATIC_DIR,
+        static_url_path='/static'
+    )
+    logger.info("Templates served from %s", TEMPLATE_DIR)
+    logger.info("Static files served from %s", STATIC_DIR)
+
+    # — Config
     app.config['SECRET_KEY'] = cfg.get('secret_key', 'replace-with-a-secure-random-key')
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
     app.config['API_KEY'] = cfg['api_key']
@@ -26,7 +41,7 @@ def create_app(config_path: str):
     app.config['WEB_PASSWORD'] = cfg['web_password']
 
     # — Domain controller
-    db_path = cfg.get('database_uri', 'app.db')
+    db_path = "app.db"
     app.ctrl = Controller(db_path)
     logger.info("Controller initialized with DB %s", db_path)
 
@@ -58,9 +73,8 @@ def create_app(config_path: str):
 
     # — Register blueprints
     from .auth import auth_bp
-    from .web import web_bp
-    from .api import api_bp
-
+    from .web  import web_bp
+    from .api  import api_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(web_bp)
     app.register_blueprint(api_bp)
