@@ -4,7 +4,6 @@ import sys
 import time
 import json
 import base64
-import shutil
 import logging
 import threading
 import subprocess
@@ -127,11 +126,13 @@ class VideoEncoder:
 
 class ButtonHandler:
     """Counts button presses within a timeout and dispatches callbacks."""
-    def __init__(self,
-                 button: Button,
-                 timeout: float,
-                 callbacks: Dict[int, Callable[[], None]],
-                 logger: logging.Logger):
+    def __init__(
+        self,
+        button: Button,
+        timeout: float,
+        callbacks: Dict[int, Callable[[], None]],
+        logger: logging.Logger
+    ):
         self.button = button
         self.timeout = timeout
         self.callbacks = callbacks
@@ -172,14 +173,22 @@ class ButtonHandler:
 
 
 class TimelapseSession:
-    """Manages timelapse state, photo storage, video creation, and image callbacks."""
-    def __init__(self,
-                 camera: CameraManager,
-                 encoder: VideoEncoder,
-                 root_dir: str,
-                 logger: logging.Logger):
+    """Manages timelapse state, photo storage, video creation, image callbacks, and LEDs."""
+    def __init__(
+        self,
+        camera: CameraManager,
+        encoder: VideoEncoder,
+        red_led: LED,
+        yellow_led: LED,
+        green_led: LED,
+        root_dir: str,
+        logger: logging.Logger
+    ):
         self.camera = camera
         self.encoder = encoder
+        self.red_led = red_led
+        self.yellow_led = yellow_led
+        self.green_led = green_led
         self.root = root_dir
         self.logger = logger
 
@@ -187,36 +196,62 @@ class TimelapseSession:
         self.active = False
         self.paused = False
         self.should_create = True
-
-        # callback to send each captured frame immediately
         self.image_callback: Optional[Callable[[bytes], None]] = None
 
+        # ensure directories exist
         for subdir in ("Photos", "Timelapses"):
             path = os.path.join(self.root, subdir)
             if not os.path.exists(path):
                 os.makedirs(path)
                 self.logger.info("TimelapseSession: created %s", path)
 
+        # initial LED state: streaming preview
+        self._set_streaming_leds()
+
+    def _set_streaming_leds(self):
+        self.red_led.on()
+        self.yellow_led.off()
+        self.green_led.off()
+
+    def _set_active_leds(self):
+        self.red_led.off()
+        self.yellow_led.off()
+        self.green_led.on()
+
+    def _set_paused_leds(self):
+        self.red_led.off()
+        self.yellow_led.on()
+        self.green_led.off()
+
+    def _set_stopped_leds(self):
+        self.red_led.off()
+        self.yellow_led.off()
+        self.green_led.off()
+
     def start(self):
         self.active = True
         self.paused = False
         self.images.clear()
         self.logger.info("TimelapseSession: started")
+        self._set_active_leds()
 
     def pause(self):
         if self.active:
             self.paused = True
             self.logger.info("TimelapseSession: paused")
+            self._set_paused_leds()
 
     def resume(self):
         if self.active and self.paused:
             self.paused = False
             self.logger.info("TimelapseSession: resumed")
+            self._set_active_leds()
 
     def stop(self, create_video: bool = True):
         self.active = False
         self.should_create = create_video
         self.logger.info("TimelapseSession: stopped, create_video=%s", create_video)
+        self._set_stopped_leds()
         self.finalize()
 
     def capture(self):
@@ -269,8 +304,7 @@ class TimelapseSession:
                 writer.release()
                 self.logger.info("TimelapseSession: video created %s", video_name)
                 if not self.encoder.encode(video_name):
-                    self.logger.warning(
-                        "TimelapseSession: encoder fallback, video kept as-is")
+                    self.logger.warning("TimelapseSession: encoder fallback, video kept as-is")
             except Exception:
                 self.logger.exception("TimelapseSession: error creating video")
         else:
@@ -283,15 +317,19 @@ class TimelapseSession:
             except Exception:
                 self.logger.exception("TimelapseSession: error deleting %s", img)
         self.images.clear()
+        # after finishing, return to streaming LED state
+        self._set_streaming_leds()
 
 
 class StatusReporter:
     """Handles HTTP login, Socket.IO connection, and periodic updates including image streaming."""
-    def __init__(self,
-                 config: dict,
-                 session: TimelapseSession,
-                 dht: DHT22Sensor,
-                 logger: logging.Logger):
+    def __init__(
+        self,
+        config: dict,
+        session: TimelapseSession,
+        dht: DHT22Sensor,
+        logger: logging.Logger
+    ):
         self.config = config
         self.session = session
         self.dht = dht
@@ -358,7 +396,10 @@ class StatusReporter:
     def _image_loop(self):
         while True:
             try:
+                # only stream preview when timelapse not active
                 if not self.session.active:
+                    # ensure LEDs reflect streaming
+                    self.session._set_streaming_leds()
                     jpeg = self.session.camera.capture_frame()
                     if jpeg:
                         self.send_image(jpeg)
@@ -396,9 +437,13 @@ def main():
     logger = setup_logging()
     cfg = load_config()
 
+    red_led = LED(RED_LED_PIN)
+    yellow_led = LED(YELLOW_LED_PIN)
+    green_led = LED(GREEN_LED_PIN)
+
     camera  = CameraManager(logger)
     encoder = VideoEncoder(logger)
-    session = TimelapseSession(camera, encoder, os.getcwd(), logger)
+    session = TimelapseSession(camera, encoder, red_led, yellow_led, green_led, os.getcwd(), logger)
     dht     = DHT22Sensor(DHT_PIN, logger=logger)
     reporter= StatusReporter(cfg, session, dht, logger)
 
