@@ -11,6 +11,7 @@ def create_app(config_path: str):
     # — Initialize logging
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
+    logging.getLogger('engineio.server').setLevel(logging.INFO)
     logger.info("Starting application")
 
     # — Load config
