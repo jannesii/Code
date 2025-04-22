@@ -26,8 +26,9 @@ def create_app(config_path: str):
     app.config['WEB_PASSWORD'] = cfg['web_password']
 
     # — Domain controller
-    app.ctrl = Controller(cfg.get('database_uri', 'app.db'))
-    logger.info("Controller initialized with DB %s", app.ctrl.db_path)
+    db_path = cfg.get('database_uri', 'app.db')
+    app.ctrl = Controller(db_path)
+    logger.info("Controller initialized with DB %s", db_path)
 
     # — Seed admin user
     try:
