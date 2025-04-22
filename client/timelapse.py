@@ -228,14 +228,17 @@ class TimelapseSession:
         self.yellow_led.off()
         self.green_led.off()
 
-    def start(self):
-        self.active = True
-        self.paused = False
-        self.images.clear()
-        self.logger.info("TimelapseSession: started")
-        self._set_active_leds()
+    def start_and_stop(self):
+        if self.active:
+            self.stop(create_video=True)
+        else:
+            self.active = True
+            self.paused = False
+            self.images.clear()
+            self.logger.info("TimelapseSession: started")
+            self._set_active_leds()
 
-    def pause(self):
+    def pause_and_resume(self):
         if self.active:
             if not self.paused:
                 self.paused = True
@@ -451,10 +454,9 @@ def main():
     reporter= StatusReporter(cfg, session, dht, logger)
 
     callbacks: Dict[int, Callable[[], None]] = {
-        3: session.start,
-        4: session.pause,
+        3: session.start_and_stop,
+        4: session.pause_and_resume,
         5: lambda: session.stop(create_video=False),
-        6: lambda: session.stop(create_video=True),
         1: session.capture
     }
     button = Button(CAPTURE_BUTTON_PIN, pull_up=True, bounce_time=0.01)
