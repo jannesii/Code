@@ -10,3 +10,4 @@ Adafruit_DHT
 socketio
 setuptools 
 wheel
+symbol
