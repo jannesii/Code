@@ -2,6 +2,8 @@
 import json
 import logging
 from datetime import timedelta
+import eventlet
+eventlet.monkey_patch()  # Patch standard library for async I/O
 from flask import Flask
 from flask_socketio import SocketIO
 from flask_login import LoginManager
@@ -55,8 +57,10 @@ def create_app(config_path: str):
         message_queue='redis://localhost:6379',
         cors_allowed_origins="*",
         max_http_buffer_size=10 * 1024 * 1024,
-        ping_timeout=60,
-        ping_interval=25
+        ping_interval=10,   # default is 25
+        ping_timeout=20,    # default is 60
+        logger=True,
+        engineio_logger=True
     )
     app.socketio = socketio
     logger.info("SocketIO initialized")

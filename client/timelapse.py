@@ -449,7 +449,7 @@ class SocketIOClient:
         self.login()
 
         # 2) set up Socket.IO client as before
-        self.sio = socketio.Client()
+        self.sio = socketio.Client(logger=True, engineio_logger=True)
         self.sio.on('connect',       handler=self.on_connect)
         self.sio.on('disconnect',    handler=self.on_disconnect)
         self.sio.on('error',         handler=self.on_error)
