@@ -551,7 +551,6 @@ def main():
         while True:
             logger.info(
                 f"Press the button {controller.startup_count} times (within {controller.cutoff_time} sec between presses) to start timelapse capture.\n"
-                "Or just press ENTER to simulate a button press.\n"
             )
 
             # Monitor timelapse session.
