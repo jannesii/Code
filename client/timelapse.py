@@ -48,6 +48,8 @@ class TimelapseController:
         self.yellow_led = yellow_led
         self.green_led = green_led
         
+        self.root_dir = os.getcwd()  # Change this to your project path
+        
         self.image_delay = 10  # 10 s default for image updates
         self.temphum_delay = 10  # 10 s default for temperature/humidity readings
         self.status_delay = 10  # 10 s default for status updates
@@ -204,11 +206,11 @@ class TimelapseController:
             image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
             if not self.streaming_active:
-                filename = f"Photos/capture_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.jpg"
-                cv2.imwrite(filename, image_bgr)
+                photo_filepath = os.path.join(self.root_dir, "Photos", f"capture_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.jpg")
+                cv2.imwrite(photo_filepath, image_bgr)
                 self.logger.info(
-                    f"Image captured at {datetime.now().strftime('%H-%M-%S')}.")
-                self.captured_files.append(filename)
+                    f"Image captured at {photo_filepath}.")
+                self.captured_files.append(photo_filepath)
 
             ret, jpeg = cv2.imencode('.jpg', image_bgr)
             if ret:
@@ -339,7 +341,7 @@ class TimelapseController:
             self.logger.info(f"Using fps: {fps}")
 
             try:
-                video_filename = f"Timelapses/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_timelapse.mp4"
+                video_filename = os.path.join(self.root_dir, "Timelapses", f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_timelapse.mp4")
                 fourcc = cv2.VideoWriter_fourcc(*"mp4v")
                 video_writer = cv2.VideoWriter(
                     video_filename, fourcc, fps, (width, height))
@@ -366,7 +368,7 @@ class TimelapseController:
                 self.encode_video(video_filename)
 
                 self.logger.info(
-                    f"Timelapse video created as {os.path.basename(video_filename)}\n")
+                    f"Timelapse video created as {video_filename}\n")
             except Exception as e:
                 self.logger.info(f"Error creating timelapse video: {e}")
                 sys.exit(1)
@@ -548,35 +550,33 @@ def main():
     logger = controller.logger
 
     try:
+        logger.info(
+            f"Press the button {controller.startup_count} times (within {controller.cutoff_time} sec between presses) to start timelapse capture.\n"
+        )
+
+        # Monitor timelapse session.
         while True:
-            logger.info(
-                f"Press the button {controller.startup_count} times (within {controller.cutoff_time} sec between presses) to start timelapse capture.\n"
-            )
+            sleep(0.1)
+            if controller.timelapse_active:
+                # End timelapse if 30 minutes pass without any button press.
+                if time() - controller.last_press_time >= 60 * 30:
+                    logger.info(
+                        "No button press for 30 minutes. Timelapse ended.\n")
+                    break
+                elif controller.timelapse_stop:
+                    logger.info("Timelapse ended by button press.\n")
+                    break
 
-            # Monitor timelapse session.
-            while True:
-                sleep(0.1)
-                if controller.timelapse_active:
-                    # End timelapse if 30 minutes pass without any button press.
-                    if time() - controller.last_press_time >= 60 * 30:
-                        logger.info(
-                            "No button press for 30 minutes. Timelapse ended.\n")
-                        break
-                    elif controller.timelapse_stop:
-                        logger.info("Timelapse ended by button press.\n")
-                        break
+        controller.timelapse_active = False  # Reset the timelapse state.
 
-            controller.timelapse_active = False  # Reset the timelapse state.
+        # Finalize the timelapse (create video, clean up photos, and reset LEDs).
+        controller.finalize_timelapse()
 
-            # Finalize the timelapse (create video, clean up photos, and reset LEDs).
-            controller.finalize_timelapse()
+        # Shutdown the camera to release the resource before starting a new session.
+        controller.shutdown_camera()
 
-            # Shutdown the camera to release the resource before starting a new session.
-            controller.shutdown_camera()
+        logger.info(f"{GREEN}Ready for a new timelapse session.{RESET}\n")
 
-            logger.info(f"{GREEN}Ready for a new timelapse session.{RESET}\n")
-
-            return  # Exit the loop after one session for testing purposes.
     except KeyboardInterrupt:
         logger.info("\nExiting program.")
 
