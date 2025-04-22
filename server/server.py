@@ -35,7 +35,7 @@ from models import (
 # ——————————————
 from controller import Controller
 ctrl = Controller('app.db')
-ctrl.update_timelapse_conf(10,10,10)
+
 # ——————————————
 # Flask App & Config
 # ——————————————
@@ -212,17 +212,34 @@ def delete_user():
 
 @server.route('/settings/timelapse_conf', methods=['GET', 'POST'])
 @login_required
-def add_user():
+def conf_timelapse():
+    image_delay = temphum_delay = status_delay = ''
+    
     if request.method == 'POST':
         image_delay = request.form.get('image_delay', '').strip()
-        password = request.form.get('password', '')
+        temphum_delay = request.form.get('temphum_delay', '')
+        status_delay = request.form.get('status_delay', '')
         try:
-            ctrl.register_user(username, password)
-            flash(f"Käyttäjä «{username}» lisätty onnistuneesti.", "success")
+            ctrl.update_timelapse_conf(
+                image_delay=int(image_delay),
+                temphum_delay=int(temphum_delay),
+                status_delay=int(status_delay)
+            )
+            flash(f"Timelapsen konfiguraatio päivitetty onnistuneesti.", "success")
             return redirect(url_for('settings'))
         except ValueError as ve:
             flash(str(ve), "error")
-    return render_template('timelapse_conf.html')
+    
+    # If GET, fetch current config values
+    # and show them in the form fields
+    
+    conf = ctrl.get_timelapse_conf()
+    if conf:
+        image_delay = conf.image_delay
+        temphum_delay = conf.temphum_delay
+        status_delay = conf.status_delay
+        
+    return render_template('timelapse_conf.html', image_delay=image_delay, temphum_delay=temphum_delay, status_delay=status_delay)
 
 # ——————————————
 # SocketIO handlers
