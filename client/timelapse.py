@@ -292,6 +292,7 @@ class TimelapseController:
 
         if count == 1:
             self.capture_photo()
+            log_string += f"{GREEN}capture{RESET}"
         elif count == self.pause_count:
             self.yellow_led.on()
             self.timelapse_paused = True
