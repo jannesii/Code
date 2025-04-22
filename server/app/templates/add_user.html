@@ -11,12 +11,12 @@
 <body>
     <nav class="navbar">
         <ul>
-            <li><a href="{{ url_for('get_home_page') }}">Home</a></li>
-            <li><a href="{{ url_for('get_3d_page') }}">3D Dashboard</a></li>
-            <li><a href="{{ url_for('settings') }}">Asetukset</a></li>
-            <li><a href="{{ url_for('logout') }}">Kirjaudu Ulos</a></li>
+          <li><a href="{{ url_for('web.get_home_page') }}">Home</a></li>
+          <li><a href="{{ url_for('web.get_3d_page') }}">3D Dashboard</a></li>
+          <li><a href="{{ url_for('web.settings') }}">Asetukset</a></li>
+          <li><a href="{{ url_for('auth.logout') }}">Kirjaudu Ulos</a></li>
         </ul>
-    </nav>
+      </nav>
       
 
     <div class="container">
