@@ -272,6 +272,7 @@ class TimelapseSession:
 
         # if timelapse is active and not paused, save for video
         if self.active and not self.paused:
+            self.red_led.on()
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             filename = os.path.join(self.root, "Photos", f"capture_{timestamp}.jpg")
             try:
@@ -279,6 +280,7 @@ class TimelapseSession:
                     f.write(data)
                 self.images.append(filename)
                 self.logger.info("TimelapseSession: saved %s", filename)
+                self.red_led.off()
             except Exception:
                 self.logger.exception("TimelapseSession: error saving image")
 
@@ -404,11 +406,13 @@ class StatusReporter:
             try:
                 # only stream preview when timelapse not active
                 if not self.session.active:
+                    self.session.red_led.off()
                     # ensure LEDs reflect streaming
                     self.session._set_streaming_leds()
                     jpeg = self.session.camera.capture_frame()
                     if jpeg:
                         self.send_image(jpeg)
+                    self.session.red_led.on()
             except Exception:
                 self.logger.exception("StatusReporter: error in image loop")
             time.sleep(self.image_interval)
