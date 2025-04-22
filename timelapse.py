@@ -170,7 +170,7 @@ class TimelapseController:
                 sleep(self.temphum_delay)  # Delay between readings
             except Exception as e:
                 self.logger.info(
-                    f"Error sending temperature and humidity: {e}", flush=True)
+                    f"Error sending temperature and humidity: {e}")
                 sleep(5)  # Retry after a short delay
 
     def send_status(self):
@@ -187,7 +187,7 @@ class TimelapseController:
                 self.sio.emit('status', {'status': status})
                 sleep(self.status_delay)  # Delay between status updates
             except Exception as e:
-                self.logger.info(f"Error sending status: {e}", flush=True)
+                self.logger.info(f"Error sending status: {e}")
                 sleep(5)  # Retry after a short delay
 
     def send_image(self, image):
@@ -199,7 +199,7 @@ class TimelapseController:
             data = {'image': encoded_image}
             self.sio.emit('image', data)
         except Exception as e:
-            self.logger.info(f"Error sending image: {e}", flush=True)
+            self.logger.info(f"Error sending image: {e}")
 
     def capture_photo(self):
         """Capture a photo, update the streaming image, and save it."""
@@ -257,7 +257,7 @@ class TimelapseController:
         RESET = "\033[0m"
 
         count = self.button_press_count
-        self.logger.info(f"Seq: {count} -> ", end="")  # Short sequence count
+        log_string = f"Seq: {count} -> "  # Short sequence count
         self.button_press_count = 0  # reset counter
 
         if not self.timelapse_active:
@@ -266,18 +266,18 @@ class TimelapseController:
                 # Stop continuous streaming for timelapse.
                 self.streaming_active = False
                 self.timelapse_active = True
-                self.logger.info(f"{GREEN}start{RESET}")
+                log_string += f"{GREEN}start{RESET}"
             else:
-                self.logger.info("no start")
+                log_string += "no start"
             return
 
         if self.timelapse_paused:
             if count >= self.pause_count:
                 self.yellow_led.off()
                 self.timelapse_paused = False
-                self.logger.info(f"{GREEN}resume{RESET}")
+                log_string += f"{GREEN}resume{RESET}"
             else:
-                self.logger.info("no action")
+                log_string += "no action"
             return
 
         if count == 1:
@@ -285,21 +285,23 @@ class TimelapseController:
         elif count == self.pause_count:
             self.yellow_led.on()
             self.timelapse_paused = True
-            self.logger.info(f"{YELLOW}pause{RESET}")
+            log_string += f"{YELLOW}pause{RESET}"
         elif count == self.end_count:
-            self.logger.info(f"{RED}end{RESET}\n")
+            log_string += f"{RED}end{RESET}\n"
             self.timelapse_stop = True
             self.create_timelapse = True
             self.red_led.off()
             self.green_led.off()
         elif count == self.end_no_video_count:
-            self.logger.info(f"{RED}end NO VIDEO{RESET}\n")
+            log_string += f"{RED}end NO VIDEO{RESET}\n"
             self.timelapse_stop = True
             self.create_timelapse = False
             self.red_led.off()
             self.green_led.off()
         else:
-            self.logger.info(f"?({count})")
+            log_string += f"?({count})"
+            
+        self.logger.info(log_string)
 
     def finalize_timelapse(self):
         """
@@ -492,22 +494,10 @@ class SocketIOClient:
         self.logger.info(f"⚠️ Error: {data['message']}")
 
 
-def keyboard_monitor():
-    """
-    Monitor keyboard input to simulate the button press.
-    When the user presses enter, simulate a button press event on the current controller.
-    """
-    global current_controller
-    while True:
-        _ = input()  # Wait for the user to press enter.
-        if current_controller is not None:
-            self.logger.info("Simulated button press via keyboard.")
-            current_controller.button_press_handler()
-            current_controller.red_led_off()
+
 
 
 def main():
-    global current_controller
     # Reset the streaming flag at the beginning.
 
     # Initialize LEDs and button.
@@ -516,19 +506,14 @@ def main():
     green_led = LED(GREEN_LED_PIN)
     capture_button = Button(CAPTURE_BUTTON_PIN, pull_up=True, bounce_time=0.01)
 
-    # Start the keyboard monitor thread for simulating button presses.
-    # keyboard_thread = threading.Thread(target=keyboard_monitor, daemon=True)
-    # keyboard_thread.start()
-
     # Create a new timelapse controller session.
     controller = TimelapseController(
         red_led, yellow_led, green_led, capture_button)
-    # Set the global current controller.
-    current_controller = controller
+    logger = controller.logger
 
     try:
         while True:
-            self.logger.info(
+            logger.info(
                 f"Press the button {controller.startup_count} times (within {controller.cutoff_time} sec between presses) to start timelapse capture.\n"
                 "Or just press ENTER to simulate a button press.\n"
             )
@@ -539,10 +524,10 @@ def main():
                 if controller.timelapse_active:
                     # End timelapse if 30 minutes pass without any button press.
                     if time() - controller.last_press_time >= 60 * 30:
-                        self.logger.info("No button press for 30 minutes. Timelapse ended.\n")
+                        logger.info("No button press for 30 minutes. Timelapse ended.\n")
                         break
                     elif controller.timelapse_stop:
-                        self.logger.info("Timelapse ended by button press.\n")
+                        logger.info("Timelapse ended by button press.\n")
                         break
 
             controller.timelapse_active = False  # Reset the timelapse state.
@@ -553,11 +538,11 @@ def main():
             # Shutdown the camera to release the resource before starting a new session.
             controller.shutdown_camera()
 
-            self.logger.info(f"{GREEN}Ready for a new timelapse session.{RESET}\n")
+            logger.info(f"{GREEN}Ready for a new timelapse session.{RESET}\n")
 
             return  # Exit the loop after one session for testing purposes.
     except KeyboardInterrupt:
-        self.logger.info("\nExiting program.")
+        logger.info("\nExiting program.")
 
 
 if __name__ == "__main__":
