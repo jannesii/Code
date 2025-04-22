@@ -50,10 +50,10 @@ class TimelapseController:
 
         self.server = 'https://jannenkoti.com'
 
-        self.get_api_key()
+        self.read_config()
         self.init_logger()
 
-        self.sio = SocketIOClient(self, self.server, self.API_KEY, self.logger)
+        self.sio = SocketIOClient(self, self.server, self.logger, self.config)
         self.sio.start()
 
         self.dht = DHT22Sensor(DHT_PIN, logger=self.logger)
@@ -93,7 +93,7 @@ class TimelapseController:
         self.temp = "N/A"
         self.hum = "N/A"
         self.thread_flag = True
-        
+
         self.image_delay = 10  # Delay between image captures in seconds
         self.temphum_delay = 60  # Delay between temperature/humidity readings in seconds
         self.status_delay = 10  # Delay between status updates in seconds
@@ -105,7 +105,7 @@ class TimelapseController:
         self.enable_autofocus()
 
         self.start_threads()
-        
+
     def init_logger(self):
         # Setup logging
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -116,14 +116,9 @@ class TimelapseController:
             self.logger.addHandler(handler)
         self.logger.setLevel(logging.INFO)
 
-    def get_api_key(self):
+    def read_config(self):
         with open("config.json") as f:
-            config = json.load(f)
-            self.API_KEY = config["api_key"]
-            self.headers = {'X-API-KEY': self.API_KEY}
-            if not self.API_KEY:
-                self.logger.info("API key not found in config.json")
-                sys.exit(1)
+            self.config = json.load(f)
 
     def red_led_off(self):
         self.red_led.off()
@@ -145,7 +140,7 @@ class TimelapseController:
         """Start threads for continuous streaming and timelapse control."""
         self.streaming_thread = threading.Thread(
             target=self.continuous_stream_update, daemon=True)
-        #self.streaming_thread.start()
+        # self.streaming_thread.start()
 
         self.status_thread = threading.Thread(
             target=self.send_status, daemon=True)
@@ -300,7 +295,7 @@ class TimelapseController:
             self.green_led.off()
         else:
             log_string += f"?({count})"
-            
+
         self.logger.info(log_string)
 
     def finalize_timelapse(self):
@@ -310,7 +305,8 @@ class TimelapseController:
         if self.captured_files:
             self.create_timelapse_video()
         else:
-            self.logger.info("No images were captured, so no timelapse video was created.\n")
+            self.logger.info(
+                "No images were captured, so no timelapse video was created.\n")
 
         self.red_led.off()
         self.yellow_led.off()
@@ -350,11 +346,13 @@ class TimelapseController:
 
                 for fname in self.captured_files:
                     if not os.path.exists(fname):
-                        self.logger.info(f"Warning: {fname} does not exist. Skipping.")
+                        self.logger.info(
+                            f"Warning: {fname} does not exist. Skipping.")
                         continue
                     frame = cv2.imread(fname)
                     if frame is None:
-                        self.logger.info(f"Warning: Could not read {fname}. Skipping.")
+                        self.logger.info(
+                            f"Warning: Could not read {fname}. Skipping.")
                         continue
                     video_writer.write(frame)
 
@@ -440,47 +438,71 @@ class TimelapseController:
 
 
 class SocketIOClient:
-    def __init__(self, controller, server_url, API_KEY, logger):
-        self.controller = controller
+    def __init__(self, controller, server_url, logger, config):
+        self.ctrl = controller
         self.server_url = server_url
-        self.auth = {'api_key': API_KEY}
         self.logger = logger
+        self.config = config
 
+        # 1) create an HTTP session & log in to obtain Flask‑Login cookie
+        self.session = requests.Session()
+        self.login()
+
+        # 2) set up Socket.IO client as before
         self.sio = socketio.Client()
-
-        self.sio.on('connect', handler=self.on_connect)
-        self.sio.on('disconnect', handler=self.on_disconnect)
-        self.sio.on('error', handler=self.on_error)
+        self.sio.on('connect',       handler=self.on_connect)
+        self.sio.on('disconnect',    handler=self.on_disconnect)
+        self.sio.on('error',         handler=self.on_error)
         self.sio.on('timelapse_conf', handler=self.on_timelapse_conf)
 
+    def login(self):
+        """Perform a POST /login to grab the session cookie."""
+        login_url = f"{self.server_url}/login"
+        resp = self.session.post(login_url, data={
+            'username': self.config['username'],
+            'password': self.config['password']
+        })
+        if resp.status_code != 200 or "Invalid credentials" in resp.text:
+            self.logger.error("Login failed: %s", resp.text)
+            sys.exit(1)
+        self.logger.info("Logged in—session cookie stored.")
+
     def start(self):
-        self.sio.connect(self.server_url, auth=self.auth)
+        """Connect using the cookie from self.session, no API key in auth."""
+        # build Cookie header string
+        cookie_header = '; '.join(f"{k}={v}"
+                                  for k, v in self.session.cookies.get_dict().items())
+        self.sio.connect(
+            self.server_url,
+            headers={'Cookie': cookie_header},
+            transports=['websocket', 'polling']
+        )
 
     def emit(self, event, data, max_retries: int = 3, delay: float = 2.0):
-        """Emit an event to the server, retrying on error after `delay` seconds."""
+        """Emit an event to the server, retrying on failure."""
         attempt = 0
         while True:
             try:
                 self.sio.emit(event, data)
                 self.logger.info(f"Emitting event: {event}")
-                return  # success, exit
+                return
             except Exception as e:
                 attempt += 1
                 self.logger.info(
-                    f"Error emitting event '{event}' (attempt {attempt}): {e!r}")
+                    f"Error emitting '{event}' (attempt {attempt}): {e!r}")
                 if attempt >= max_retries:
-                    self.logger.info(f"Giving up after {attempt} failed attempts.")
+                    self.logger.info("Giving up after maximum retries.")
                     return
                 sleep(delay)
-                
+
     def on_timelapse_conf(self, data):
         """Handle the timelapse configuration update from the server."""
         try:
-            self.controller.image_delay = data['image_delay']
-            self.controller.temphum_delay = data['temphum_delay']
-            self.controller.status_delay = data['status_delay']
+            self.ctrl.image_delay = data['image_delay']
+            self.ctrl.temphum_delay = data['temphum_delay']
+            self.ctrl.status_delay = data['status_delay']
             self.logger.info(f"Timelapse configuration updated: {data}")
-            
+
         except KeyError as e:
             self.logger.info(f"Invalid configuration data received: {e}")
 
@@ -492,9 +514,6 @@ class SocketIOClient:
 
     def on_error(self, data):
         self.logger.info(f"⚠️ Error: {data['message']}")
-
-
-
 
 
 def main():
@@ -524,7 +543,8 @@ def main():
                 if controller.timelapse_active:
                     # End timelapse if 30 minutes pass without any button press.
                     if time() - controller.last_press_time >= 60 * 30:
-                        logger.info("No button press for 30 minutes. Timelapse ended.\n")
+                        logger.info(
+                            "No button press for 30 minutes. Timelapse ended.\n")
                         break
                     elif controller.timelapse_stop:
                         logger.info("Timelapse ended by button press.\n")
