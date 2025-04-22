@@ -20,7 +20,7 @@ def create_app(config_path: str = 'config.json'):
 
     # Initialize Flask application
     app = Flask(__name__)
-    app.config['SECRET_KEY'] = config.get('secret_key', 'replace-with-a-secure-key')
+    app.config['SECRET_KEY'] = config.get('api_key')
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
     # Initialize domain controller
