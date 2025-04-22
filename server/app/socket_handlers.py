@@ -16,8 +16,10 @@ class SocketEventHandler:
         socketio.on_event('status',     self.handle_status)
 
     def handle_connect(self, auth):
-        if not self._auth_ok(auth):
-            self.logger.warning("Socket connect refused: invalid API key")
+        # Use Flask-Login session cookie for auth instead of API key
+        from flask_login import current_user
+        if not current_user.is_authenticated:
+            self.logger.warning("Socket connect refused: unauthenticated user")
             return False
         self.logger.info("Client connected: %s", request.sid)
 

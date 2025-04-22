@@ -26,7 +26,6 @@ def get_3d_page():
         last_image=asdict(img) if img else None,
         last_temphum=asdict(th)  if th  else None,
         last_status=asdict(st)   if st  else None,
-        api_key=current_app.config['API_KEY']
     )
 
 @web_bp.route('/settings')

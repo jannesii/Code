@@ -6,19 +6,10 @@ console.log('📦 Dashboard script loaded');
 // Wait for DOM to be ready
 document.addEventListener('DOMContentLoaded', () => {
     console.log('📑 DOMContentLoaded fired');
-
-    // Read the API key we exposed on window
-    const API_KEY = window.API_KEY;
-
-    if (!API_KEY) {
-      console.error('API key puuttuu!');
-      return;
-    }
   
-    // — Socket.IO setup —
-    console.log('🛠️ Initializing Socket.IO with API key');
+    // — Socket.IO setup using cookie auth —
+    console.log('🛠️ Initializing Socket.IO with session cookie');
     const socket = io('/', {
-      auth: { api_key: API_KEY },
       transports: ['websocket','polling']
     });
 

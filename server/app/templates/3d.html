@@ -10,8 +10,6 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/3d.css') }}">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="{{ url_for('static', filename='js/socket.io.js') }}"></script>
-  <!-- expose the API_KEY to our external script -->
-  <script>window.API_KEY = {{ api_key|tojson }};</script>
   <script src="{{ url_for('static', filename='js/3d.js') }}"></script>
 </head>
 <body>
