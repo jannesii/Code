@@ -47,6 +47,10 @@ class TimelapseController:
         self.red_led = red_led
         self.yellow_led = yellow_led
         self.green_led = green_led
+        
+        self.image_delay = 10  # 10 s default for image updates
+        self.temphum_delay = 10  # 10 s default for temperature/humidity readings
+        self.status_delay = 10  # 10 s default for status updates
 
         self.server = 'https://jannenkoti.com'
 
@@ -94,10 +98,6 @@ class TimelapseController:
         self.hum = "N/A"
         self.thread_flag = True
 
-        self.image_delay = 10  # Delay between image captures in seconds
-        self.temphum_delay = 60  # Delay between temperature/humidity readings in seconds
-        self.status_delay = 10  # Delay between status updates in seconds
-
         # Attach button event handlers.
         capture_button.when_pressed = self.button_press_handler
         capture_button.when_released = self.red_led_off
@@ -140,7 +140,7 @@ class TimelapseController:
         """Start threads for continuous streaming and timelapse control."""
         self.streaming_thread = threading.Thread(
             target=self.continuous_stream_update, daemon=True)
-        # self.streaming_thread.start()
+        self.streaming_thread.start()
 
         self.status_thread = threading.Thread(
             target=self.send_status, daemon=True)
@@ -454,7 +454,7 @@ class SocketIOClient:
         self.sio.on('disconnect',    handler=self.on_disconnect)
         self.sio.on('error',         handler=self.on_error)
         self.sio.on('timelapse_conf', handler=self.on_timelapse_conf)
-        
+
         timelapse_conf = self.get_timelapse_conf()
         if timelapse_conf:
             self.on_timelapse_conf(timelapse_conf)
@@ -476,7 +476,7 @@ class SocketIOClient:
         """Connect using the cookie from self.session, no API key in auth."""
         # build Cookie header string
         self.cookie_header = '; '.join(f"{k}={v}"
-                                  for k, v in self.session.cookies.get_dict().items())
+                                       for k, v in self.session.cookies.get_dict().items())
         self.sio.connect(
             self.server_url,
             headers={'Cookie': self.cookie_header},
@@ -499,7 +499,7 @@ class SocketIOClient:
                     self.logger.info("Giving up after maximum retries.")
                     return
                 sleep(delay)
-                
+
     def get_timelapse_conf(self):
         url = f"{self.server_url}/api/timelapse_config"
         resp = self.session.get(url)
@@ -511,7 +511,6 @@ class SocketIOClient:
             resp.text
         )
         return None
-
 
     def on_timelapse_conf(self, data):
         """Handle the timelapse configuration update from the server."""
