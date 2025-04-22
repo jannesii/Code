@@ -225,6 +225,12 @@ def timelapse_conf():
                 temphum_delay=int(temphum_delay),
                 status_delay=int(status_delay)
             )
+            conf = {
+                'image_delay': image_delay,
+                'temphum_delay': temphum_delay,
+                'status_delay': status_delay
+            }
+            socketio.emit('timelapse_conf', conf)
             flash(f"Timelapsen konfiguraatio päivitetty onnistuneesti.", "success")
             return redirect(url_for('settings'))
         except ValueError as ve:

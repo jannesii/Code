@@ -91,6 +91,10 @@ class TimelapseController:
         self.temp = "N/A"
         self.hum = "N/A"
         self.thread_flag = True
+        
+        self.image_delay = 10  # Delay between image captures in seconds
+        self.temphum_delay = 60  # Delay between temperature/humidity readings in seconds
+        self.status_delay = 10  # Delay between status updates in seconds
 
         # Attach button event handlers.
         capture_button.when_pressed = self.button_press_handler
@@ -151,7 +155,7 @@ class TimelapseController:
         while self.thread_flag:
             try:
                 self.sio.emit('temphum', self.dht.read())
-                sleep(60)
+                sleep(self.temphum_delay)  # Delay between readings
             except Exception as e:
                 print(
                     f"Error sending temperature and humidity: {e}", flush=True)
@@ -169,7 +173,7 @@ class TimelapseController:
                     status = "inactive"
 
                 self.sio.emit('status', {'status': status})
-                sleep(10)
+                sleep(self.status_delay)  # Delay between status updates
             except Exception as e:
                 print(f"Error sending status: {e}", flush=True)
                 sleep(5)  # Retry after a short delay
@@ -214,7 +218,7 @@ class TimelapseController:
 
             self.capture_photo()  # Capture a frame
 
-            sleep(10)  # Adjust sleep time for desired FPS
+            sleep(self.image_delay)  # Adjust sleep time for desired FPS
         print("Continuous streaming stopped.")
 
     def reset_timer(self):
@@ -433,6 +437,7 @@ class SocketIOClient:
         self.sio.on('connect', handler=self.on_connect)
         self.sio.on('disconnect', handler=self.on_disconnect)
         self.sio.on('error', handler=self.on_error)
+        self.sio.on('timelapse_conf', handler=self.on_timelapse_conf)
 
     def start(self):
         self.sio.connect(self.server_url, auth=self.auth)
@@ -452,6 +457,16 @@ class SocketIOClient:
                     print(f"Giving up after {attempt} failed attempts.")
                     return
                 sleep(delay)
+                
+    def on_timelapse_conf(self, data):
+        """Handle the timelapse configuration update from the server."""
+        try:
+            self.controller.image_delay = data['image_delay']
+            self.controller.temphum_delay = data['temphum_delay']
+            self.controller.status_delay = data['status_delay']
+            print(f"Timelapse configuration updated: {data}")
+        except KeyError as e:
+            print(f"Invalid configuration data received: {e}")
 
     def on_connect(self):
         print("⚡ Connected to server")
