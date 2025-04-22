@@ -212,7 +212,7 @@ def delete_user():
 
 @server.route('/settings/timelapse_conf', methods=['GET', 'POST'])
 @login_required
-def conf_timelapse():
+def timelapse_conf():
     image_delay = temphum_delay = status_delay = ''
     
     if request.method == 'POST':
