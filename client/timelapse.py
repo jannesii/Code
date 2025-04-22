@@ -391,10 +391,19 @@ class TimelapseController:
         self.logger.info(f"Transcoding {input_file} to H.264 format…")
 
         # Pre-flight: ensure ffmpeg binary exists
-        ffmpeg_path = shutil.which("ffmpeg")
-        if not ffmpeg_path:
-            self.logger.error("Cannot find 'ffmpeg' in PATH; please install it.")
+        ffmpeg_path = "/usr/bin/ffmpeg"  # Adjust this path if needed
+        if not os.path.exists(ffmpeg_path):
+            """ ffmpeg_path = shutil.which("ffmpeg")
+            if ffmpeg_path:
+                self.logger.info(f"Found ffmpeg at {ffmpeg_path}")
+            else: """
+            # ffmpeg not found in PATH, log error and exit
+            self.logger.error("FFmpeg not found in PATH; please install it.")
             return False
+
+        self.logger.info(f"Using ffmpeg at {ffmpeg_path}")
+        
+
 
         output_file = input_file.replace("_timelapse.mp4", "_timelapse_h264.mp4")
 
