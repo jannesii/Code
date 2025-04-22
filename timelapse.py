@@ -215,7 +215,8 @@ class TimelapseController:
         Continuously capture frames at a low framerate and update the shared stream image.
         """
         while self.streaming_active and not self.timelapse_active and self.thread_flag:
-
+            print(f"Timelapse conf: img: {self.image_delay}, "
+                  f"temphum: {self.temphum_delay}, status: {self.status_delay}")
             self.capture_photo()  # Capture a frame
 
             sleep(self.image_delay)  # Adjust sleep time for desired FPS
