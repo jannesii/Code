@@ -53,7 +53,7 @@ class TimelapseController:
 
         self.sio = SocketIOClient(self, self.server, self.API_KEY)
         self.sio.start()
-        
+
         self.dht = DHT22Sensor(DHT_PIN)
         self.dht.read()
         # Initialize and configure the camera.
@@ -426,8 +426,8 @@ class SocketIOClient:
     def __init__(self, controller, server_url, API_KEY):
         self.controller = controller
         self.server_url = server_url
-        self.auth = { 'api_key': API_KEY }
-        
+        self.auth = {'api_key': API_KEY}
+
         self.sio = socketio.Client()
 
         self.sio.on('connect', handler=self.on_connect)
@@ -446,18 +446,19 @@ class SocketIOClient:
                 return  # success, exit
             except Exception as e:
                 attempt += 1
-                print(f"Error emitting event '{event}' (attempt {attempt}): {e!r}")
+                print(
+                    f"Error emitting event '{event}' (attempt {attempt}): {e!r}")
                 if attempt >= max_retries:
                     print(f"Giving up after {attempt} failed attempts.")
                     return
                 sleep(delay)
-    
+
     def on_connect(self):
         print("⚡ Connected to server")
 
     def on_disconnect(self):
         print("👋 Disconnected from server")
-        
+
     def on_error(self, data):
         print(f"⚠️ Error: {data['message']}")
 
@@ -487,8 +488,8 @@ def main():
     capture_button = Button(CAPTURE_BUTTON_PIN, pull_up=True, bounce_time=0.01)
 
     # Start the keyboard monitor thread for simulating button presses.
-    keyboard_thread = threading.Thread(target=keyboard_monitor, daemon=True)
-    keyboard_thread.start()
+    # keyboard_thread = threading.Thread(target=keyboard_monitor, daemon=True)
+    # keyboard_thread.start()
 
     # Create a new timelapse controller session.
     controller = TimelapseController(
