@@ -49,6 +49,7 @@ def create_app(config_path: str):
     socketio = SocketIO(
         app,
         async_mode='eventlet',
+        message_queue='redis://localhost:6379',
         cors_allowed_origins="*",
         max_http_buffer_size=10 * 1024 * 1024,
         ping_timeout=60,
