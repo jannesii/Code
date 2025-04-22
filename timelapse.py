@@ -122,7 +122,7 @@ class TimelapseController:
             self.API_KEY = config["api_key"]
             self.headers = {'X-API-KEY': self.API_KEY}
             if not self.API_KEY:
-                print("API key not found in config.json")
+                self.logger.info("API key not found in config.json")
                 sys.exit(1)
 
     def red_led_off(self):
@@ -137,9 +137,9 @@ class TimelapseController:
                 "AfWindows": [(16384, 16384, 49152, 49152)],
                 "ExposureValue": -0.5,
             })
-            print("\nAutofocus activated.\n")
+            self.logger.info("\nAutofocus activated.\n")
         except Exception as e:
-            print("Error activating autofocus:", e)
+            self.logger.info("Error activating autofocus:", e)
 
     def start_threads(self):
         """Start threads for continuous streaming and timelapse control."""
@@ -169,7 +169,7 @@ class TimelapseController:
                 self.sio.emit('temphum', self.dht.read())
                 sleep(self.temphum_delay)  # Delay between readings
             except Exception as e:
-                print(
+                self.logger.info(
                     f"Error sending temperature and humidity: {e}", flush=True)
                 sleep(5)  # Retry after a short delay
 
@@ -187,7 +187,7 @@ class TimelapseController:
                 self.sio.emit('status', {'status': status})
                 sleep(self.status_delay)  # Delay between status updates
             except Exception as e:
-                print(f"Error sending status: {e}", flush=True)
+                self.logger.info(f"Error sending status: {e}", flush=True)
                 sleep(5)  # Retry after a short delay
 
     def send_image(self, image):
@@ -199,7 +199,7 @@ class TimelapseController:
             data = {'image': encoded_image}
             self.sio.emit('image', data)
         except Exception as e:
-            print(f"Error sending image: {e}", flush=True)
+            self.logger.info(f"Error sending image: {e}", flush=True)
 
     def capture_photo(self):
         """Capture a photo, update the streaming image, and save it."""
@@ -211,7 +211,7 @@ class TimelapseController:
             if not self.streaming_active:
                 filename = f"Photos/capture_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.jpg"
                 cv2.imwrite(filename, image_bgr)
-                print(
+                self.logger.info(
                     f"Image captured at {datetime.now().strftime('%H-%M-%S')}.")
                 self.captured_files.append(filename)
 
@@ -220,7 +220,7 @@ class TimelapseController:
                 # Send the image to the server.
                 self.send_image(jpeg.tobytes())
         except Exception as e:
-            print("Error capturing image:", e)
+            self.logger.info("Error capturing image:", e)
 
     def continuous_stream_update(self):
         """
@@ -230,7 +230,7 @@ class TimelapseController:
             self.capture_photo()  # Capture a frame
 
             sleep(self.image_delay)  # Adjust sleep time for desired FPS
-        print("Continuous streaming stopped.")
+        self.logger.info("Continuous streaming stopped.")
 
     def reset_timer(self):
         """Reset (or start) the timer that waits for the end of the press sequence."""
@@ -245,7 +245,7 @@ class TimelapseController:
         elapsed = current_time - self.last_press_time if self.last_press_time else 0
         self.last_press_time = current_time
         self.button_press_count += 1
-        print(f"Δ {elapsed:.2f}s,\t #{self.button_press_count}")
+        self.logger.info(f"Δ {elapsed:.2f}s,\t #{self.button_press_count}")
         self.red_led.toggle()
         self.reset_timer()
 
@@ -257,7 +257,7 @@ class TimelapseController:
         RESET = "\033[0m"
 
         count = self.button_press_count
-        print(f"Seq: {count} -> ", end="")  # Short sequence count
+        self.logger.info(f"Seq: {count} -> ", end="")  # Short sequence count
         self.button_press_count = 0  # reset counter
 
         if not self.timelapse_active:
@@ -266,18 +266,18 @@ class TimelapseController:
                 # Stop continuous streaming for timelapse.
                 self.streaming_active = False
                 self.timelapse_active = True
-                print(f"{GREEN}start{RESET}")
+                self.logger.info(f"{GREEN}start{RESET}")
             else:
-                print("no start")
+                self.logger.info("no start")
             return
 
         if self.timelapse_paused:
             if count >= self.pause_count:
                 self.yellow_led.off()
                 self.timelapse_paused = False
-                print(f"{GREEN}resume{RESET}")
+                self.logger.info(f"{GREEN}resume{RESET}")
             else:
-                print("no action")
+                self.logger.info("no action")
             return
 
         if count == 1:
@@ -285,21 +285,21 @@ class TimelapseController:
         elif count == self.pause_count:
             self.yellow_led.on()
             self.timelapse_paused = True
-            print(f"{YELLOW}pause{RESET}")
+            self.logger.info(f"{YELLOW}pause{RESET}")
         elif count == self.end_count:
-            print(f"{RED}end{RESET}\n")
+            self.logger.info(f"{RED}end{RESET}\n")
             self.timelapse_stop = True
             self.create_timelapse = True
             self.red_led.off()
             self.green_led.off()
         elif count == self.end_no_video_count:
-            print(f"{RED}end NO VIDEO{RESET}\n")
+            self.logger.info(f"{RED}end NO VIDEO{RESET}\n")
             self.timelapse_stop = True
             self.create_timelapse = False
             self.red_led.off()
             self.green_led.off()
         else:
-            print(f"?({count})")
+            self.logger.info(f"?({count})")
 
     def finalize_timelapse(self):
         """
@@ -308,7 +308,7 @@ class TimelapseController:
         if self.captured_files:
             self.create_timelapse_video()
         else:
-            print("No images were captured, so no timelapse video was created.\n")
+            self.logger.info("No images were captured, so no timelapse video was created.\n")
 
         self.red_led.off()
         self.yellow_led.off()
@@ -322,13 +322,13 @@ class TimelapseController:
             # Ensure we have a valid first frame.
             first_filename = self.captured_files[0]
             if not os.path.exists(first_filename):
-                print(
+                self.logger.info(
                     f"Warning: First frame {first_filename} not found. Skipping timelapse creation.")
                 return
 
             first_frame = cv2.imread(first_filename)
             if first_frame is None:
-                print(
+                self.logger.info(
                     f"Warning: Could not read {first_filename}. Skipping timelapse creation.")
                 return
 
@@ -338,7 +338,7 @@ class TimelapseController:
             num_images = len(self.captured_files)
             fps = default_fps if num_images >= default_fps and num_images > 0 else (
                 num_images if num_images > 0 else default_fps)
-            print(f"Using fps: {fps}")
+            self.logger.info(f"Using fps: {fps}")
 
             try:
                 video_filename = f"Timelapses/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_timelapse.mp4"
@@ -348,11 +348,11 @@ class TimelapseController:
 
                 for fname in self.captured_files:
                     if not os.path.exists(fname):
-                        print(f"Warning: {fname} does not exist. Skipping.")
+                        self.logger.info(f"Warning: {fname} does not exist. Skipping.")
                         continue
                     frame = cv2.imread(fname)
                     if frame is None:
-                        print(f"Warning: Could not read {fname}. Skipping.")
+                        self.logger.info(f"Warning: Could not read {fname}. Skipping.")
                         continue
                     video_writer.write(frame)
 
@@ -365,13 +365,13 @@ class TimelapseController:
                 # Transcode the video to H.264 using FFMPEG.
                 self.encode_video(video_filename)
 
-                print(
+                self.logger.info(
                     f"Timelapse video created as {os.path.basename(video_filename)}\n")
             except Exception as e:
-                print(f"Error creating timelapse video: {e}")
+                self.logger.info(f"Error creating timelapse video: {e}")
                 sys.exit(1)
         else:
-            print(f"{RED}No timelapse video created.{RESET}\n")
+            self.logger.info(f"{RED}No timelapse video created.{RESET}\n")
 
         # Delete the captured images if they exist.
         for fname in self.captured_files:
@@ -379,14 +379,14 @@ class TimelapseController:
                 try:
                     os.remove(fname)
                 except Exception as e:
-                    print(f"Failed to delete {fname}: {e}")
+                    self.logger.info(f"Failed to delete {fname}: {e}")
             else:
-                print(f"{fname} already deleted or not found.")
-        print("Photos deleted.\n")
+                self.logger.info(f"{fname} already deleted or not found.")
+        self.logger.info("Photos deleted.\n")
 
     def encode_video(self, input_file):
         # Run FFMPEG to transcode the video.
-        print(f"Transcoding {input_file} to H.264 format...")
+        self.logger.info(f"Transcoding {input_file} to H.264 format...")
         # Ensure the output filename is different from the input filename.
         output_file = input_file.replace(
             "_timelapse.mp4", "_timelapse_h264.mp4")
@@ -404,13 +404,13 @@ class TimelapseController:
 
         try:
             subprocess.run(ffmpeg_cmd, check=True)
-            print(f"H.264 timelapse video created as {output_file}")
+            self.logger.info(f"H.264 timelapse video created as {output_file}")
             # Remove the original video file after transcoding.
             os.remove(input_file)
         except subprocess.CalledProcessError as e:
-            print("FFMPEG transcoding failed:", e)
+            self.logger.info("FFMPEG transcoding failed:", e)
         except Exception as e:
-            print(f"Error during video encoding: {e}")
+            self.logger.info(f"Error during video encoding: {e}")
 
     def shutdown_camera(self):
         """
@@ -420,9 +420,9 @@ class TimelapseController:
         try:
             self.picam2.stop_preview()
             self.picam2.close()
-            print("Camera shutdown completed.\n")
+            self.logger.info("Camera shutdown completed.\n")
         except Exception as e:
-            print("Error during camera shutdown:", e)
+            self.logger.info("Error during camera shutdown:", e)
 
     def __del__(self):
         # Varmista, että attribuutit on olemassa ennen kutsua
@@ -464,10 +464,10 @@ class SocketIOClient:
                 return  # success, exit
             except Exception as e:
                 attempt += 1
-                print(
+                self.logger.info(
                     f"Error emitting event '{event}' (attempt {attempt}): {e!r}")
                 if attempt >= max_retries:
-                    print(f"Giving up after {attempt} failed attempts.")
+                    self.logger.info(f"Giving up after {attempt} failed attempts.")
                     return
                 sleep(delay)
                 
@@ -480,16 +480,16 @@ class SocketIOClient:
             self.logger.info(f"Timelapse configuration updated: {data}")
             
         except KeyError as e:
-            print(f"Invalid configuration data received: {e}")
+            self.logger.info(f"Invalid configuration data received: {e}")
 
     def on_connect(self):
-        print("⚡ Connected to server")
+        self.logger.info("⚡ Connected to server")
 
     def on_disconnect(self):
-        print("👋 Disconnected from server")
+        self.logger.info("👋 Disconnected from server")
 
     def on_error(self, data):
-        print(f"⚠️ Error: {data['message']}")
+        self.logger.info(f"⚠️ Error: {data['message']}")
 
 
 def keyboard_monitor():
@@ -501,7 +501,7 @@ def keyboard_monitor():
     while True:
         _ = input()  # Wait for the user to press enter.
         if current_controller is not None:
-            print("Simulated button press via keyboard.")
+            self.logger.info("Simulated button press via keyboard.")
             current_controller.button_press_handler()
             current_controller.red_led_off()
 
@@ -528,7 +528,7 @@ def main():
 
     try:
         while True:
-            print(
+            self.logger.info(
                 f"Press the button {controller.startup_count} times (within {controller.cutoff_time} sec between presses) to start timelapse capture.\n"
                 "Or just press ENTER to simulate a button press.\n"
             )
@@ -539,10 +539,10 @@ def main():
                 if controller.timelapse_active:
                     # End timelapse if 30 minutes pass without any button press.
                     if time() - controller.last_press_time >= 60 * 30:
-                        print("No button press for 30 minutes. Timelapse ended.\n")
+                        self.logger.info("No button press for 30 minutes. Timelapse ended.\n")
                         break
                     elif controller.timelapse_stop:
-                        print("Timelapse ended by button press.\n")
+                        self.logger.info("Timelapse ended by button press.\n")
                         break
 
             controller.timelapse_active = False  # Reset the timelapse state.
@@ -553,11 +553,11 @@ def main():
             # Shutdown the camera to release the resource before starting a new session.
             controller.shutdown_camera()
 
-            print(f"{GREEN}Ready for a new timelapse session.{RESET}\n")
+            self.logger.info(f"{GREEN}Ready for a new timelapse session.{RESET}\n")
 
             return  # Exit the loop after one session for testing purposes.
     except KeyboardInterrupt:
-        print("\nExiting program.")
+        self.logger.info("\nExiting program.")
 
 
 if __name__ == "__main__":
