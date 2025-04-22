@@ -12,6 +12,7 @@ import ssl
 import base64
 import json
 import socketio
+import logging
 
 from dht import DHT22Sensor
 
@@ -50,11 +51,12 @@ class TimelapseController:
         self.server = 'https://jannenkoti.com'
 
         self.get_api_key()
+        self.init_logger()
 
-        self.sio = SocketIOClient(self, self.server, self.API_KEY)
+        self.sio = SocketIOClient(self, self.server, self.API_KEY, self.logger)
         self.sio.start()
 
-        self.dht = DHT22Sensor(DHT_PIN)
+        self.dht = DHT22Sensor(DHT_PIN, logger=self.logger)
         self.dht.read()
         # Initialize and configure the camera.
         self.picam2 = Picamera2()
@@ -103,6 +105,16 @@ class TimelapseController:
         self.enable_autofocus()
 
         self.start_threads()
+        
+    def init_logger(self):
+        # Setup logging
+        self.logger = logging.getLogger(self.__class__.__name__)
+        if not self.logger.handlers:
+            handler = logging.StreamHandler()
+            handler.setFormatter(logging.Formatter(
+                "%(asctime)s %(levelname)s: %(message)s"))
+            self.logger.addHandler(handler)
+        self.logger.setLevel(logging.INFO)
 
     def get_api_key(self):
         with open("config.json") as f:
@@ -426,10 +438,11 @@ class TimelapseController:
 
 
 class SocketIOClient:
-    def __init__(self, controller, server_url, API_KEY):
+    def __init__(self, controller, server_url, API_KEY, logger):
         self.controller = controller
         self.server_url = server_url
         self.auth = {'api_key': API_KEY}
+        self.logger = logger
 
         self.sio = socketio.Client()
 
@@ -447,6 +460,7 @@ class SocketIOClient:
         while True:
             try:
                 self.sio.emit(event, data)
+                self.logger.info(f"Emitting event: {event}")
                 return  # success, exit
             except Exception as e:
                 attempt += 1
@@ -463,7 +477,7 @@ class SocketIOClient:
             self.controller.image_delay = data['image_delay']
             self.controller.temphum_delay = data['temphum_delay']
             self.controller.status_delay = data['status_delay']
-            self.controller.dht.logger.info(f"Timelapse configuration updated: {data}")
+            self.logger.info(f"Timelapse configuration updated: {data}")
             
         except KeyError as e:
             print(f"Invalid configuration data received: {e}")

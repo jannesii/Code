@@ -13,7 +13,7 @@ class DHT22Sensor:
         sensor = DHT22Sensor(pin=24)  # BCM24
         temp, hum = sensor.read()
     """
-    def __init__(self, pin, retries=3, delay=2.0):
+    def __init__(self, pin, retries=3, delay=2.0, logger=None):
         """
         Initialize the DHT22 sensor interface.
 
@@ -36,13 +36,7 @@ class DHT22Sensor:
         self.humidity = None
 
         # Setup logging
-        self.logger = logging.getLogger(self.__class__.__name__)
-        if not self.logger.handlers:
-            handler = logging.StreamHandler()
-            handler.setFormatter(logging.Formatter(
-                "%(asctime)s %(levelname)s: %(message)s"))
-            self.logger.addHandler(handler)
-        self.logger.setLevel(logging.INFO)
+        self.logger = logger
 
     def read(self) -> dict:
         """
