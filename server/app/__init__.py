@@ -48,6 +48,7 @@ def create_app(config_path: str):
     # — SocketIO
     socketio = SocketIO(
         app,
+        async_mode='eventlet',
         cors_allowed_origins="*",
         max_http_buffer_size=10 * 1024 * 1024,
         ping_timeout=60,

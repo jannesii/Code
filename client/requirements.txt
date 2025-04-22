@@ -10,3 +10,4 @@ socketio
 setuptools 
 wheel
 adafruit-circuitpython-dht
+websocket-client
