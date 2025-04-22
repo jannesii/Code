@@ -17,7 +17,7 @@ class SocketEventHandler:
     def _auth_ok(self, auth):
         api_key = (auth or {}).get('api_key')
         # Ensure API_KEY from config is a string
-        api_key_config: str = current_app.config['API_KEY']
+        api_key_config: str = current_app.config['SECRET_KEY']
         return bool(api_key and hmac.compare_digest(api_key, api_key_config))
 
     def on_connect(self, auth):
