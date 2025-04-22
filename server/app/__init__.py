@@ -26,6 +26,8 @@ def create_app(config_path: str = 'config.json'):
     # Initialize domain controller
     db_path = config.get('db_path', 'app.db')
     ctrl = Controller(db_path)
+    # make the controller available to blueprints via current_app.ctrl
+    app.ctrl = ctrl
 
     # Initialize Flask-Login
     auth_login_manager.init_app(app)
