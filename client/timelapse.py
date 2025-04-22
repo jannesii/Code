@@ -108,6 +108,16 @@ class TimelapseController:
         self.enable_autofocus()
 
         self.start_threads()
+        
+        if not os.path.exists(os.path.join(self.root_dir, "Photos")):
+            self.logger.info(
+                f"Creating directory {os.path.join(self.root_dir, 'Photos')}")
+            os.makedirs(os.path.join(self.root_dir, "Photos"))
+            
+        if not os.path.exists(os.path.join(self.root_dir, "Timelapses")):
+            self.logger.info(
+                f"Creating directory {os.path.join(self.root_dir, 'Timelapses')}")
+            os.makedirs(os.path.join(self.root_dir, "Timelapses"))
 
     def init_logger(self):
         # Setup logging
@@ -320,6 +330,8 @@ class TimelapseController:
     def create_timelapse_video(self):
         """Combine captured images into a timelapse video and delete the images."""
         self.captured_files.sort()
+        
+        self.logger.info(f"Creating timelapse video from {len(self.captured_files)} images...")
 
         if self.create_timelapse:
             # Ensure we have a valid first frame.
