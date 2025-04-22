@@ -9,3 +9,4 @@ rpi-kms
 socketio
 setuptools 
 wheel
+adafruit-circuitpython-dht
