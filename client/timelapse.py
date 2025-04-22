@@ -291,8 +291,9 @@ class TimelapseController:
             return
 
         if count == 1:
-            self.capture_photo()
             log_string += f"{GREEN}capture{RESET}"
+            self.logger.info(log_string)
+            self.capture_photo()
         elif count == self.pause_count:
             self.yellow_led.on()
             self.timelapse_paused = True
@@ -312,7 +313,8 @@ class TimelapseController:
         else:
             log_string += f"?({count})"
 
-        self.logger.info(log_string)
+        if count != 1:
+            self.logger.info(log_string)
 
     def finalize_timelapse(self):
         """
