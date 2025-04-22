@@ -22,7 +22,6 @@ def create_app(config_path: str):
     app = Flask(__name__)
     app.config['SECRET_KEY'] = cfg.get('secret_key', 'replace-with-a-secure-random-key')
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
-    app.config['API_KEY'] = cfg['api_key']
     app.config['WEB_USERNAME'] = cfg['web_username']
     app.config['WEB_PASSWORD'] = cfg['web_password']
 

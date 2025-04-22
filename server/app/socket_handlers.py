@@ -58,10 +58,3 @@ class SocketEventHandler:
         saved = self.ctrl.record_status(status)
         self.socketio.emit('status2v', {'status': saved.status})
         self.logger.info("Broadcasted status: %s", saved.status)
-
-    def _auth_ok(self, auth: dict) -> bool:
-        key = (auth or {}).get('api_key')
-        valid = key and hmac.compare_digest(key, current_app.config['API_KEY'])
-        if not valid:
-            self.logger.debug("Socket auth failed for key: %s", key)
-        return bool(valid)
