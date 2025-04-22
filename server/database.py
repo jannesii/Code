@@ -48,6 +48,12 @@ class DatabaseManager:
                 'timestamp TEXT NOT NULL, '
                 'image TEXT NOT NULL'
             ),
+            'timelapse_conf': (
+                'id INTEGER PRIMARY KEY CHECK (id = 1),'
+                'image_delay INTEGER NOT NULL,'
+                'temphum_delay INTEGER NOT NULL,'
+                'status_delay INTEGER NOT NULL'
+            )
         }
         for name, schema in tables.items():
             self.cursor.execute(f"CREATE TABLE IF NOT EXISTS {name} ({schema})")

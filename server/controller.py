@@ -3,7 +3,7 @@ from typing import Optional, List
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from models import User, TemperatureHumidity, Status, ImageData
+from models import User, TemperatureHumidity, Status, ImageData, TimelapseConf
 from database import DatabaseManager
 import pytz
 
@@ -171,3 +171,27 @@ class Controller:
         if row is None:
             return None
         return ImageData(id=row['id'], timestamp=row['timestamp'], image=row['image'])
+
+    def get_timelapse_conf(self) -> Optional[TimelapseConf]:
+        row = self.db.fetchone(
+            "SELECT id, image_delay, temphum_delay, status_delay FROM timelapse_conf"
+        )
+        if row is None:
+            return None
+        return TimelapseConf(
+            id=row['id'],
+            image_delay=row['image_delay'],
+            temphum_delay=row['temphum_delay'],
+            status_delay=row['status_delay']
+        )
+        
+    def update_timelapse_conf(self, image_delay: int, temphum_delay: int, status_delay: int) -> None:
+        self.db.execute_query(
+            """
+            UPDATE timelapse_conf
+               SET image_delay = ?,
+                   temphum_delay = ?,
+                   status_delay = ?
+            """,
+            (image_delay, temphum_delay, status_delay)
+        )

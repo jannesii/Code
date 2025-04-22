@@ -27,3 +27,10 @@ class ImageData:
     id: int
     timestamp: str
     image: str  # base64-encoded image data
+    
+@dataclass
+class TimelapseConf:
+    id: int
+    image_delay: int
+    temphum_delay: int
+    status_delay: int

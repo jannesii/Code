@@ -35,7 +35,7 @@ from models import (
 # ——————————————
 from controller import Controller
 ctrl = Controller('app.db')
-
+ctrl.update_timelapse_conf(10,10,10)
 # ——————————————
 # Flask App & Config
 # ——————————————
@@ -209,6 +209,20 @@ def delete_user():
         return redirect(url_for('delete_user'))
 
     return render_template('delete_user.html', users=users_list)
+
+@server.route('/settings/timelapse_conf', methods=['GET', 'POST'])
+@login_required
+def add_user():
+    if request.method == 'POST':
+        image_delay = request.form.get('image_delay', '').strip()
+        password = request.form.get('password', '')
+        try:
+            ctrl.register_user(username, password)
+            flash(f"Käyttäjä «{username}» lisätty onnistuneesti.", "success")
+            return redirect(url_for('settings'))
+        except ValueError as ve:
+            flash(str(ve), "error")
+    return render_template('timelapse_conf.html')
 
 # ——————————————
 # SocketIO handlers
