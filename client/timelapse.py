@@ -14,8 +14,8 @@ import cv2
 import requests
 import socketio
 from gpiozero import LED, Button
-from picamera2 import Picamera2
-from libcamera import controls
+from picamera2 import Picamera2 # type: ignore[reportMissingImports]
+from libcamera import controls # type: ignore[reportMissingImports]
 
 from dht import DHT22Sensor
 

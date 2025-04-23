@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from picamera2 import Picamera2
+from picamera2 import Picamera2 # type: ignore[reportMissingImports]
 import cv2
 from time import sleep
 

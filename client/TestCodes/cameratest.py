@@ -8,7 +8,7 @@ Before running, install Picamera2 and its dependencies.
 
 try:
     from time import sleep, time
-    from picamera2 import Picamera2
+    from picamera2 import Picamera2 # type: ignore[reportMissingImports]
     import cv2
 except ImportError as e:
     missing_module = str(e).split()[-1]

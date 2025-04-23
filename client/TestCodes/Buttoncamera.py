@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # filepath: /home/jannesi/Code/Buttoncamera.py
 from gpiozero import LED, Button
-from picamera2 import Picamera2
-from libcamera import controls
+from picamera2 import Picamera2 # type: ignore[reportMissingImports]
+from libcamera import controls # type: ignore[reportMissingImports]
 import cv2
 import time
 from time import sleep, time
