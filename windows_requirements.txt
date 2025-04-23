@@ -1,0 +1,12 @@
+adafruit-circuitpython-dht
+paramiko
+gpiozero 
+opencv-python
+Flask
+flask-socketio
+eventlet
+flask-login
+pytz
+requests
+python-socketio
+Werkzeug
