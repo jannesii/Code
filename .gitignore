@@ -6,3 +6,5 @@ server.zip
 .venv/
 myenv/
 __pycache__/
+stream_server.py
+stream_state.py
