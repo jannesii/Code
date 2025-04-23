@@ -155,14 +155,5 @@ The script SFTP‑pulls any new MP4s from the Pi and deletes the originals once 
 
 ---
 
-## License & credits
-
-This project is released under the **MIT License** (see root `LICENSE` file).  It builds upon:
-
-* **Picamera2 / libcamera** for modern Raspberry Pi camera access
-* **OpenCV** for raw JPEG capture & assembly
-* **Flask‑SocketIO** and **python‑socketio** for real‑time messaging
-* **AdaFruit DHT CircuitPython** drivers
-
-Happy printing! 🎥🖨️
+© 2025 Janne Siirtola.  Licensed under the MIT License.
 

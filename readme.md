@@ -29,3 +29,4 @@ $ less server/README.md
 
 > **Tip:** If you only need the Pi‑side camera controller you can ignore the server folder entirely, and vice‑versa.
 
+© 2025 Janne Siirtola.  Licensed under the MIT License.
