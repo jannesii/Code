@@ -1,3 +1,4 @@
+# If you want to get rid of missing modules errors on a windows machine, install the following packages
 adafruit-circuitpython-dht
 paramiko
 gpiozero 
