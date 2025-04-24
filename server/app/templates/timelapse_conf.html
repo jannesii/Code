@@ -12,6 +12,7 @@
 <div class="container">
   <div class="tile" style="height:auto; padding:30px;">
     <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div>
         <label for="image_delay">Kuvan viive (s)</label>
         <input type="number" id="image_delay" name="image_delay" required value="{{ image_delay }}">

@@ -13,6 +13,7 @@
 <div class="container">
   <div class="tile" style="height:auto; padding:30px;">
     <form id="deleteForm" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <label for="username">Valitse käyttäjä poistettavaksi</label><br>
       <select id="username" name="username" required>
         {% for u in users %}
