@@ -72,6 +72,14 @@ class DatabaseManager:
                     LIMIT 10
                 );
             END;
+            """,
+            'cleanup_temphum_after_insert':"""  
+            CREATE TRIGGER IF NOT EXISTS cleanup_temphum_after_insert
+            AFTER INSERT ON temphum
+            BEGIN
+                DELETE FROM temphum
+                WHERE timestamp < datetime('now', '-7 days');
+            END;
             """
         }
 
