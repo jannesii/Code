@@ -29,6 +29,7 @@ server/
 │   ├── __init__.py        # create_app(), Socket.IO, blueprints
 │   ├── auth.py            # Login / logout routes & user loader
 │   ├── web.py             # Protected HTML pages
+│   ├── utils.py           # Helper functions
 │   ├── api.py             # JSON endpoints
 │   ├── socket_handlers.py # WebSocket event handlers
 │   ├── controller.py      # All business logic (DB wrapper)

@@ -102,20 +102,20 @@ def timelapse_conf():
         }
 
         try:
-            check = check_vals(**vals)
+            check_failed = check_vals(**vals)
             
-            if check:
-                for c in check:
+            if check_failed:
+                for c in check_failed:
                     flash(c['msg'], c['cat'])
-                logger.warning("Invalid timelapse input: %s", check)
+                logger.warning("Invalid timelapse input: %s", check_failed)
                 return render_template('timelapse_conf.html', **vals)
-            
-            ctrl.update_timelapse_conf(**vals)
-            current_app.socketio.emit('timelapse_conf', vals)
-            flash("Timelapsen konfiguraatio päivitetty onnistuneesti.", "success")
-            logger.info("Timelapse updated %s by %s",
-                        vals, current_user.get_id())
-            return redirect(url_for('web.settings'))
+            else:
+                ctrl.update_timelapse_conf(**vals)
+                current_app.socketio.emit('timelapse_conf', vals)
+                flash("Timelapsen konfiguraatio päivitetty onnistuneesti.", "success")
+                logger.info("Timelapse updated %s by %s",
+                            vals, current_user.get_id())
+                return redirect(url_for('web.settings'))
         except ValueError as ve:
             flash(str(ve), "error")
             logger.warning("Invalid timelapse input: %s", ve)
