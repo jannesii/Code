@@ -88,6 +88,7 @@ class DatabaseManager:
     ) -> None:
         self.cursor.execute(query, params)
         self.conn.commit()
+        return self.cursor
 
     def executemany(
         self,
