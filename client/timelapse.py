@@ -496,7 +496,13 @@ class StatusReporter:
             "password": self.config["password"],
             "csrf_token": token,
         }
-        resp_post = self.rest.post(login_url, data=payload)
+        headers = {"Referer": login_url}
+        self.logger.debug("Posting to %s with Referer header", login_url)
+        resp_post = self.rest.post(
+            login_url,
+            data=payload,
+            headers=headers
+        )
         if resp_post.status_code != 200 or "Invalid credentials" in resp_post.text:
             self.logger.error("StatusReporter: login failed: %s", resp_post.text)
             sys.exit(1)
