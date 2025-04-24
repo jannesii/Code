@@ -7,14 +7,14 @@ class DatabaseManager:
     _instance = None
     _lock = threading.Lock()
 
-    def __new__(cls, db_path: str = 'app.db'):
+    def __new__(cls, db_path: str):
         with cls._lock:
             if cls._instance is None:
                 cls._instance = super(DatabaseManager, cls).__new__(cls)
                 cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, db_path: str = 'app.db'):
+    def __init__(self, db_path: str):
         if getattr(self, '_initialized', False):
             return
         self._initialized = True

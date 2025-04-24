@@ -2,11 +2,13 @@
 from typing import Optional, List
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
+import logging
 
 from models import User, TemperatureHumidity, Status, ImageData, TimelapseConf
 from .database import DatabaseManager
 import pytz
 
+logger = logging.getLogger(__name__)
 
 class Controller:
     def __init__(self, db_path: str = 'app.db'):
@@ -15,28 +17,42 @@ class Controller:
 
     # --- User operations ---
     def register_user(self, username: str, password: str) -> User:
-        # Check if user exists
-        existing = self.db.fetchone(
-            "SELECT id, username, password_hash FROM users WHERE username = ?", (
-                username,)
-        )
-        if existing is not None:
-            raise ValueError("Username already exists")
+        """
+        Creates the user if it doesn't exist, or returns the existing one.
+        Uses INSERT OR IGNORE to avoid UNIQUE errors, then SELECT to fetch.
+        """
+        logging.info(f"Registering user: {username}")
 
+        # 1) Hash the password up front
         pw_hash = generate_password_hash(password)
-        self.db.execute_query(
-            "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+
+        # 2) Try to insert; if username exists, this is a no-op
+        cursor = self.db.execute_query(
+            "INSERT OR IGNORE INTO users (username, password_hash) VALUES (?, ?)",
             (username, pw_hash)
         )
-        # Retrieve inserted user
+        if cursor.rowcount == 1:
+            logging.info(f"User '{username}' created successfully.")
+        else:
+            logging.info(f"User '{username}' already exists, skipping INSERT.")
+
+        # 3) Fetch whatever is now in the table
         row = self.db.fetchone(
-            "SELECT id, username, password_hash FROM users WHERE username = ?", (
-                username,)
+            "SELECT id, username, password_hash FROM users WHERE username = ?",
+            (username,)
         )
         if row is None:
-            raise RuntimeError("Failed to retrieve newly created user")
+            # This really should never happen
+            logging.error(f"After INSERT OR IGNORE, no row for '{username}' found.")
+            raise RuntimeError(f"Failed to retrieve user '{username}'")
 
-        return User(id=row['id'], username=row['username'], password_hash=row['password_hash'])
+        logging.info(f"Returning user '{username}' with id={row['id']}")
+        return User(
+            id=row['id'],
+            username=row['username'],
+            password_hash=row['password_hash']
+        )
+
 
     def authenticate_user(self, username: str, password: str) -> bool:
         row = self.db.fetchone(
