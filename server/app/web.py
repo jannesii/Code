@@ -53,7 +53,7 @@ def add_user():
             ctrl.register_user(u, p)
             flash(f"Käyttäjä «{u}» lisätty onnistuneesti.", 'success')
             logger.info("User %s added by %s", u, current_user.get_id())
-            return redirect(url_for('web.settings'))
+            return redirect(url_for('web.get_settings_page'))
         except ValueError as ve:
             flash(str(ve), "error")
             logger.warning("Add user failed: %s", ve)
@@ -71,7 +71,7 @@ def delete_user():
         if not u:
             flash("Valitse ensin käyttäjä.", "error")
             logger.warning("No user selected for deletion")
-            return redirect(url_for('web.settings'))
+            return redirect(url_for('web.get_settings_page'))
         if u == current_user.get_id():
             flash("Et voi poistaa omaa tiliäsi.", "error")
             logger.warning("Self‑deletion attempt by %s", u)
@@ -85,7 +85,7 @@ def delete_user():
                 flash(f"Poisto epäonnistui: {e}", "error")
                 logger.error("Error deleting %s: %s", u, e)
                 return render_template('delete_user.html', users=users)
-        return redirect(url_for('web.settings'))
+        return redirect(url_for('web.get_settings_page'))
     return render_template('delete_user.html', users=users)
 
 
@@ -115,7 +115,7 @@ def timelapse_conf():
                 flash("Timelapsen konfiguraatio päivitetty onnistuneesti.", "success")
                 logger.info("Timelapse updated %s by %s",
                             vals, current_user.get_id())
-                return redirect(url_for('web.settings'))
+                return redirect(url_for('web.get_settings_page'))
         except ValueError as ve:
             flash(str(ve), "error")
             logger.warning("Invalid timelapse input: %s", ve)
