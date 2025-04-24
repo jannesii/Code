@@ -1,71 +1,95 @@
 # app/__init__.py
+
 import json
 import logging
+import os
 from datetime import timedelta
+
 import eventlet
-eventlet.monkey_patch()  # Patch standard library for async I/O
+
+eventlet.monkey_patch()
+
 from flask import Flask
 from flask_socketio import SocketIO
 from flask_login import LoginManager
+from flask_wtf.csrf import CSRFProtect
+
 from .controller import Controller
 
-
-def create_app(config_path: str):
-    # — Initialize logging
+def create_app():
+    # --- Logging
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
-    logging.getLogger('engineio.server').setLevel(logging.ERROR)
     logger.info("Starting application")
 
-    # — Load config
-    with open(config_path, 'r') as f:
-        cfg = json.load(f)
+    # --- SECRET_KEY
+    secret = os.getenv("SECRET_KEY")
+    if not secret:
+        raise RuntimeError("SECRET_KEY is missing – add to environment.")
 
-    # — Flask app
+    # --- Flask-app
     app = Flask(__name__)
-    app.config['SECRET_KEY'] = cfg.get(
-        'secret_key', 'replace-with-a-secure-random-key')
-    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
-    app.config['WEB_USERNAME'] = cfg['web_username']
-    app.config['WEB_PASSWORD'] = cfg['web_password']
+    app.config.update(
+        SECRET_KEY=secret,
+        PERMANENT_SESSION_LIFETIME=timedelta(days=7),
+        SESSION_COOKIE_SECURE=True,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        WEB_USERNAME=os.getenv("WEB_USERNAME"),
+        WEB_PASSWORD=os.getenv("WEB_PASSWORD"),
+        WTF_CSRF_TIME_LIMIT=None,
+    )
 
-    # — Domain controller
-    db_path = cfg.get('database_uri', 'app.db')
+    # --- CSRF
+    csrf = CSRFProtect()
+    csrf.init_app(app)
+    logger.info("CSRF protection enabled")
+
+    # --- Domain-controller
+    db_path = os.getenv("DB_PATH")
+    if not db_path:
+        raise RuntimeError("DB_PATH is missing – add to environment.")
     app.ctrl = Controller(db_path)
-    logger.info("Controller initialized with DB %s", db_path)
+    logger.info("Controller init: %s", db_path)
 
-    # — Seed admin user
+    # --- Seed admin
     try:
-        app.ctrl.register_user(
-            app.config['WEB_USERNAME'], app.config['WEB_PASSWORD'])
-        logger.info("Seeded admin user %s", app.config['WEB_USERNAME'])
+        app.ctrl.register_user(app.config["WEB_USERNAME"], app.config["WEB_PASSWORD"])
+        logger.info("Seeded admin user %s", app.config["WEB_USERNAME"])
     except ValueError:
         logger.info("Admin user already exists")
 
-    # — Flask‑Login
+    # --- Flask-Login
     login_manager = LoginManager()
-    login_manager.login_view = 'auth.login'
+    login_manager.login_view = "auth.login"
     login_manager.init_app(app)
+
     from .auth import load_user
     login_manager.user_loader(load_user)
-    logger.info("Login manager configured")
+    logger.info("Login manager ready")
 
-    # — SocketIO
+    # --- Socket.IO
+    raw = os.getenv("ALLOWED_WS_ORIGINS")
+    if raw:
+        try:
+            allowed_ws_origins = json.loads(raw)
+        except json.JSONDecodeError:
+            raise RuntimeError("ALLOWED_WS_ORIGINS ei ole validia JSON-listaa")
+        
     socketio = SocketIO(
         app,
-        async_mode='eventlet',
-        message_queue='redis://localhost:6379',
-        cors_allowed_origins="*",
+        async_mode="eventlet",
+        message_queue="redis://localhost:6379",
+        cors_allowed_origins=allowed_ws_origins,
         max_http_buffer_size=10 * 1024 * 1024,
-        ping_interval=10,   # default is 25
-        ping_timeout=20,    # default is 60
+        ping_interval=10,
+        ping_timeout=20,
         logger=True,
-        #engineio_logger=True
     )
     app.socketio = socketio
-    logger.info("SocketIO initialized")
+    logger.info("Socket.IO ready (origins: %s)", allowed_ws_origins)
 
-    # — Register blueprints
+    # --- Blueprints
     from .auth import auth_bp
     from .web import web_bp
     from .api import api_bp
@@ -73,11 +97,10 @@ def create_app(config_path: str):
     app.register_blueprint(auth_bp)
     app.register_blueprint(web_bp)
     app.register_blueprint(api_bp)
-    logger.info("Blueprints registered")
 
-    # — Socket event handlers
+    # --- Socket-event handler
     from .socket_handlers import SocketEventHandler
+
     SocketEventHandler(socketio, app.ctrl)
-    logger.info("Socket handlers set up")
 
     return app, socketio

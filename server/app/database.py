@@ -39,7 +39,7 @@ class DatabaseManager:
                 'humidity REAL NOT NULL'
             ),
             'status': (
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+                'id INTEGER PRIMARY KEY CHECK (id = 1),'
                 'timestamp TEXT NOT NULL, '
                 'status TEXT NOT NULL'
             ),

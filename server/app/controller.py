@@ -130,14 +130,14 @@ class Controller:
             for row in rows
         ]
 
-    def record_status(self, status: str) -> Status:
+    def update_status(self, status: str) -> Status:
         now = datetime.now(self.finland_tz).isoformat()
         self.db.execute_query(
-            "INSERT INTO status (timestamp, status) VALUES (?, ?)",
+            "UPDATE status SET timestamp = ?, status = ?",
             (now, status)
         )
         row = self.db.fetchone(
-            "SELECT id, timestamp, status FROM status ORDER BY id DESC LIMIT 1"
+            "SELECT id, timestamp, status FROM status"
         )
         if row is None:
             raise RuntimeError("Failed to retrieve inserted status record")
@@ -145,7 +145,7 @@ class Controller:
 
     def get_last_status(self) -> Optional[Status]:
         row = self.db.fetchone(
-            "SELECT id, timestamp, status FROM status ORDER BY id DESC LIMIT 1"
+            "SELECT id, timestamp, status FROM status"
         )
         if row is None:
             return None
