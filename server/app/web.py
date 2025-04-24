@@ -9,8 +9,8 @@ from threading import Timer
 web_bp = Blueprint('web', __name__)
 logger = logging.getLogger(__name__)
 
-def pop_flash(category: str, message: str) -> None:
-    flashes = session.get('_flashes', [])
+def pop_flash(category: str, message: str, ses) -> None:
+    flashes = ses.get('_flashes', [])
     try:
         flashes.remove((category, message))
     except ValueError:
@@ -59,7 +59,7 @@ def add_user():
             msg = f"Käyttäjä «{u}» lisätty onnistuneesti."
             cat = 'success'
             flash(msg, cat)
-            Timer(3, pop_flash, args=(cat, msg)).start()
+            Timer(3, pop_flash, args=(cat, msg, session)).start()
             logger.info("User %s added by %s", u, current_user.get_id())
             return redirect(url_for('web.settings'))
         except ValueError as ve:
