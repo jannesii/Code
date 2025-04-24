@@ -35,7 +35,7 @@ def get_3d_page():
 
 @web_bp.route('/settings')
 @login_required
-def settings():
+def get_settings_page():
     logger.info("Rendering settings for %s", current_user.get_id())
     return render_template('settings.html')
 
