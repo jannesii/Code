@@ -4,8 +4,8 @@ Welcome! This repository contains **two independent components** that work toget
 
 | Folder | Role |
 |--------|------|
-| [`client/`](client/README.md) | Runs on a Raspberry Pi; captures layer‑by‑layer photos, builds videos and controls LEDs |
-| [`server/`](server/README.md) | Hosts the web dashboard, REST/WS API and handles video distribution, security & tunnelling |
+| [`client/`](./client/README.md) | Runs on a Raspberry Pi; captures layer‑by‑layer photos, builds videos and controls LEDs |
+| [`server/`](/server/README.md) | Hosts the web dashboard, REST/WS API and handles video distribution, security & tunnelling |
 
 Head to the **component README** that matches what you want to set up:
 
