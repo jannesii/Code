@@ -3,6 +3,7 @@ import logging
 from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app
 from flask_login import login_required, current_user
 from dataclasses import asdict
+from utils import pop_flashes
 
 web_bp = Blueprint('web', __name__)
 logger = logging.getLogger(__name__)
@@ -42,6 +43,7 @@ def add_user():
         u = request.form.get('username','').strip()
         p = request.form.get('password','')
         logger.debug("Adding user %s", u)
+        pop_flashes()
         try:
             ctrl.register_user(u, p)
             flash(f"Käyttäjä «{u}» lisätty onnistuneesti.", "success")
@@ -59,6 +61,7 @@ def delete_user():
     users = ctrl.get_all_users()
     if request.method == 'POST':
         u = request.form.get('username')
+        pop_flashes()
         if not u:
             flash("Valitse ensin käyttäjä.", "error")
             logger.warning("No user selected for deletion")
@@ -74,7 +77,7 @@ def delete_user():
             except Exception as e:
                 flash(f"Poisto epäonnistui: {e}", "error")
                 logger.error("Error deleting %s: %s", u, e)
-        return redirect(url_for('web.delete_user'))
+        return redirect(url_for('web.settings'))
     return render_template('delete_user.html', users=users)
 
 @web_bp.route('/settings/timelapse_conf', methods=['GET', 'POST'])
@@ -88,6 +91,7 @@ def timelapse_conf():
             'temphum_delay': int(request.form.get('temphum_delay','0')),
             'status_delay':  int(request.form.get('status_delay','0'))
         }
+        pop_flashes()
         try:
             ctrl.update_timelapse_conf(**vals)
             current_app.socketio.emit('timelapse_conf', vals)
