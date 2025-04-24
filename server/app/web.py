@@ -1,13 +1,22 @@
 # app/web.py
 import logging
-from flask import Blueprint, render_template, request, redirect, url_for, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, session
 from flask_login import login_required, current_user
 from dataclasses import asdict
-from .utils import flash_with_timeout
+from threading import Timer
 
 
 web_bp = Blueprint('web', __name__)
 logger = logging.getLogger(__name__)
+
+def pop_flash(category: str, message: str) -> None:
+    flashes = session.get('_flashes', [])
+    try:
+        flashes.remove((category, message))
+    except ValueError:
+        pass
+    session['_flashes'] = flashes
+
 
 @web_bp.route('/')
 @login_required
@@ -47,11 +56,14 @@ def add_user():
         
         try:
             ctrl.register_user(u, p)
-            flash_with_timeout(f"Käyttäjä «{u}» lisätty onnistuneesti.", "success")
+            msg = f"Käyttäjä «{u}» lisätty onnistuneesti."
+            cat = 'success'
+            flash(msg, cat)
+            Timer(3, pop_flash, cat, msg).start()
             logger.info("User %s added by %s", u, current_user.get_id())
             return redirect(url_for('web.settings'))
         except ValueError as ve:
-            flash_with_timeout(str(ve), "error")
+            flash(str(ve), "error")
             logger.warning("Add user failed: %s", ve)
     return render_template('add_user.html')
 
@@ -64,19 +76,19 @@ def delete_user():
         u = request.form.get('username')
         
         if not u:
-            flash_with_timeout("Valitse ensin käyttäjä.", "error")
+            flash("Valitse ensin käyttäjä.", "error")
             logger.warning("No user selected for deletion")
             return redirect(url_for('web.settings'))
         if u == current_user.get_id():
-            flash_with_timeout("Et voi poistaa omaa tiliäsi.", "error")
+            flash("Et voi poistaa omaa tiliäsi.", "error")
             logger.warning("Self‑deletion attempt by %s", u)
         else:
             try:
                 ctrl.delete_user(u)
-                flash_with_timeout(f"Käyttäjä «{u}» poistettu.", "success")
+                flash(f"Käyttäjä «{u}» poistettu.", "success")
                 logger.info("User %s deleted by %s", u, current_user.get_id())
             except Exception as e:
-                flash_with_timeout(f"Poisto epäonnistui: {e}", "error")
+                flash(f"Poisto epäonnistui: {e}", "error")
                 logger.error("Error deleting %s: %s", u, e)
         return redirect(url_for('web.settings'))
     return render_template('delete_user.html', users=users)
@@ -96,11 +108,11 @@ def timelapse_conf():
         try:
             ctrl.update_timelapse_conf(**vals)
             current_app.socketio.emit('timelapse_conf', vals)
-            flash_with_timeout("Timelapsen konfiguraatio päivitetty onnistuneesti.", "success")
+            flash("Timelapsen konfiguraatio päivitetty onnistuneesti.", "success")
             logger.info("Timelapse updated %s by %s", vals, current_user.get_id())
             return redirect(url_for('web.settings'))
         except ValueError as ve:
-            flash_with_timeout(str(ve), "error")
+            flash(str(ve), "error")
             logger.warning("Invalid timelapse input: %s", ve)
     else:
         conf = ctrl.get_timelapse_conf() or vals
