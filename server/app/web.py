@@ -1,6 +1,6 @@
 # app/web.py
 import logging
-from flask import Blueprint, render_template, request, flash_with_timeout, redirect, url_for, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, current_app
 from flask_login import login_required, current_user
 from dataclasses import asdict
 from .utils import flash_with_timeout
