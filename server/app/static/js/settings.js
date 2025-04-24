@@ -1,4 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+      document.querySelectorAll('.flash').forEach(el => el.remove());
+    }, 3000);
     // Vahvistuspoisto
     const delForm = document.getElementById('deleteForm');
     if (delForm) {

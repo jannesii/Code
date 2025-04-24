@@ -3,19 +3,10 @@ import logging
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, session
 from flask_login import login_required, current_user
 from dataclasses import asdict
-from threading import Timer
 
 
 web_bp = Blueprint('web', __name__)
 logger = logging.getLogger(__name__)
-
-def pop_flash(category: str, message: str, ses) -> None:
-    flashes = ses.get('_flashes', [])
-    try:
-        flashes.remove((category, message))
-    except ValueError:
-        pass
-    session['_flashes'] = flashes
 
 
 @web_bp.route('/')
@@ -24,20 +15,22 @@ def get_home_page():
     logger.info("Rendering home for %s", current_user.get_id())
     return render_template('index.html')
 
+
 @web_bp.route('/3d')
 @login_required
 def get_3d_page():
     ctrl = current_app.ctrl
     logger.info("Rendering 3D page for %s", current_user.get_id())
     img = ctrl.get_last_image()
-    th  = ctrl.get_last_temphum()
-    st  = ctrl.get_last_status()
+    th = ctrl.get_last_temphum()
+    st = ctrl.get_last_status()
     return render_template(
         '3d.html',
         last_image=asdict(img) if img else None,
-        last_temphum=asdict(th)  if th  else None,
-        last_status=asdict(st)   if st  else None,
+        last_temphum=asdict(th) if th else None,
+        last_status=asdict(st) if st else None,
     )
+
 
 @web_bp.route('/settings')
 @login_required
@@ -45,27 +38,26 @@ def settings():
     logger.info("Rendering settings for %s", current_user.get_id())
     return render_template('settings.html')
 
+
 @web_bp.route('/settings/add_user', methods=['GET', 'POST'])
 @login_required
 def add_user():
     ctrl = current_app.ctrl
     if request.method == 'POST':
-        u = request.form.get('username','').strip()
-        p = request.form.get('password','')
+        u = request.form.get('username', '').strip()
+        p = request.form.get('password', '')
         logger.debug("Adding user %s", u)
-        
+
         try:
             ctrl.register_user(u, p)
-            msg = f"Käyttäjä «{u}» lisätty onnistuneesti."
-            cat = 'success'
-            flash(msg, cat)
-            Timer(3, pop_flash, args=(cat, msg, session)).start()
+            flash(f"Käyttäjä «{u}» lisätty onnistuneesti.", 'success')
             logger.info("User %s added by %s", u, current_user.get_id())
             return redirect(url_for('web.settings'))
         except ValueError as ve:
             flash(str(ve), "error")
             logger.warning("Add user failed: %s", ve)
     return render_template('add_user.html')
+
 
 @web_bp.route('/settings/delete_user', methods=['GET', 'POST'])
 @login_required
@@ -74,7 +66,7 @@ def delete_user():
     users = ctrl.get_all_users()
     if request.method == 'POST':
         u = request.form.get('username')
-        
+
         if not u:
             flash("Valitse ensin käyttäjä.", "error")
             logger.warning("No user selected for deletion")
@@ -93,6 +85,7 @@ def delete_user():
         return redirect(url_for('web.settings'))
     return render_template('delete_user.html', users=users)
 
+
 @web_bp.route('/settings/timelapse_conf', methods=['GET', 'POST'])
 @login_required
 def timelapse_conf():
@@ -100,16 +93,17 @@ def timelapse_conf():
     vals = {}
     if request.method == 'POST':
         vals = {
-            'image_delay':   int(request.form.get('image_delay','0')),
-            'temphum_delay': int(request.form.get('temphum_delay','0')),
-            'status_delay':  int(request.form.get('status_delay','0'))
+            'image_delay':   int(request.form.get('image_delay', '0')),
+            'temphum_delay': int(request.form.get('temphum_delay', '0')),
+            'status_delay':  int(request.form.get('status_delay', '0'))
         }
-        
+
         try:
             ctrl.update_timelapse_conf(**vals)
             current_app.socketio.emit('timelapse_conf', vals)
             flash("Timelapsen konfiguraatio päivitetty onnistuneesti.", "success")
-            logger.info("Timelapse updated %s by %s", vals, current_user.get_id())
+            logger.info("Timelapse updated %s by %s",
+                        vals, current_user.get_id())
             return redirect(url_for('web.settings'))
         except ValueError as ve:
             flash(str(ve), "error")
