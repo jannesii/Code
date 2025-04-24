@@ -12,6 +12,7 @@ from typing import Callable, Dict, Optional
 
 import cv2
 import requests
+import re
 import socketio
 from gpiozero import LED, Button
 from picamera2 import Picamera2 # type: ignore[reportMissingImports]
@@ -471,15 +472,35 @@ class StatusReporter:
             self.on_config(conf)
 
     def _login(self) -> None:
-        """Authenticate via HTTP to obtain session cookies."""
-        url = f"{self.config['server']}/login"
-        resp = self.rest.post(url, data={
-            "username": self.config["username"],
-            "password": self.config["password"]
-        })
-        if resp.status_code != 200 or "Invalid credentials" in resp.text:
-            self.logger.error("StatusReporter: login failed: %s", resp.text)
+        """Authenticate via HTTP to obtain session cookies (with CSRF)."""
+        login_url = f"{self.config['server']}/login"
+
+        # 1) GET login page to set cookie and grab CSRF token
+        resp_get = self.rest.get(login_url)
+        self.logger.info("Fetched login page (%s) for CSRF token", login_url)
+        if resp_get.status_code != 200:
+            self.logger.error("Failed to GET login page: %s", resp_get.status_code)
             sys.exit(1)
+
+        # 2) Extract CSRF token from hidden input
+        m = re.search(r'name="csrf_token" value="([^"]+)"', resp_get.text)
+        if not m:
+            self.logger.error("CSRF token not found on login page")
+            sys.exit(1)
+        token = m.group(1)
+        self.logger.debug("Using CSRF token: %s", token)
+
+        # 3) POST credentials + CSRF
+        payload = {
+            "username": self.config["username"],
+            "password": self.config["password"],
+            "csrf_token": token,
+        }
+        resp_post = self.rest.post(login_url, data=payload)
+        if resp_post.status_code != 200 or "Invalid credentials" in resp_post.text:
+            self.logger.error("StatusReporter: login failed: %s", resp_post.text)
+            sys.exit(1)
+
         self.logger.info("StatusReporter: logged in")
 
     def connect(self) -> None:
