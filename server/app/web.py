@@ -5,6 +5,7 @@ from flask_login import login_required, current_user
 from dataclasses import asdict
 from .utils import pop_flashes
 
+
 web_bp = Blueprint('web', __name__)
 logger = logging.getLogger(__name__)
 
