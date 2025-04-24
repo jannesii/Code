@@ -3,6 +3,7 @@ import logging
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, session
 from flask_login import login_required, current_user
 from dataclasses import asdict
+from .utils import check_vals
 
 
 web_bp = Blueprint('web', __name__)
@@ -74,6 +75,7 @@ def delete_user():
         if u == current_user.get_id():
             flash("Et voi poistaa omaa tiliäsi.", "error")
             logger.warning("Self‑deletion attempt by %s", u)
+            return render_template('delete_user.html', users=users)
         else:
             try:
                 ctrl.delete_user(u)
@@ -82,6 +84,7 @@ def delete_user():
             except Exception as e:
                 flash(f"Poisto epäonnistui: {e}", "error")
                 logger.error("Error deleting %s: %s", u, e)
+                return render_template('delete_user.html', users=users)
         return redirect(url_for('web.settings'))
     return render_template('delete_user.html', users=users)
 
@@ -99,6 +102,14 @@ def timelapse_conf():
         }
 
         try:
+            check = check_vals(**vals)
+            
+            if check:
+                for c in check:
+                    flash(c['msg'], c['cat'])
+                logger.warning("Invalid timelapse input: %s", check)
+                return render_template('timelapse_conf.html', **vals)
+            
             ctrl.update_timelapse_conf(**vals)
             current_app.socketio.emit('timelapse_conf', vals)
             flash("Timelapsen konfiguraatio päivitetty onnistuneesti.", "success")
