@@ -9,8 +9,8 @@ Welcome! This repository contains **two independent components** that work toget
 
 Head to the **component README** that matches what you want to set up:
 
-- 👷 **Client setup & usage:** [`client/README.md`](client/README.md)
-- 🌐 **Server setup & hosting:** [`server/README.md`](server/README.md)
+- 👷 **Client setup & usage:** [`client/README.md`](client/readme.md)
+- 🌐 **Server setup & hosting:** [`server/README.md`](server/readme.md)
 
 ---
 
