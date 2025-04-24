@@ -59,7 +59,7 @@ def add_user():
             msg = f"Käyttäjä «{u}» lisätty onnistuneesti."
             cat = 'success'
             flash(msg, cat)
-            Timer(3, pop_flash, cat, msg).start()
+            Timer(3, pop_flash, args=(cat, msg)).start()
             logger.info("User %s added by %s", u, current_user.get_id())
             return redirect(url_for('web.settings'))
         except ValueError as ve:
