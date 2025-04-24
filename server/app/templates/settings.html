@@ -1,31 +1,19 @@
-<!DOCTYPE html>
-<html lang="fi">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Asetukset</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
-</head>
-<body>
-  <nav class="navbar">
-    <ul>
-      <li><a href="{{ url_for('web.get_home_page') }}">Home</a></li>
-      <li><a href="{{ url_for('web.get_3d_page') }}">3D Dashboard</a></li>
-      <li><a href="{{ url_for('web.settings') }}">Asetukset</a></li>
-      <li><a href="{{ url_for('auth.logout') }}">Kirjaudu Ulos</a></li>
-    </ul>
-  </nav>
-      
-  
-    <div class="container">
-      <a class="tile" href="{{ url_for('web.add_user') }}">Lisää käyttäjä</a>
-      <a class="tile" href="{{ url_for('web.delete_user') }}">Poista käyttäjä</a>
-      <a class="tile" href="{{ url_for('web.timelapse_conf') }}">Muokkaa timelapsen asetuksia</a>
-    </div>
-  
-    <!-- oma JS tiedosto settings‑sivulle -->
-    <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
-  </body>
-  </html>
+{% extends 'base.html' %}
+
+{% block title %}Asetukset{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <a class="tile" href="{{ url_for('web.add_user') }}">Lisää käyttäjä</a>
+  <a class="tile" href="{{ url_for('web.delete_user') }}">Poista käyttäjä</a>
+  <a class="tile" href="{{ url_for('web.timelapse_conf') }}">Muokkaa timelapsen asetuksia</a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+{% endblock %}

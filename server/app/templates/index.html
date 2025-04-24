@@ -1,34 +1,18 @@
-<!-- index.html -->
-<!DOCTYPE html>
-<html lang="fi">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kodinhallintasivu</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
-</head>
-<body>
-  <!-- Navigaatiopalkki -->
-  <nav class="navbar">
-    <ul>
-      <li><a href="{{ url_for('web.get_home_page') }}">Home</a></li>
-      <li><a href="{{ url_for('web.get_3d_page') }}">3D Dashboard</a></li>
-      <li><a href="{{ url_for('web.settings') }}">Asetukset</a></li>
-      <li><a href="{{ url_for('auth.logout') }}">Kirjaudu Ulos</a></li>
-    </ul>
-  </nav>
-  
+{% extends 'base.html' %}
 
-  <!-- Pääsisältö -->
-  <div class="container">
-    <a class="tile" href="{{ url_for('web.get_3d_page') }}">3d</a>
-    <a class="tile" href="#">Neliö 2</a>
-    <a class="tile" href="#">Neliö 3</a>
-    <a class="tile" href="#">Neliö 4</a>
-    <a class="tile" href="#">Neliö 5</a>
-    <a class="tile" href="#">Neliö 6</a>
-  </div>
-</body>
-</html>
+{% block title %}Kodinhallintasivu{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <a class="tile" href="{{ url_for('web.get_3d_page') }}">3d</a>
+  <a class="tile" href="#">Neliö 2</a>
+  <a class="tile" href="#">Neliö 3</a>
+  <a class="tile" href="#">Neliö 4</a>
+  <a class="tile" href="#">Neliö 5</a>
+  <a class="tile" href="#">Neliö 6</a>
+</div>
+{% endblock %}

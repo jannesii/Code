@@ -1,40 +1,27 @@
-<!DOCTYPE html>
-<html lang="fi">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lisää käyttäjä</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">  
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
-</head>
-<body>
-    <nav class="navbar">
-        <ul>
-          <li><a href="{{ url_for('web.get_home_page') }}">Home</a></li>
-          <li><a href="{{ url_for('web.get_3d_page') }}">3D Dashboard</a></li>
-          <li><a href="{{ url_for('web.settings') }}">Asetukset</a></li>
-          <li><a href="{{ url_for('auth.logout') }}">Kirjaudu Ulos</a></li>
-        </ul>
-      </nav>
-      
+{% extends 'base.html' %}
 
-    <div class="container">
-        <div class="tile" style="height:auto; padding:30px;">
-        <form method="post">
-            <div>
-            <label for="username">Käyttäjätunnus</label><br>
-            <input type="text" id="username" name="username" required>
-            </div>
-            <div style="margin-top:1em;">
-            <label for="password">Salasana</label><br>
-            <input type="password" id="password" name="password" required>
-            </div>
-            <button type="submit" style="margin-top:1em;">Lisää</button>
-        </form>
-        </div>
-    </div>
+{% block title %}Lisää käyttäjä{% endblock %}
 
-    <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
-</body>
-</html>
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="tile" style="height:auto; padding:30px;">
+    <form method="post">
+      <label for="username">Käyttäjätunnus</label><br>
+      <input type="text" id="username" name="username" required>
+      <div style="margin-top:1em;">
+        <label for="password">Salasana</label><br>
+        <input type="password" id="password" name="password" required>
+      </div>
+      <button type="submit" style="margin-top:1em;">Lisää</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+{% endblock %}
