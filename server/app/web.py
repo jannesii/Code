@@ -3,7 +3,7 @@ import logging
 from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app
 from flask_login import login_required, current_user
 from dataclasses import asdict
-from utils import pop_flashes
+from .utils import pop_flashes
 
 web_bp = Blueprint('web', __name__)
 logger = logging.getLogger(__name__)
