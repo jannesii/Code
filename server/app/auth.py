@@ -27,7 +27,7 @@ def load_user(user_id: str):
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
-@limiter.limit("5/minute;20/hour", exempt_when=lambda: current_user.is_admin)
+@limiter.limit("5/minute;20/hour", exempt_when=lambda: getattr(current_user, "is_admin", False))
 def login():
     logger.info("Accessed /login via %s", request.method)
     ctrl = current_app.ctrl
