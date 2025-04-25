@@ -47,13 +47,13 @@ def add_user():
     if request.method == 'POST':
         u = request.form.get('username', '').strip()
         p = request.form.get('password', '')
-        logger.debug("Adding user %s", u)
         
         if not current_user.is_admin:
             flash("Sinulla ei ole oikeuksia lisätä käyttäjiä.", "error")
-            logger.warning("Non-admin user %s attempted to add user", current_user.get_id())
+            logger.warning("Non-admin user %s attempted to add user with username %s", current_user.get_id(), u)
             return redirect(url_for('web.get_settings_page'))
 
+        logger.debug("Adding user %s", u)
         try:
             ctrl.register_user(u, p)
             flash(f"Käyttäjä «{u}» lisätty onnistuneesti.", 'success')
