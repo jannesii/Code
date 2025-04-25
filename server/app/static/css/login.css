@@ -1,4 +1,14 @@
 /* login.html – login form */
+
+/* Center the login form on the page */
+.login-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+
 form.login-form {
     background-color: #1e1e1e;
     padding: 2rem;
