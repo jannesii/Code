@@ -55,6 +55,6 @@ class SocketEventHandler:
             self.socketio.emit('error', {'message': 'Invalid status data'})
             self.logger.warning("Bad status payload: %s", data)
             return
-        saved = self.ctrl.record_status(status)
+        saved = self.ctrl.update_status(status)
         self.socketio.emit('status2v', {'status': saved.status})
         self.logger.info("Broadcasted status: %s", saved.status)
