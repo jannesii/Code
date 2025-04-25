@@ -6,10 +6,10 @@ from datetime import timedelta
 import eventlet
 eventlet.monkey_patch()
 
-from flask import Flask, render_template, flash
+from flask import Flask
 from flask_socketio import SocketIO
 from flask_login import LoginManager
-from flask_wtf.csrf import CSRFProtect, CSRFError
+from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
@@ -51,7 +51,7 @@ def create_app():
         WEB_USERNAME=os.getenv("WEB_USERNAME"),
         WEB_PASSWORD=os.getenv("WEB_PASSWORD"),
         # ← CSRF tokens now expire after 1 hour
-        WTF_CSRF_TIME_LIMIT=1,
+        WTF_CSRF_TIME_LIMIT=None,
     )
 
     # ─── Rate limiting ───
@@ -62,14 +62,6 @@ def create_app():
     csrf = CSRFProtect()
     csrf.init_app(app)
     logger.info("CSRF protection enabled (1 h token lifetime)")
-
-    @app.errorhandler(CSRFError)
-    def handle_csrf_error(e):
-        logger.warning("CSRF token invalid/expired: %s", e.description)
-        flash(
-            "CSRF token invalid or expired. Please refresh the page and try again.", "error"
-        )
-        return render_template("csrf_error.html", reason=e.description), 400
 
     # ─── Domain-controller ───
     db_path = os.getenv("DB_PATH")
