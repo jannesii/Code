@@ -1,24 +1,20 @@
 # app/auth.py
 import logging
-from flask import Blueprint, render_template, request, flash, redirect, url_for, session, current_app
+from flask import Blueprint, render_template, request, flash, redirect, url_for, session, current_app, make_response
 from flask_login import login_user, logout_user, login_required, current_user, UserMixin
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+from flask_limiter.errors import RateLimitExceeded
+from . import limiter
 
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger(__name__)
 
-# --- Rate limiting
-limiter = Limiter(
-    app=current_app,
-    key_func=get_remote_address,
-    default_limits=[],
-)
 
 class AuthUser(UserMixin):
     """Flask‑Login user."""
+
     def __init__(self, username: str):
         self.id = username
+
 
 def load_user(user_id: str):
     ctrl = current_app.ctrl
@@ -29,11 +25,13 @@ def load_user(user_id: str):
     logger.warning("User %s not found", user_id)
     return None
 
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
-@limiter.limit("5 per minute; 20 per hour")
+@limiter.limit("5 per minute;20 per hour")
 def login():
     logger.info("Accessed /login via %s", request.method)
     ctrl = current_app.ctrl
+
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
@@ -44,13 +42,21 @@ def login():
             session.permanent = remember
             login_user(AuthUser(username), remember=remember)
             logger.info("User %s authenticated", username)
+
             next_page = request.args.get('next') or url_for('web.get_home_page')
-            return redirect(next_page)
+            response = redirect(next_page)
+            logger.debug(
+                "Rate-limit headers: remaining=%s reset=%s",
+                response.headers.get("X-RateLimit-Remaining"),
+                response.headers.get("X-RateLimit-Reset")
+            )
+            return response
 
         flash('Virheellinen käyttäjätunnus tai salasana', 'error')
         logger.warning("Auth failed for %s", username)
 
     return render_template('login.html')
+
 
 @auth_bp.route('/logout')
 @login_required
@@ -60,3 +66,15 @@ def logout():
     session.pop('_flashes', None)
     logger.info("User %s logged out", username)
     return redirect(url_for('auth.login'))
+
+@auth_bp.errorhandler(RateLimitExceeded)
+def handle_rate_limit(e):
+    logger.warning(
+        "Rate limit reached for %s on endpoint %s",
+        request.remote_addr,
+        request.endpoint
+    )
+    return make_response(
+        render_template("429.html", retry_after=e.description),
+        429
+    )
