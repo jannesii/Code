@@ -31,8 +31,11 @@ def create_app():
     # --- Logging
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
-    logger.info("Starting application")
-
+    logger.info("Starting application DEBUG: %s", os.getenv("FLASK_DEBUG"))
+    
+    if os.getenv("FLASK_DEBUG"):
+        logger.info("Debug mode enabled")
+        
     # --- SECRET_KEY
     secret = os.getenv("SECRET_KEY")
     if not secret:
