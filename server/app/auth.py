@@ -2,9 +2,18 @@
 import logging
 from flask import Blueprint, render_template, request, flash, redirect, url_for, session, current_app
 from flask_login import login_user, logout_user, login_required, current_user, UserMixin
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger(__name__)
+
+# --- Rate limiting
+limiter = Limiter(
+    app=current_app,
+    key_func=get_remote_address,
+    default_limits=[],
+)
 
 class AuthUser(UserMixin):
     """Flask‑Login user."""
@@ -21,6 +30,7 @@ def load_user(user_id: str):
     return None
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
+@limiter.limit("5 per minute; 20 per hour")
 def login():
     logger.info("Accessed /login via %s", request.method)
     ctrl = current_app.ctrl

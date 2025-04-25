@@ -1,6 +1,5 @@
 import logging
-import hmac
-from flask import current_app, request
+from flask import request
 from flask_socketio import SocketIO
 
 class SocketEventHandler:
