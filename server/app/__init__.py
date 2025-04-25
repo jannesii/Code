@@ -22,10 +22,15 @@ limiter = Limiter(
 )
 
 def create_app():
-    # Logging
-    logging.basicConfig(level=logging.INFO)
+    # --- Logging
+    if os.getenv("FLASK_DEBUG"):
+        logging.basicConfig(level=logging.DEBUG)
+    else: 
+        logging.basicConfig(level=logging.INFO)
+        
     logger = logging.getLogger(__name__)
     logger.info("Starting application")
+    logger.debug("Debug logging enabled")
 
     # SECRET_KEY
     secret = os.getenv("SECRET_KEY")
