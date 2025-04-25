@@ -44,10 +44,15 @@ def get_settings_page():
 @login_required
 def add_user():
     ctrl = current_app.ctrl
-    if request.method == 'POST' and current_user.is_admin:
+    if request.method == 'POST':
         u = request.form.get('username', '').strip()
         p = request.form.get('password', '')
         logger.debug("Adding user %s", u)
+        
+        if not current_user.is_admin:
+            flash("Sinulla ei ole oikeuksia lisätä käyttäjiä.", "error")
+            logger.warning("Non-admin user %s attempted to add user", current_user.get_id())
+            return redirect(url_for('web.get_settings_page'))
 
         try:
             ctrl.register_user(u, p)
@@ -57,10 +62,7 @@ def add_user():
         except ValueError as ve:
             flash(str(ve), "error")
             logger.warning("Add user failed: %s", ve)
-    if not current_user.is_admin:
-        flash("Sinulla ei ole oikeuksia lisätä käyttäjiä.", "error")
-        logger.warning("Non-admin user %s attempted to add user", current_user.get_id())
-        return redirect(url_for('web.get_settings_page'))
+
     return render_template('add_user.html')
 
 
