@@ -18,6 +18,12 @@ from flask_limiter.util import get_remote_address
 
 from .controller import Controller
 
+# --- Rate limiting
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=[],
+)
+
 def create_app():
     # --- Logging
     logging.basicConfig(level=logging.INFO)
@@ -42,11 +48,7 @@ def create_app():
         WTF_CSRF_TIME_LIMIT=None,
     )
     
-    # --- Rate limiting
-    limiter = Limiter(
-        key_func=get_remote_address,
-        default_limits=[],
-    )
+    # --- Rate limiting init
     limiter.init_app(app)
     logger.info("Rate limiting enabled")
     
