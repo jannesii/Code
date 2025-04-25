@@ -29,13 +29,23 @@ limiter = Limiter(
 
 def create_app():
     # --- Logging
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(__name__)
-    logger.info("Starting application DEBUG: %s", os.getenv("FLASK_DEBUG"))
-    
     if os.getenv("FLASK_DEBUG"):
-        logger.info("Debug mode enabled")
+        logging.basicConfig(level=logging.DEBUG)
+        logging.getLogger("werkzeug").setLevel(logging.DEBUG)
+        logging.getLogger("flask_limiter").setLevel(logging.DEBUG)
+        logging.getLogger("flask_socketio").setLevel(logging.DEBUG)
+        logging.getLogger("eventlet").setLevel(logging.DEBUG)
+        logging.getLogger("redis").setLevel(logging.DEBUG)
+        logging.getLogger("socketio").setLevel(logging.DEBUG)
+        logging.getLogger("flask").setLevel(logging.DEBUG)
         
+    else: 
+        logging.basicConfig(level=logging.INFO)
+        
+    logger = logging.getLogger(__name__)
+    logger.info("Starting application")
+    logger.debug("Debug logging enabled")
+    
     # --- SECRET_KEY
     secret = os.getenv("SECRET_KEY")
     if not secret:
