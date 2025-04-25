@@ -1,37 +1,58 @@
-# app/auth.py
 import logging
-from flask import Blueprint, render_template, request, flash, redirect, url_for, session, current_app, make_response
-from flask_login import login_user, logout_user, login_required, current_user, UserMixin
+from flask import (
+    Blueprint, render_template, request, flash,
+    redirect, url_for, session, current_app, make_response
+)
+from flask_login import (
+    login_user, logout_user, login_required,
+    current_user, UserMixin, AnonymousUserMixin
+)
 from flask_limiter.errors import RateLimitExceeded
-from . import limiter
+from app import limiter
 
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger(__name__)
 
-
 class AuthUser(UserMixin):
-    """Flask‑Login user."""
-
-    def __init__(self, username: str):
+    """Flask-Login user, with admin flag."""
+    def __init__(self, username: str, is_admin: bool = False):
         self.id = username
+        self.is_admin = is_admin
 
+class AuthAnonymous(AnonymousUserMixin):
+    """Anonymous user with is_admin=False."""
+    @property
+    def is_admin(self):
+        return False
 
 def load_user(user_id: str):
     ctrl = current_app.ctrl
     user = ctrl.get_user_by_username(user_id)
     if user:
-        logger.debug("Loaded user %s", user_id)
-        return AuthUser(user_id)
+        is_admin = getattr(user, "is_admin", False)
+        logger.debug("Loaded user %s (is_admin=%s)", user_id, is_admin)
+        return AuthUser(user_id, is_admin=is_admin)
     logger.warning("User %s not found", user_id)
     return None
 
+@auth_bp.errorhandler(RateLimitExceeded)
+def handle_rate_limit(e):
+    logger.warning(
+        "Rate limit reached for %s on %s",
+        request.remote_addr,
+        request.endpoint
+    )
+    return make_response(
+        render_template("429.html", retry_after=e.description),
+        429
+    )
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
-@limiter.limit("5/minute;20/hour", exempt_when=lambda: getattr(current_user, "is_admin", False))
+@limiter.limit("5/minute;20/hour", exempt_when=lambda: current_user.is_admin)
 def login():
     logger.info("Accessed /login via %s", request.method)
     ctrl = current_app.ctrl
-    logger.debug("Is admin: %s", getattr(current_user, "is_admin", False))
+
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
@@ -40,13 +61,17 @@ def login():
 
         if ctrl.authenticate_user(username, password):
             session.permanent = remember
-            login_user(AuthUser(username), remember=remember)
+            login_user(
+                # load_user will restore is_admin from DB on reload
+                AuthUser(username, is_admin=getattr(ctrl.get_user_by_username(username), "is_admin", False)),
+                remember=remember
+            )
             logger.info("User %s authenticated", username)
 
             next_page = request.args.get('next') or url_for('web.get_home_page')
             response = redirect(next_page)
             logger.debug(
-                "Rate-limit headers: remaining=%s reset=%s",
+                "Rate-limit headers — remaining: %s, reset: %s",
                 response.headers.get("X-RateLimit-Remaining"),
                 response.headers.get("X-RateLimit-Reset")
             )
@@ -57,7 +82,6 @@ def login():
 
     return render_template('login.html')
 
-
 @auth_bp.route('/logout')
 @login_required
 def logout():
@@ -66,15 +90,3 @@ def logout():
     session.pop('_flashes', None)
     logger.info("User %s logged out", username)
     return redirect(url_for('auth.login'))
-
-@auth_bp.errorhandler(RateLimitExceeded)
-def handle_rate_limit(e):
-    logger.warning(
-        "Rate limit reached for %s on endpoint %s",
-        request.remote_addr,
-        request.endpoint
-    )
-    return make_response(
-        render_template("429.html", retry_after=e.description),
-        429
-    )

@@ -83,7 +83,7 @@ def create_app():
 
     # --- Seed admin
     try:
-        app.ctrl.register_user(app.config["WEB_USERNAME"], password_hash=app.config["WEB_PASSWORD"])
+        app.ctrl.register_admin(app.config["WEB_USERNAME"], app.config["WEB_PASSWORD"])
         logger.info("Seeded admin user %s", app.config["WEB_USERNAME"])
     except ValueError:
         logger.info("Admin user already exists")

@@ -16,7 +16,7 @@ class Controller:
         self.finland_tz = pytz.timezone('Europe/Helsinki')
 
     # --- User operations ---
-    def register_user(self, username: str, password: str = None, password_hash: str = None) -> User:
+    def register_user(self, username: str, password: str = None, password_hash: str = None, is_admin: bool = False) -> User:
         """
         Creates the user if it doesn't exist, or returns the existing one.
         Uses INSERT OR IGNORE to avoid UNIQUE errors, then SELECT to fetch.
@@ -33,8 +33,8 @@ class Controller:
 
         # 2) Try to insert; if username exists, this is a no-op
         cursor = self.db.execute_query(
-            "INSERT OR IGNORE INTO users (username, password_hash) VALUES (?, ?)",
-            (username, pw_hash)
+            "INSERT OR IGNORE INTO users (username, password_hash, is_admin) VALUES (?, ?, ?)",
+            (username, pw_hash, is_admin)
         )
         if cursor.rowcount == 1:
             logging.info(f"User '{username}' created successfully.")
@@ -43,7 +43,7 @@ class Controller:
 
         # 3) Fetch whatever is now in the table
         row = self.db.fetchone(
-            "SELECT id, username, password_hash FROM users WHERE username = ?",
+            "SELECT id, username, password_hash, is_admin FROM users WHERE username = ?",
             (username,)
         )
         if row is None:
@@ -55,9 +55,14 @@ class Controller:
         return User(
             id=row['id'],
             username=row['username'],
-            password_hash=row['password_hash']
+            password_hash=row['password_hash'],
+            is_admin=row['is_admin']
         )
 
+    def register_admin(self, username: str, password: str) -> User:
+        """Creates an admin user with the given username and password."""
+        user = self.register_user(username, password_hash=password, is_admin=True)
+        return user
 
     def authenticate_user(self, username: str, password: str) -> bool:
         row = self.db.fetchone(
@@ -70,18 +75,18 @@ class Controller:
     def get_all_users(self) -> list[User]:
         """Palauttaa listan kaikista käyttäjistä."""
         rows = self.db.fetchall(
-            "SELECT id, username, password_hash FROM users",
+            "SELECT id, username, password_hash, is_admin FROM users",
             ()
         )
         return [
             User(id=row['id'], username=row['username'],
-                 password_hash=row['password_hash'])
+                 password_hash=row['password_hash'], is_admin=row['is_admin'])
             for row in rows
         ]
         
     def get_user_by_username(self, username: str) -> User | None:
         row = self.db.fetchone(
-            "SELECT id, username, password_hash FROM users WHERE username = ?",
+            "SELECT id, username, password_hash, is_admin FROM users WHERE username = ?",
             (username,)
         )
         if not row:
@@ -89,7 +94,8 @@ class Controller:
         return User(
             id=row['id'],
             username=row['username'],
-            password_hash=row['password_hash']
+            password_hash=row['password_hash'],
+            is_admin=row['is_admin']
         )
 
     def delete_user(self, username: str) -> None:
