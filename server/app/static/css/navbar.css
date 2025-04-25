@@ -4,6 +4,9 @@ nav.navbar {
     background-color: #1e1e1e;
     border-bottom: 1px solid #333;
     padding: 10px 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
   nav.navbar ul {
     list-style: none;
