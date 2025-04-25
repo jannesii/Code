@@ -31,7 +31,7 @@ def load_user(user_id: str):
 def login():
     logger.info("Accessed /login via %s", request.method)
     ctrl = current_app.ctrl
-
+    logger.debug("Is admin: %s", getattr(current_user, "is_admin", False))
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
