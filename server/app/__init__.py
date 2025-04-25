@@ -26,7 +26,8 @@ limiter = Limiter(
 
 def create_app():
     # ─── Logging ───
-    if os.getenv("FLASK_DEBUG"):
+    debug = os.getenv("FLASK_DEBUG")
+    if debug == "1":
         logging.basicConfig(level=logging.DEBUG)
     else: 
         logging.basicConfig(level=logging.INFO)
