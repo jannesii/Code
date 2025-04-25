@@ -1,12 +1,9 @@
-# app/__init__.py
-
 import json
 import logging
 import os
 from datetime import timedelta
 
 import eventlet
-
 eventlet.monkey_patch()
 
 from flask import Flask
@@ -18,41 +15,24 @@ from flask_limiter.util import get_remote_address
 
 from .controller import Controller
 
-# --- Rate limiting
+# module‐level limiter
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=[],
-    storage_uri="redis://localhost:6379",
-    storage_options={"socket_connect_timeout": 30},
-    strategy="moving-window",
+    default_limits=[]
 )
 
 def create_app():
-    # --- Logging
-    if os.getenv("FLASK_DEBUG"):
-        logging.basicConfig(level=logging.DEBUG)
-        logging.getLogger("werkzeug").setLevel(logging.DEBUG)
-        logging.getLogger("flask_limiter").setLevel(logging.DEBUG)
-        logging.getLogger("flask_socketio").setLevel(logging.DEBUG)
-        logging.getLogger("eventlet").setLevel(logging.DEBUG)
-        logging.getLogger("redis").setLevel(logging.DEBUG)
-        logging.getLogger("socketio").setLevel(logging.DEBUG)
-        logging.getLogger("flask").setLevel(logging.DEBUG)
-        logging.getLogger("socketio.engineio").setLevel(logging.DEBUG)
-        logging.getLogger("socketio.server").setLevel(logging.DEBUG)
-    else: 
-        logging.basicConfig(level=logging.INFO)
-        
+    # Logging
+    logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.info("Starting application")
-    logger.debug("Debug logging enabled")
-    
-    # --- SECRET_KEY
+
+    # SECRET_KEY
     secret = os.getenv("SECRET_KEY")
     if not secret:
         raise RuntimeError("SECRET_KEY is missing – add to environment.")
 
-    # --- Flask-app
+    # Flask-app
     app = Flask(__name__)
     app.config.update(
         SECRET_KEY=secret,
@@ -64,47 +44,53 @@ def create_app():
         WEB_PASSWORD=os.getenv("WEB_PASSWORD"),
         WTF_CSRF_TIME_LIMIT=None,
     )
-    
-    # --- Rate limiting init
+
+    # Rate limiting
     limiter.init_app(app)
     logger.info("Rate limiting enabled")
-    
-    # --- CSRF
+
+    # CSRF
     csrf = CSRFProtect()
     csrf.init_app(app)
     logger.info("CSRF protection enabled")
 
-    # --- Domain-controller
+    # Domain-controller
     db_path = os.getenv("DB_PATH")
     if not db_path:
         raise RuntimeError("DB_PATH is missing – add to environment.")
     app.ctrl = Controller(db_path)
     logger.info("Controller init: %s", db_path)
 
-    # --- Seed admin
+    # Seed admin (with is_admin flag)
     try:
-        app.ctrl.register_admin(app.config["WEB_USERNAME"], app.config["WEB_PASSWORD"])
-        logger.info("Seeded admin user %s", app.config["WEB_USERNAME"])
+        app.ctrl.register_user(
+            app.config["WEB_USERNAME"],
+            password_hash=app.config["WEB_PASSWORD"],
+            is_admin=True
+        )
+        logger.info("Seeded admin user %s (is_admin=True)", app.config["WEB_USERNAME"])
     except ValueError:
-        logger.info("Admin user already exists")
+        app.ctrl.set_user_as_admin(app.config["WEB_USERNAME"], True)
+        logger.info("Ensured %s has is_admin=True", app.config["WEB_USERNAME"])
 
-    # --- Flask-Login
+    # Flask-Login
     login_manager = LoginManager()
     login_manager.login_view = "auth.login"
     login_manager.init_app(app)
-
-    from .auth import load_user
+    from .auth import load_user, AuthAnonymous
     login_manager.user_loader(load_user)
+    login_manager.anonymous_user = AuthAnonymous
     logger.info("Login manager ready")
 
-    # --- Socket.IO
+    # Socket.IO
     raw = os.getenv("ALLOWED_WS_ORIGINS")
     if raw:
         try:
             allowed_ws_origins = json.loads(raw)
         except json.JSONDecodeError:
-            raise RuntimeError("ALLOWED_WS_ORIGINS ei ole validia JSON-listaa")
-        
+            raise RuntimeError("ALLOWED_WS_ORIGINS isn’t valid JSON list")
+    else:
+        allowed_ws_origins = []
     socketio = SocketIO(
         app,
         async_mode="eventlet",
@@ -118,18 +104,16 @@ def create_app():
     app.socketio = socketio
     logger.info("Socket.IO ready (origins: %s)", allowed_ws_origins)
 
-    # --- Blueprints
+    # Blueprints
     from .auth import auth_bp
     from .web import web_bp
     from .api import api_bp
-
     app.register_blueprint(auth_bp)
     app.register_blueprint(web_bp)
     app.register_blueprint(api_bp)
 
-    # --- Socket-event handler
+    # Socket-event handler
     from .socket_handlers import SocketEventHandler
-
     SocketEventHandler(socketio, app.ctrl)
 
     return app, socketio

@@ -59,10 +59,12 @@ class Controller:
             is_admin=row['is_admin']
         )
 
-    def register_admin(self, username: str, password: str) -> User:
-        """Creates an admin user with the given username and password."""
-        user = self.register_user(username, password_hash=password, is_admin=True)
-        return user
+    def set_user_as_admin(self, username: str, is_admin: bool) -> None:
+        """Sets the is_admin flag for the user with the given username."""
+        self.db.execute_query(
+            "UPDATE users SET is_admin = ? WHERE username = ?",
+            (is_admin, username)
+        )
 
     def authenticate_user(self, username: str, password: str) -> bool:
         row = self.db.fetchone(
