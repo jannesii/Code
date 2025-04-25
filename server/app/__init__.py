@@ -6,23 +6,26 @@ from datetime import timedelta
 import eventlet
 eventlet.monkey_patch()
 
-from flask import Flask
+from flask import Flask, render_template, flash
 from flask_socketio import SocketIO
 from flask_login import LoginManager
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, CSRFError
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
 from .controller import Controller
 
-# module‐level limiter
+# ─── Module-level limiter ───
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=[]
+    default_limits=[],
+    storage_uri="redis://localhost:6379",
+    storage_options={"socket_connect_timeout": 30},
+    strategy="moving-window",
 )
 
 def create_app():
-    # --- Logging
+    # ─── Logging ───
     if os.getenv("FLASK_DEBUG"):
         logging.basicConfig(level=logging.DEBUG)
     else: 
@@ -32,12 +35,12 @@ def create_app():
     logger.info("Starting application")
     logger.debug("Debug logging enabled")
 
-    # SECRET_KEY
+    # ─── SECRET_KEY ───
     secret = os.getenv("SECRET_KEY")
     if not secret:
         raise RuntimeError("SECRET_KEY is missing – add to environment.")
 
-    # Flask-app
+    # ─── Flask app & config ───
     app = Flask(__name__)
     app.config.update(
         SECRET_KEY=secret,
@@ -47,26 +50,35 @@ def create_app():
         SESSION_COOKIE_SAMESITE="Lax",
         WEB_USERNAME=os.getenv("WEB_USERNAME"),
         WEB_PASSWORD=os.getenv("WEB_PASSWORD"),
-        WTF_CSRF_TIME_LIMIT=None,
+        # ← CSRF tokens now expire after 1 hour
+        WTF_CSRF_TIME_LIMIT=1,
     )
 
-    # Rate limiting
+    # ─── Rate limiting ───
     limiter.init_app(app)
     logger.info("Rate limiting enabled")
 
-    # CSRF
+    # ─── CSRF protection ───
     csrf = CSRFProtect()
     csrf.init_app(app)
-    logger.info("CSRF protection enabled")
+    logger.info("CSRF protection enabled (1 h token lifetime)")
 
-    # Domain-controller
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(e):
+        logger.warning("CSRF token invalid/expired: %s", e.description)
+        flash(
+            "CSRF token invalid or expired. Please refresh the page and try again.", "error"
+        )
+        return render_template("csrf_error.html", reason=e.description), 400
+
+    # ─── Domain-controller ───
     db_path = os.getenv("DB_PATH")
     if not db_path:
         raise RuntimeError("DB_PATH is missing – add to environment.")
     app.ctrl = Controller(db_path)
     logger.info("Controller init: %s", db_path)
 
-    # Seed admin (with is_admin flag)
+    # ─── Seed admin user ───
     try:
         app.ctrl.register_user(
             app.config["WEB_USERNAME"],
@@ -75,10 +87,10 @@ def create_app():
         )
         logger.info("Seeded admin user %s (is_admin=True)", app.config["WEB_USERNAME"])
     except ValueError:
-        app.ctrl.set_user_as_admin(app.config["WEB_USERNAME"], True)
+        app.ctrl.set_user_admin(app.config["WEB_USERNAME"], True)
         logger.info("Ensured %s has is_admin=True", app.config["WEB_USERNAME"])
 
-    # Flask-Login
+    # ─── Flask-Login ───
     login_manager = LoginManager()
     login_manager.login_view = "auth.login"
     login_manager.init_app(app)
@@ -87,7 +99,7 @@ def create_app():
     login_manager.anonymous_user = AuthAnonymous
     logger.info("Login manager ready")
 
-    # Socket.IO
+    # ─── Socket.IO ───
     raw = os.getenv("ALLOWED_WS_ORIGINS")
     if raw:
         try:
@@ -109,7 +121,7 @@ def create_app():
     app.socketio = socketio
     logger.info("Socket.IO ready (origins: %s)", allowed_ws_origins)
 
-    # Blueprints
+    # ─── Blueprints ───
     from .auth import auth_bp
     from .web import web_bp
     from .api import api_bp
@@ -117,7 +129,7 @@ def create_app():
     app.register_blueprint(web_bp)
     app.register_blueprint(api_bp)
 
-    # Socket-event handler
+    # ─── Socket event handlers ───
     from .socket_handlers import SocketEventHandler
     SocketEventHandler(socketio, app.ctrl)
 
