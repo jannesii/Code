@@ -1,0 +1,18 @@
+{# server/app/templates/429.html #}
+{% extends "base.html" %}
+
+{% block title %}Liian monta pyyntöä{% endblock %}
+
+{% block nav %}
+  <!-- This overrides the default navigation bar so it does not show up here. -->
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5 text-center">
+  <h1>429 Liian monta pyyntöä</h1>
+  <p>Olet ylittänyt sallitun pyyntörajan. Yritä uudelleen {{ retry_after }}.</p>
+  <a href="{{ url_for('auth.login') }}" class="btn btn-primary">
+    Palaa kirjautumissivulle
+  </a>
+</div>
+{% endblock %}
