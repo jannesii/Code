@@ -16,7 +16,7 @@ class Controller:
         self.finland_tz = pytz.timezone('Europe/Helsinki')
 
     # --- User operations ---
-    def register_user(self, username: str, password: str) -> User:
+    def register_user(self, username: str, password: str, password_hash: str = None) -> User:
         """
         Creates the user if it doesn't exist, or returns the existing one.
         Uses INSERT OR IGNORE to avoid UNIQUE errors, then SELECT to fetch.
@@ -24,7 +24,10 @@ class Controller:
         logging.info(f"Registering user: {username}")
 
         # 1) Hash the password up front
-        pw_hash = generate_password_hash(password)
+        if password_hash is None:
+            pw_hash = generate_password_hash(password)
+        else:
+            pw_hash = password_hash
 
         # 2) Try to insert; if username exists, this is a no-op
         cursor = self.db.execute_query(
