@@ -50,7 +50,7 @@ def add_user():
         
         if not current_user.is_admin:
             flash("Sinulla ei ole oikeuksia lisätä käyttäjiä.", "error")
-            logger.warning("Non-admin user %s attempted to add user with username %s", current_user.get_id(), u)
+            logger.warning("Non-admin user %s attempted to add user with username: %s", current_user.get_id(), u)
             return redirect(url_for('web.get_settings_page'))
 
         logger.debug("Adding user %s", u)
@@ -73,6 +73,11 @@ def delete_user():
     users = ctrl.get_all_users()
     if request.method == 'POST':
         u = request.form.get('username')
+        
+        if not current_user.is_admin:
+            flash("Sinulla ei ole oikeuksia poistaa käyttäjiä.", "error")
+            logger.warning("Non-admin user %s attempted to delete user with username: %s", current_user.get_id(), u)
+            return redirect(url_for('web.get_settings_page'))
 
         if not u:
             flash("Valitse ensin käyttäjä.", "error")
@@ -106,7 +111,13 @@ def timelapse_conf():
             'temphum_delay': int(request.form.get('temphum_delay', '0')),
             'status_delay':  int(request.form.get('status_delay', '0'))
         }
-
+        
+        if not current_user.is_admin:
+            flash("Sinulla ei ole oikeuksia muuttaa asetuksia.", "error")
+            logger.warning("Non-admin user %s attempted to change timelapse settings", current_user.get_id())
+            return redirect(url_for('web.get_settings_page'))
+        
+        logger.debug("Timelapse config: %s", vals)
         try:
             check_failed = check_vals(**vals)
             
