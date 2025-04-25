@@ -38,7 +38,8 @@ def create_app():
         logging.getLogger("redis").setLevel(logging.DEBUG)
         logging.getLogger("socketio").setLevel(logging.DEBUG)
         logging.getLogger("flask").setLevel(logging.DEBUG)
-        
+        logging.getLogger("socketio.engineio").setLevel(logging.DEBUG)
+        logging.getLogger("socketio.server").setLevel(logging.DEBUG)
     else: 
         logging.basicConfig(level=logging.INFO)
         
