@@ -97,6 +97,13 @@ def delete_user():
                 logger.error("Error deleting %s: %s", u, e)
                 return render_template('delete_user.html', users=users)
         return redirect(url_for('web.get_settings_page'))
+    
+    for user in users:
+        if user.is_admin:
+            users.remove(user)
+        elif user.username == current_user.get_id():
+            users.remove(user)
+            
     return render_template('delete_user.html', users=users)
 
 
