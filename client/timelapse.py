@@ -15,8 +15,8 @@ import requests
 import re
 import socketio
 from gpiozero import LED, Button
-from picamera2 import Picamera2 # type: ignore[reportMissingImports]
-from libcamera import controls # type: ignore[reportMissingImports]
+from picamera2 import Picamera2  # type: ignore[reportMissingImports]
+from libcamera import controls  # type: ignore[reportMissingImports]
 
 from dht import DHT22Sensor
 
@@ -40,17 +40,6 @@ def setup_logging() -> logging.Logger:
         root.addHandler(handler)
     root.setLevel(logging.INFO)
     return root
-
-
-def load_config(path: str = "config.json") -> dict:
-    """
-    Load JSON configuration from the given file path.
-    Ensures a default 'server' key if missing.
-    """
-    with open(path) as f:
-        cfg = json.load(f)
-    cfg.setdefault("server", "https://jannenkoti.com")
-    return cfg
 
 
 class CameraManager:
@@ -439,17 +428,14 @@ class StatusReporter:
 
     def __init__(
         self,
-        config: dict,
         session: TimelapseSession,
         dht: DHT22Sensor,
         logger: logging.Logger
     ) -> None:
         """
-        config: dictionary of server, username, password, and delays
         session: TimelapseSession instance
         dht: DHT22Sensor instance for readings
         """
-        self.config = config
         self.session = session
         self.dht = dht
         self.logger = logger
@@ -463,23 +449,24 @@ class StatusReporter:
         self.sio.on('error',      self.on_error)
         self.sio.on('timelapse_conf', self.on_config)
 
-        self.status_interval = config.get("status_delay", 10)
-        self.temphum_interval = config.get("temphum_delay", 10)
-        self.image_interval = config.get("image_delay", 10)
-        
+        self.status_interval = None
+        self.temphum_interval = None
+        self.image_interval = None
+
         conf = self.get_config()
         if conf:
             self.on_config(conf)
 
     def _login(self) -> None:
         """Authenticate via HTTP to obtain session cookies (with CSRF)."""
-        login_url = f"{self.config['server']}/login"
+        login_url = f"{os.getenv('SERVER')}/login"
 
         # 1) GET login page to set cookie and grab CSRF token
         resp_get = self.rest.get(login_url)
         self.logger.info("Fetched login page (%s) for CSRF token", login_url)
         if resp_get.status_code != 200:
-            self.logger.error("Failed to GET login page: %s", resp_get.status_code)
+            self.logger.error("Failed to GET login page: %s",
+                              resp_get.status_code)
             sys.exit(1)
 
         # 2) Extract CSRF token from hidden input
@@ -492,8 +479,8 @@ class StatusReporter:
 
         # 3) POST credentials + CSRF
         payload = {
-            "username": self.config["username"],
-            "password": self.config["password"],
+            "username": os.getenv("RASPI_USERNAME"),
+            "password": os.getenv("RASPI_PASSWORD"),
             "csrf_token": token,
         }
         headers = {"Referer": login_url}
@@ -504,7 +491,8 @@ class StatusReporter:
             headers=headers
         )
         if resp_post.status_code != 200 or "Invalid credentials" in resp_post.text:
-            self.logger.error("StatusReporter: login failed: %s", resp_post.text)
+            self.logger.error(
+                "StatusReporter: login failed: %s", resp_post.text)
             sys.exit(1)
 
         self.logger.info("StatusReporter: logged in")
@@ -517,7 +505,7 @@ class StatusReporter:
         cookies = "; ".join(
             f"{k}={v}" for k, v in self.rest.cookies.get_dict().items())
         self.sio.connect(
-            self.config["server"],
+            os.getenv("SERVER"),
             headers={"Cookie": cookies},
             transports=["websocket", "polling"]
         )
@@ -605,7 +593,7 @@ class StatusReporter:
         """
         Return the current configuration settings.
         """
-        url = f"{self.config['server']}/api/timelapse_config"
+        url = f"{os.getenv('SERVER')}/api/timelapse_config"
 
         resp = self.rest.get(url)
         if resp.status_code == 200:
@@ -628,7 +616,6 @@ def main() -> None:
     Application entry point: set up components and enter main loop.
     """
     logger = setup_logging()
-    cfg = load_config()
 
     red_led = LED(RED_LED_PIN)
     yellow_led = LED(YELLOW_LED_PIN)
@@ -642,7 +629,7 @@ def main() -> None:
         os.getcwd(), logger
     )
     dht = DHT22Sensor(DHT_PIN, logger=logger)
-    reporter = StatusReporter(cfg, session, dht, logger)
+    reporter = StatusReporter(session, dht, logger)
 
     callbacks: Dict[int, Callable[[], None]] = {
         3: session.start_and_stop,
