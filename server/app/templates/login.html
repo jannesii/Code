@@ -6,6 +6,10 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
 {% endblock %}
 
+{% block nav %}
+  <!-- This overrides the default navigation bar so it does not show up here. -->
+{% endblock %}
+
 {% block content %}
 <form class="login-form" method="POST" action="{{ url_for('auth.login') }}">
   
