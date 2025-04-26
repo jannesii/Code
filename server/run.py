@@ -13,7 +13,7 @@ if __name__ == "__main__":
         debug = False
     socketio.run(
         app,
-        host="0.0.0.0",
+        host="127.0.0.1",
         port=int(os.getenv("PORT")),
         debug=debug,
     )
