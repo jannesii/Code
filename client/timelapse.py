@@ -560,9 +560,9 @@ class StatusReporter:
         """
         try:
             payload = base64.b64encode(jpeg_bytes).decode('utf-8')
-            with open("/home/jannesi/Code/frame.jpg", "wb") as f:
-                f.write(payload)
-            self.sio.emit('image2v', {'image': payload})
+            """ with open("/home/jannesi/Code/frame.jpg", "wb") as f:
+                f.write(payload) """
+            self.sio.emit('image', {'image': payload})
         except Exception:
             self.logger.exception("StatusReporter: error sending image")
 

@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log('✅ Yhdistetty palvelimeen');
     });
 
-    socket.on('image2v', data => {
+    socket.on('image', data => {
       console.log('📷 Received image event, data:', data);
       document.querySelector('.image-tile img').src = 'data:image/jpeg;base64,' + data.image;
       console.log('🖼️ Image tile updated');
