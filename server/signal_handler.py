@@ -33,8 +33,8 @@ class SignalHandler:
         Runs in its own greenlet, so blocking Redis publish is safe.
         """
         try:
-            logging.debug("SignalHandler: Emitting 'server_signal' event")
-            self.socketio.emit('server_signal', {'msg': 'SIGUSR1 received'})
-            logging.info("SignalHandler: 'server_signal' emitted successfully")
+            logging.debug("SignalHandler: Emitting 'image' event")
+            self.socketio.emit('image')
+            logging.info("SignalHandler: 'image' emitted successfully")
         except Exception as e:
             logging.error(f"SignalHandler: Error emitting signal: {e}")

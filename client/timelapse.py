@@ -559,7 +559,8 @@ class StatusReporter:
                     if jpeg:
                         with open("/tmp/preview.jpg", "wb") as f:
                             f.write(jpeg)
-                        self.send_image(jpeg)
+                        self.send_signal()
+                        #self.send_image(jpeg)
             except Exception:
                 self.logger.exception("StatusReporter: error in image loop")
             time.sleep(self.image_interval)
@@ -573,6 +574,8 @@ class StatusReporter:
             self.sio.emit('image', {'image': payload})
         except Exception:
             self.logger.exception("StatusReporter: error sending image")
+            
+    def send_signal(self) -> None:
         try:
             os.kill(self.pid, signal.SIGUSR1)
             logging.info(f"Sent SIGUSR1 to server process {self.pid}")

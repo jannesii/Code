@@ -10,7 +10,7 @@ class SocketEventHandler:
 
         socketio.on_event('connect',    self.handle_connect)
         socketio.on_event('disconnect', self.handle_disconnect)
-        socketio.on_event('image',      self.handle_image)
+        #socketio.on_event('image',      self.handle_image)
         socketio.on_event('temphum',    self.handle_temphum)
         socketio.on_event('status',     self.handle_status)
 

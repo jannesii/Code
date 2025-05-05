@@ -9,7 +9,7 @@
 {% block content %}
 <div class="container">
   <div class="tile image-tile">
-    <img src="data:image/jpeg;base64,{{ last_image['image'] }}" class="sensorImage" alt="Sensor Image">
+    <img src="/tmp/preview.jpg" class="sensorImage" alt="Sensor Image">
   </div>
   <div class="data-grid">
     <div class="tile" id="tempTile">Temperature:<br><strong id="temperature">{{ last_temphum['temperature'] }}°C</strong></div>
