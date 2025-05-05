@@ -530,33 +530,30 @@ class StatusReporter:
         self.session.image_callback = self.send_image
 
     def _status_loop(self) -> None:
-        """
-        Periodically emit status. Wakes early if interval changes.
-        """
+        """Periodically emit the current timelapse status."""
         while True:
             try:
-                state = ...
+                state = ("paused" if self.session.paused
+                         else "active" if self.session.active
+                         else "inactive")
                 self.sio.emit('status', {'status': state})
             except Exception:
                 self.logger.exception("StatusReporter: error sending status")
-
-            # wait for the interval or until someone .set()s the event
+            
             woke = self._status_event.wait(timeout=self.status_interval)
             if woke:
                 self.logger.info("StatusReporter: status interval updated, resetting wait")
             self._status_event.clear()
 
     def _temphum_loop(self) -> None:
-        """
-        Periodically emit temperature/humidity. Wakes early if interval changes.
-        """
+        """Periodically read DHT22 and emit temperature/humidity."""
         while True:
             try:
                 data = self.dht.read()
                 self.sio.emit('temphum', data)
             except Exception:
                 self.logger.exception("StatusReporter: error sending temphum")
-
+            
             woke = self._temphum_event.wait(timeout=self.temphum_interval)
             if woke:
                 self.logger.info("StatusReporter: temphum interval updated, resetting wait")
@@ -564,24 +561,22 @@ class StatusReporter:
 
     def _image_loop(self) -> None:
         """
-        Stream preview images when idle. Wakes early if interval changes.
+        Stream preview images only when timelapse is not active.
         """
         while True:
             try:
                 if not self.session.active:
                     threading.Thread(
-                        target=self.session._blink_red_led,
-                        args=(True, 0.2),
-                        daemon=True
-                    ).start()
+                        target=self.session._blink_red_led, args=(True, 0.2)).start()
                     jpeg = self.session.camera.capture_frame()
                     if jpeg:
                         with open("/tmp/preview.jpg", "wb") as f:
                             f.write(jpeg)
                         self.send_signal()
+                        #self.send_image(jpeg)
             except Exception:
                 self.logger.exception("StatusReporter: error in image loop")
-
+            
             woke = self._image_event.wait(timeout=self.image_interval)
             if woke:
                 self.logger.info("StatusReporter: image interval updated, resetting wait")
