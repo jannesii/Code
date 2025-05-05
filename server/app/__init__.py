@@ -40,7 +40,16 @@ def create_app():
     secret = os.getenv("SECRET_KEY")
     if not secret:
         raise RuntimeError("SECRET_KEY is missing – add to environment.")
-
+    
+    raw = os.getenv("RATE_LIMIT_WHITELIST")
+    if raw:
+        try:
+            whitelist = json.loads(raw)
+        except json.JSONDecodeError:
+            raise RuntimeError("RATE_LIMIT_WHITELIST isn’t valid JSON list")
+    else:
+        whitelist = []
+        
     # ─── Flask app & config ───
     app = Flask(__name__)
     app.config.update(
@@ -53,6 +62,7 @@ def create_app():
         WEB_PASSWORD=os.getenv("WEB_PASSWORD"),
         # ← CSRF tokens now expire after 1 hour
         WTF_CSRF_TIME_LIMIT=None,
+        whitelist=whitelist,
     )
 
     # ─── Rate limiting ───

@@ -14,17 +14,21 @@ from app import limiter
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger(__name__)
 
+
 class AuthUser(UserMixin):
     """Flask-Login user, with admin flag."""
+
     def __init__(self, username: str, is_admin: bool = False):
         self.id = username
         self.is_admin = is_admin
+
 
 class AuthAnonymous(AnonymousUserMixin):
     """Anonymous user with is_admin=False."""
     @property
     def is_admin(self):
         return False
+
 
 def load_user(user_id: str):
     ctrl = current_app.ctrl
@@ -35,6 +39,7 @@ def load_user(user_id: str):
         return AuthUser(user_id, is_admin=is_admin)
     logger.warning("User %s not found", user_id)
     return None
+
 
 @auth_bp.errorhandler(RateLimitExceeded)
 def handle_rate_limit(e):
@@ -48,22 +53,14 @@ def handle_rate_limit(e):
         429
     )
 
-raw = current_app.config.get("RATE_LIMIT_WHITELIST")
-if raw:
-    try:
-        whitelist = json.loads(raw)
-    except json.JSONDecodeError:
-        raise RuntimeError("RATE_LIMIT_WHITELIST isn’t valid JSON list")
-else:
-    whitelist = []
-    
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 @limiter.limit(
     "5/minute;20/hour",
     exempt_when=lambda: (
         current_user.is_admin
         or request.remote_addr
-           in whitelist
+        in current_app.config['whitelist']
     )
 )
 def login():
@@ -80,12 +77,14 @@ def login():
             session.permanent = remember
             login_user(
                 # load_user will restore is_admin from DB on reload
-                AuthUser(username, is_admin=getattr(ctrl.get_user_by_username(username), "is_admin", False)),
+                AuthUser(username, is_admin=getattr(
+                    ctrl.get_user_by_username(username), "is_admin", False)),
                 remember=remember
             )
             logger.info("User %s authenticated", username)
 
-            next_page = request.args.get('next') or url_for('web.get_home_page')
+            next_page = request.args.get(
+                'next') or url_for('web.get_home_page')
             response = redirect(next_page)
             logger.debug(
                 "Rate-limit headers — remaining: %s, reset: %s",
@@ -98,6 +97,7 @@ def login():
         logger.warning("Auth failed for %s", username)
 
     return render_template('login.html')
+
 
 @auth_bp.route('/logout')
 @login_required
