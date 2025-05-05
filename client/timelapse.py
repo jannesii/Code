@@ -557,6 +557,8 @@ class StatusReporter:
                         target=self.session._blink_red_led, args=(True, 0.2)).start()
                     jpeg = self.session.camera.capture_frame()
                     if jpeg:
+                        with open("/tmp/preview.jpg", "wb") as f:
+                            f.write(jpeg)
                         self.send_image(jpeg)
             except Exception:
                 self.logger.exception("StatusReporter: error in image loop")
