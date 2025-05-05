@@ -453,6 +453,11 @@ class StatusReporter:
         self.status_interval = None
         self.temphum_interval = None
         self.image_interval = None
+        
+        # events to interrupt waits
+        self._status_event = threading.Event()
+        self._temphum_event = threading.Event()
+        self._image_event = threading.Event()
 
         conf = self.get_config()
         if conf:
@@ -525,45 +530,62 @@ class StatusReporter:
         self.session.image_callback = self.send_image
 
     def _status_loop(self) -> None:
-        """Periodically emit the current timelapse status."""
+        """
+        Periodically emit status. Wakes early if interval changes.
+        """
         while True:
             try:
-                state = ("paused" if self.session.paused
-                         else "active" if self.session.active
-                         else "inactive")
+                state = ...
                 self.sio.emit('status', {'status': state})
             except Exception:
                 self.logger.exception("StatusReporter: error sending status")
-            time.sleep(self.status_interval)
+
+            # wait for the interval or until someone .set()s the event
+            woke = self._status_event.wait(timeout=self.status_interval)
+            if woke:
+                self.logger.info("StatusReporter: status interval updated, resetting wait")
+            self._status_event.clear()
 
     def _temphum_loop(self) -> None:
-        """Periodically read DHT22 and emit temperature/humidity."""
+        """
+        Periodically emit temperature/humidity. Wakes early if interval changes.
+        """
         while True:
             try:
                 data = self.dht.read()
                 self.sio.emit('temphum', data)
             except Exception:
                 self.logger.exception("StatusReporter: error sending temphum")
-            time.sleep(self.temphum_interval)
+
+            woke = self._temphum_event.wait(timeout=self.temphum_interval)
+            if woke:
+                self.logger.info("StatusReporter: temphum interval updated, resetting wait")
+            self._temphum_event.clear()
 
     def _image_loop(self) -> None:
         """
-        Stream preview images only when timelapse is not active.
+        Stream preview images when idle. Wakes early if interval changes.
         """
         while True:
             try:
                 if not self.session.active:
                     threading.Thread(
-                        target=self.session._blink_red_led, args=(True, 0.2)).start()
+                        target=self.session._blink_red_led,
+                        args=(True, 0.2),
+                        daemon=True
+                    ).start()
                     jpeg = self.session.camera.capture_frame()
                     if jpeg:
                         with open("/tmp/preview.jpg", "wb") as f:
                             f.write(jpeg)
                         self.send_signal()
-                        #self.send_image(jpeg)
             except Exception:
                 self.logger.exception("StatusReporter: error in image loop")
-            time.sleep(self.image_interval)
+
+            woke = self._image_event.wait(timeout=self.image_interval)
+            if woke:
+                self.logger.info("StatusReporter: image interval updated, resetting wait")
+            self._image_event.clear()
 
     def send_image(self, jpeg_bytes: bytes) -> None:
         """
@@ -596,16 +618,35 @@ class StatusReporter:
 
     def on_config(self, data: dict) -> None:
         """
-        Handle configuration updates from server.
-        Updates image, status, and temphum intervals.
+        Handle configuration updates.
+        Updates intervals and wakes sleeping loops.
         """
+        changed = []
         try:
-            self.image_interval = data['image_delay']
-            self.status_interval = data['status_delay']
-            self.temphum_interval = data['temphum_delay']
-            self.logger.info("StatusReporter: config updated %r", data)
+            # collect which intervals actually changed
+            if self.image_interval != data['image_delay']:
+                self.image_interval = data['image_delay']
+                changed.append("_image_event")
+            if self.status_interval != data['status_delay']:
+                self.status_interval = data['status_delay']
+                changed.append("_status_event")
+            if self.temphum_interval != data['temphum_delay']:
+                self.temphum_interval = data['temphum_delay']
+                changed.append("_temphum_event")
+
+            self.logger.info("StatusReporter: config updated %r, changed: %s",
+                             data, changed)
+            # wake up any sleeping loops so they pick up the new value immediately
+            if "_status_event" in changed:
+                self._status_event.set()
+            if "_temphum_event" in changed:
+                self._temphum_event.set()
+            if "_image_event" in changed:
+                self._image_event.set()
+
         except KeyError as e:
             self.logger.warning("StatusReporter: invalid config key %s", e)
+
 
     def get_config(self) -> Optional[dict]:
         """
