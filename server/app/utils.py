@@ -10,8 +10,8 @@ def check_vals(image_delay: int, temphum_delay: int, status_delay: int):
     
     try:
         ret = []
-        if (image_delay < 5):
-            msg, cat = "Kuvan viiveen on oltava suurempi tai yhtä suuri kuin 5 sekuntia.", "error"
+        if (image_delay <= 0):
+            msg, cat = "Kuvan viiveen on oltava suurempi kuin 0 sekuntia.", "error"
             ret.append({"msg": msg, "cat": cat})
         if (temphum_delay <= 0):
             msg, cat = "Lämpötilan ja kosteuden viiveen on oltava suurempi kuin 0 sekuntia.", "error"
