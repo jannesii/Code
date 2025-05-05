@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     socket.on('image', data => {
       console.log('📷 Received image event, data:', data);
-      document.querySelector('.image-tile img').src = 'tmp/preview.jpg' //'data:image/jpeg;base64,' + data.image;
+      document.querySelector('.image-tile img').src = '/api/previewJpg' //'data:image/jpeg;base64,' + data.image;
       console.log('🖼️ Image tile updated');
     });
 

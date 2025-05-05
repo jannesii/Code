@@ -40,13 +40,13 @@ def get_timelapse_config():
     )
     return jsonify(vals)
 
-@api_bp.route('/tmp/<path:filename>')
-def serve_tmp_file(filename):
+@api_bp.route('/previewJpg')
+def serve_tmp_file():
     """
     Serve any file under /tmp via HTTP.
     """
     # Log every request for debugging
-    current_app.logger.info(f"Serving tmp file: {filename}")
+    current_app.logger.info("Serving tmp file: preview.jpg")
 
     # In production, you may want to sanitize `filename`!
-    return send_from_directory('/tmp', filename)
+    return send_from_directory('/tmp', 'preview.jpg')
