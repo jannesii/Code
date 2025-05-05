@@ -2,7 +2,7 @@
 import logging
 from datetime import datetime
 import pytz
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, send_from_directory
 from flask_login import login_required, current_user
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -39,3 +39,14 @@ def get_timelapse_config():
         current_user.get_id()
     )
     return jsonify(vals)
+
+@api_bp.route('/tmp/<path:filename>')
+def serve_tmp_file(filename):
+    """
+    Serve any file under /tmp via HTTP.
+    """
+    # Log every request for debugging
+    current_app.logger.info(f"Serving tmp file: {filename}")
+
+    # In production, you may want to sanitize `filename`!
+    return send_from_directory('/tmp', filename)
