@@ -115,7 +115,7 @@ def timelapse_conf():
     if request.method == 'POST':
         vals = {
             'image_delay':   int(request.form.get('image_delay', '0')),
-            'temphum_delay': int(request.form.get('temphum_delay', '0')),
+            'temphum_delay': int(request.form.get('temphum_delay', '0'))*60,
             'status_delay':  int(request.form.get('status_delay', '0'))
         }
         
