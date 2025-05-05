@@ -57,6 +57,7 @@ def create_app():
 
     # ─── Rate limiting ───
     limiter.init_app(app)
+    limiter.request_filter(lambda: "192.168.10.50") 
     logger.info("Rate limiting enabled")
 
     # ─── CSRF protection ───
