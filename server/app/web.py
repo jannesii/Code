@@ -147,7 +147,7 @@ def timelapse_conf():
         conf = ctrl.get_timelapse_conf() or vals
         vals = {
             'image_delay':   conf.image_delay,
-            'temphum_delay': conf.temphum_delay,
+            'temphum_delay': conf.temphum_delay/60,
             'status_delay':  conf.status_delay
         }
     return render_template(
