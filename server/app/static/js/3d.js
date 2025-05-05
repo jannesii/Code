@@ -26,9 +26,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     socket.on('image', data => {
-      console.log('📷 Received image event, data:', data);
+      fetch('/api/previewJpg')
+        .then(response => response.blob())
+        .then(imageBlob => {
+          const imageObjectURL = URL.createObjectURL(imageBlob);
+          document.querySelector('.image-tile img').src = imageObjectURL;
+          console.log('🖼️ Image tile updated');
+        })
+        .catch(error => {
+          console.error('Error fetching image:', error);
+        });
+      /* console.log('📷 Received image event, data:', data);
       document.querySelector('.image-tile img').src = '/api/previewJpg' //'data:image/jpeg;base64,' + data.image;
-      console.log('🖼️ Image tile updated');
+      console.log('🖼️ Image tile updated'); */
     });
 
     socket.on('status2v', data => {
