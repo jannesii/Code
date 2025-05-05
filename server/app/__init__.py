@@ -6,7 +6,7 @@ from datetime import timedelta
 import eventlet
 eventlet.monkey_patch()
 
-from flask import Flask, request
+from flask import Flask
 from flask_socketio import SocketIO
 from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
@@ -56,17 +56,8 @@ def create_app():
     )
 
     # ─── Rate limiting ───
-    raw = os.getenv("RATE_LIMIT_WHITELIST")
-    if raw:
-        try:
-            whitelist = json.loads(raw)
-        except json.JSONDecodeError:
-            raise RuntimeError("RATE_LIMIT_WHITELIST isn’t valid JSON list")
-    else:
-        whitelist = []
     limiter.init_app(app)
-    limiter.request_filter(lambda: request.remote_addr in whitelist)
-    logger.info(f"Rate limiting enabled. Whitelist: {whitelist}")
+    logger.info("Rate limiting enabled")
 
     # ─── CSRF protection ───
     csrf = CSRFProtect()

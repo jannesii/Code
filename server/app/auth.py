@@ -48,7 +48,14 @@ def handle_rate_limit(e):
     )
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
-@limiter.limit("5/minute;20/hour", exempt_when=lambda: current_user.is_admin)
+@limiter.limit(
+    "5/minute;20/hour",
+    exempt_when=lambda: (
+        current_user.is_admin
+        or request.remote_addr
+           in current_app.config.get('RATE_LIMIT_WHITELIST', [])
+    )
+)
 def login():
     logger.info("Accessed /login via %s", request.method)
     ctrl = current_app.ctrl
