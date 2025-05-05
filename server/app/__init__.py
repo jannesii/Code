@@ -66,7 +66,7 @@ def create_app():
         whitelist = []
     limiter.init_app(app)
     limiter.request_filter(lambda: request.remote_addr in whitelist)
-    logger.info("Rate limiting enabled")
+    logger.info(f"Rate limiting enabled. Whitelist: {whitelist}")
 
     # ─── CSRF protection ───
     csrf = CSRFProtect()
