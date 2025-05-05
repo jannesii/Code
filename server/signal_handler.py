@@ -1,12 +1,11 @@
 import os
 import signal
 import logging
-from datetime import datetime
 
 class SignalHandler:
     """
     Write our PID file and catch SIGUSR1.
-    When received, emit a custom Socket.IO event (or do anything you like).
+    When received, schedule a background task to emit the Socket.IO event.
     """
     def __init__(self, socketio, pid_file: str = '/tmp/server.pid') -> None:
         self.socketio = socketio
@@ -25,6 +24,17 @@ class SignalHandler:
         logging.info("SignalHandler: Registered SIGUSR1 handler")
 
     def _handle(self, signum, frame) -> None:
-        logging.info(f"{datetime.now()} SignalHandler: Caught signal {signum!r}")
-        # Example action: broadcast to connected clients
-        self.socketio.emit('server_signal', {'msg': 'SIGUSR1 received'})
+        logging.info(f"SignalHandler: Caught signal {signum!r}, scheduling emit")
+        # Schedule the actual emit in a background greenlet
+        self.socketio.start_background_task(self._emit_server_signal)
+
+    def _emit_server_signal(self) -> None:
+        """
+        Runs in its own greenlet, so blocking Redis publish is safe.
+        """
+        try:
+            logging.debug("SignalHandler: Emitting 'server_signal' event")
+            self.socketio.emit('server_signal', {'msg': 'SIGUSR1 received'})
+            logging.info("SignalHandler: 'server_signal' emitted successfully")
+        except Exception as e:
+            logging.error(f"SignalHandler: Error emitting signal: {e}")
