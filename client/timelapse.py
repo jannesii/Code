@@ -7,6 +7,7 @@ import base64
 import logging
 import threading
 import subprocess
+import signal
 from datetime import datetime
 from typing import Callable, Dict, Optional
 
@@ -456,6 +457,13 @@ class StatusReporter:
         conf = self.get_config()
         if conf:
             self.on_config(conf)
+            
+        pid_file = '/tmp/server.pid'
+        try:
+            with open(pid_file) as f:
+                self.pid = int(f.read().strip())
+        except Exception as e:
+            logging.error(f"Could not read PID file {pid_file}: {e}")
 
     def _login(self) -> None:
         """Authenticate via HTTP to obtain session cookies (with CSRF)."""
@@ -560,11 +568,14 @@ class StatusReporter:
         """
         try:
             payload = base64.b64encode(jpeg_bytes).decode('utf-8')
-            """ with open("/home/jannesi/Code/frame.jpg", "wb") as f:
-                f.write(payload) """
             self.sio.emit('image', {'image': payload})
         except Exception:
             self.logger.exception("StatusReporter: error sending image")
+        try:
+            os.kill(self.pid, signal.SIGUSR1)
+            logging.info(f"Sent SIGUSR1 to server process {self.pid}")
+        except Exception as e:
+            logging.error(f"Error sending SIGUSR1: {e}")
 
     def on_connect(self) -> None:
         """Socket.IO connect handler."""
