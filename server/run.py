@@ -5,6 +5,7 @@ from app import create_app
 from signal_handler import SignalHandler
 
 app, socketio = create_app()
+SignalHandler(socketio)
 
 if __name__ == "__main__":
     debug = os.getenv("FLASK_DEBUG")
@@ -19,4 +20,3 @@ if __name__ == "__main__":
         port=int(os.getenv("PORT")),
         debug=debug,
     )
-    SignalHandler(socketio)
