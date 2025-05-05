@@ -1,3 +1,4 @@
+import json
 import logging
 from flask import (
     Blueprint, render_template, request, flash,
@@ -47,13 +48,22 @@ def handle_rate_limit(e):
         429
     )
 
+raw = current_app.config.get("RATE_LIMIT_WHITELIST")
+if raw:
+    try:
+        whitelist = json.loads(raw)
+    except json.JSONDecodeError:
+        raise RuntimeError("RATE_LIMIT_WHITELIST isn’t valid JSON list")
+else:
+    whitelist = []
+    
 @auth_bp.route('/login', methods=['GET', 'POST'])
 @limiter.limit(
     "5/minute;20/hour",
     exempt_when=lambda: (
         current_user.is_admin
         or request.remote_addr
-           in current_app.config.get('RATE_LIMIT_WHITELIST', [])
+           in whitelist
     )
 )
 def login():
