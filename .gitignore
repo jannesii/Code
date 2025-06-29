@@ -2,9 +2,11 @@
 *.jpg
 *.mp4
 *.crt
+*.db
 server.zip
 .venv/
 myenv/
 __pycache__/
 stream_server.py
 stream_state.py
+local_test.py
