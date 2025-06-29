@@ -3,6 +3,8 @@ import board
 import adafruit_dht
 import logging
 
+logger = logging.getLogger(__name__)
+
 class DHT22Sensor:
     """
     CircuitPython-based DHT22 interface supporting both board pin objects and BCM pin numbers.
@@ -35,9 +37,6 @@ class DHT22Sensor:
         self.temperature = None
         self.humidity = None
 
-        # Setup logging
-        self.logger = logger
-
     def read(self) -> dict:
         """
         Try up to self.retries times to read temperature and humidity.
@@ -52,17 +51,17 @@ class DHT22Sensor:
                 if temp is not None and hum is not None:
                     self.temperature = temp
                     self.humidity = hum
-                    self.logger.info(f"Read OK: {temp:.1f}°C, {hum:.1f}%")
+                    logger.info(f"Read OK: {temp:.1f}°C, {hum:.1f}%")
                     return {'temperature': self.temperature, 'humidity': self.humidity}
             except RuntimeError as e:
-                self.logger.warning(
+                logger.warning(
                     f"Attempt {attempt} failed ({e}), retrying in {self.delay}s...")
                 time.sleep(self.delay)
             except Exception as e:
-                self.logger.error(f"Fatal DHT error: {e}")
+                logger.error(f"Fatal DHT error: {e}")
                 raise
         msg = f"Failed DHT read after {self.retries} attempts"
-        self.logger.error(msg)
+        logger.error(msg)
         raise RuntimeError(msg)
 
     def get_temperature(self) -> float:
