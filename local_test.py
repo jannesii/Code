@@ -29,6 +29,7 @@ class StatusReporter:
         session: TimelapseSession instance
         dht: DHT22Sensor instance for readings
         """
+        self.server = os.getenv("SERVER", "http://127.0.0.1:5555")
         self.rest = requests.Session()
         self._login()
 
@@ -50,20 +51,23 @@ class StatusReporter:
         if conf:
             self.on_config(conf)
 
-        pid_file = '/tmp/server.pid'
-        try:
-            with open(pid_file) as f:
-                self.pid = int(f.read().strip())
-        except Exception as e:
-            logging.error(f"Could not read PID file {pid_file}: {e}")
 
     def _login(self) -> None:
         """Authenticate via HTTP to obtain session cookies (with CSRF)."""
-        login_url = "http://127.0.0.1:5555/login"
+        login_url = f"{self.server}/login"
 
         # 1) GET login page to set cookie and grab CSRF token
         resp_get = self.rest.get(login_url)
         logger.info("Fetched login page (%s) for CSRF token", login_url)
+        
+        # Manually store session cookie (Secure flag ignored by requests over HTTP)
+        set_cookie = resp_get.headers.get("Set-Cookie", "")
+        m_sess = re.search(r"(session=[^;]+)", set_cookie)
+        if m_sess:
+            session_val = m_sess.group(1).split("=", 1)[1]
+            self.rest.cookies.set(
+                "session", session_val, domain="127.0.0.1", path="/"
+            )
         if resp_get.status_code != 200:
             logger.error("Failed to GET login page: %s",
                               resp_get.status_code)
@@ -105,7 +109,7 @@ class StatusReporter:
         cookies = "; ".join(
             f"{k}={v}" for k, v in self.rest.cookies.get_dict().items())
         self.sio.connect(
-            os.getenv("SERVER"),
+            self.server,
             headers={"Cookie": cookies},
             transports=["websocket", "polling"]
         )
@@ -117,22 +121,22 @@ class StatusReporter:
         """Periodically emit the current timelapse status."""
         while True:
             data = {
-                "bed_temperature": 26.09,
-                "nozzle_temperature": 26.22,
                 "file_name": "",
                 "percentage": 0,
                 "elapsed_time": 3,
                 "print_speed": 100,
                 "current_layer": 6,
                 "total_layers": 25,
-                "nozzle_type": "STAINLESS_STEEL",
+                "bed_temperature": 26.09,
+                "nozzle_temperature": 26.22,
+                "nozzle_type": "STAINLESS STEEL",
                 "nozzle_diameter": 0.4,
-                "print_error_code": 0,
-                "status": "IDLE",
-                "gcode_status": "FAILED"
+                "status": "IDLE", # Printer status
+                "gcode_status": "FAILED",
+                "print_error_code": 0
             }
             try:
-                self.sio.emit('status2v', data)
+                self.sio.emit('status', data)
             except Exception:
                 logger.exception("StatusReporter: error sending status")
 
@@ -147,7 +151,7 @@ class StatusReporter:
         import random
         while True:
             try:
-                data = {'temperature': random.uniform(20.0, 30.0), 'humidity': random.uniform(30.0, 70.0)}
+                data = {'temperature': round(random.uniform(20.0, 30.0), 2), 'humidity': round(random.uniform(30.0, 70.0), 2)}
                 self.sio.emit('temphum', data)
             except Exception:
                 logger.exception("StatusReporter: error sending temphum")
@@ -217,7 +221,7 @@ class StatusReporter:
         """
         Return the current configuration settings.
         """
-        url = f"http://127.0.0.1:5555/api/timelapse_config"
+        url = f"{self.server}/api/timelapse_config"
 
         resp = self.rest.get(url)
         if resp.status_code == 200:

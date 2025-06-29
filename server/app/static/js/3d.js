@@ -42,9 +42,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     socket.on('status2v', data => {
-      console.log('ℹ️ Received status2v event, data:', data);
-      document.getElementById('status').innerText = data.status;
-      console.log('🏷️ Status text set to:', data.status);
+      console.log('ℹ️ Received status2v event.');
+
     });
 
     socket.on('temphum2v', data => {
