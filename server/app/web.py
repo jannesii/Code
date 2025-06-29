@@ -44,15 +44,14 @@ def get_settings_page():
 @login_required
 def add_user():
     ctrl = current_app.ctrl
+    if not current_user.is_admin:
+        flash("Sinulla ei ole oikeuksia lisätä käyttäjiä.", "error")
+        logger.warning("Non-admin user %s attempted to add user.", current_user.get_id())
+        return redirect(url_for('web.get_settings_page'))
     if request.method == 'POST':
         u = request.form.get('username', '').strip()
         p = request.form.get('password', '')
         
-        if not current_user.is_admin:
-            flash("Sinulla ei ole oikeuksia lisätä käyttäjiä.", "error")
-            logger.warning("Non-admin user %s attempted to add user with username: %s", current_user.get_id(), u)
-            return redirect(url_for('web.get_settings_page'))
-
         logger.debug("Adding user %s", u)
         try:
             ctrl.register_user(u, p)
@@ -71,13 +70,12 @@ def add_user():
 def delete_user():
     ctrl = current_app.ctrl
     users = ctrl.get_all_users()
+    if not current_user.is_admin:
+        flash("Sinulla ei ole oikeuksia poistaa käyttäjiä.", "error")
+        logger.warning("Non-admin user %s attempted to delete user.", current_user.get_id())
+        return redirect(url_for('web.get_settings_page'))
     if request.method == 'POST':
         u = request.form.get('username')
-        
-        if not current_user.is_admin:
-            flash("Sinulla ei ole oikeuksia poistaa käyttäjiä.", "error")
-            logger.warning("Non-admin user %s attempted to delete user with username: %s", current_user.get_id(), u)
-            return redirect(url_for('web.get_settings_page'))
 
         if not u:
             flash("Valitse ensin käyttäjä.", "error")
@@ -112,20 +110,20 @@ def delete_user():
 def timelapse_conf():
     ctrl = current_app.ctrl
     vals = {}
+    if not current_user.is_admin:
+        flash("Sinulla ei ole oikeuksia muuttaa asetuksia.", "error")
+        logger.warning("Non-admin user %s attempted to change timelapse settings", current_user.get_id())
+        return redirect(url_for('web.get_settings_page'))
     if request.method == 'POST':
-        vals = {
-            'image_delay':   int(request.form.get('image_delay', '0')),
-            'temphum_delay': int(request.form.get('temphum_delay', '0'))*60,
-            'status_delay':  int(request.form.get('status_delay', '0'))
-        }
-        
-        if not current_user.is_admin:
-            flash("Sinulla ei ole oikeuksia muuttaa asetuksia.", "error")
-            logger.warning("Non-admin user %s attempted to change timelapse settings", current_user.get_id())
-            return redirect(url_for('web.get_settings_page'))
-        
-        logger.debug("Timelapse config: %s", vals)
         try:
+            vals = {
+                'image_delay':   int(request.form.get('image_delay', '0')),
+                'temphum_delay': int(request.form.get('temphum_delay', '0'))*60,
+                'status_delay':  int(request.form.get('status_delay', '0'))
+            }
+            
+            
+            logger.debug("Timelapse config: %s", vals)
             check_failed = check_vals(**vals)
             
             if check_failed:

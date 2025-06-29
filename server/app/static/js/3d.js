@@ -41,9 +41,61 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log('🖼️ Image tile updated'); */
     });
 
-    socket.on('status2v', data => {
-      console.log('ℹ️ Received status2v event.');
+    // ─── Printer elements ─────────────────────────────────────────
+    const bedTempEl      = document.getElementById('bedTemp');
+    const nozzleTempEl   = document.getElementById('nozzleTemp');
+    const nozzleTypeEl   = document.getElementById('nozzleType');
+    const nozzleDiamEl   = document.getElementById('nozzleDiam');
+    const printerStatEl  = document.getElementById('printerStatus');
+    const gcodeStatEl    = document.getElementById('gcodeStatus');
+    const printerStatTile= document.getElementById('printerStatusTile');
+    //  ─ progress‑bar DOM elements ─
+    const fileNameEl      = document.getElementById('fileName');
+    const progPercentEl   = document.getElementById('progressPercent');
+    const progBarEl       = document.getElementById('progressBar');
+    const layerInfoEl     = document.getElementById('layerInfo');
+    const remainingTimeEl = document.getElementById('remainingTime');
+    const printSpeedEl    = document.getElementById('printSpeed');
 
+    function formatTime(sec){
+      const h = Math.floor(sec/3600).toString().padStart(2,'0');
+      const m = Math.floor(sec%3600/60).toString().padStart(2,'0');
+      const s = Math.floor(sec%60).toString().padStart(2,'0');
+      return `${h}:${m}:${s}`;
+    }
+
+    socket.on('status2v', data => {
+      console.log('ℹ️ Received status2v event:', data);
+
+      if ('bed_temperature'    in data) bedTempEl.textContent    = data.bed_temperature.toFixed(1) + ' °C';
+      if ('nozzle_temperature' in data) nozzleTempEl.textContent = data.nozzle_temperature.toFixed(1) + ' °C';
+      if ('nozzle_type'        in data) nozzleTypeEl.textContent = data.nozzle_type;
+      if ('nozzle_diameter'    in data) nozzleDiamEl.textContent = data.nozzle_diameter + ' mm';
+      if ('status'             in data){
+        printerStatEl.textContent = data.status;
+        printerStatTile.dataset.state = data.status;   // colour via CSS
+      }
+      if ('gcode_status'       in data) gcodeStatEl.textContent  = data.gcode_status;
+
+      // ── progress‑bar update (guard against partially‑filled packets) ──
+      if ('percentage' in data){
+        progBarEl.style.width   = data.percentage + '%';
+        progPercentEl.textContent = data.percentage + ' %';
+      }
+
+      if ('file_name' in data) fileNameEl.textContent = data.file_name;
+
+      if ('current_layer' in data && 'total_layers' in data){
+        layerInfoEl.textContent = `Layer ${data.current_layer} / ${data.total_layers}`;
+      }
+
+      if ('remaining_time' in data){
+        remainingTimeEl.textContent = formatTime(data.remaining_time);
+      }
+
+      if ('print_speed' in data){
+        printSpeedEl.textContent = data.print_speed + ' mm/s';
+      }
     });
 
     socket.on('temphum2v', data => {
@@ -52,7 +104,16 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('humidity').innerText    = data.humidity + '%';
       console.log('🌡️ Temperature/Humidity updated:', data.temperature, data.humidity);
     });
-  
+    
+    // ── printer control buttons ─
+    document.querySelectorAll('.control-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.action;          // pause / resume / stop / home
+        console.log(`🔘 "${action}" button clicked`);
+        socket.emit('printerAction', {"action": action});       // <-- unified Socket.IO event
+      });
+    });
+
     // — Chart.js modal logic —
     const modal       = document.getElementById('chartModal');
     const titleEl     = document.getElementById('chartTitle');

@@ -31,13 +31,103 @@ width: 100%;
 height: auto;
 border-radius: 10px;
 }
+/* ─── progress bar tile ────────────────────────────────────────────── */
+.progress-tile{
+  /* span all 3 columns of the next grid, regardless of viewport       */
+  grid-column:1 / -1;
+  padding:20px 25px;
+}
 
-/* Data-ruudukko sensoritiedoille */
+.progress-header,
+.progress-footer{
+  display:flex;
+  justify-content:space-between;
+  font-size:.9em;
+  color:#ccc;
+  user-select:none;
+}
+
+/* the bar itself */
+.progress-container{
+  width:100%;
+  height:18px;
+  background:#333;
+  border-radius:6px;
+  overflow:hidden;
+  margin:6px 0 8px;
+}
+
+.progress-bar{
+  height:100%;
+  width:0;
+  background:linear-gradient(90deg,#0af,#08f);
+  transition:width .4s ease;
+}
+
+/* ─── printer control bar ──────────────────────────────────────────── */
+.control-bar{
+  grid-column:1 / -1;            /* span all 3 columns of the parent grid */
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:20px;
+  margin-bottom:20px;
+  margin-top: 20px;
+}
+
+/* shared look */
+.control-btn{
+  padding:12px 0;
+  font-size:1em;
+  font-weight:600;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  transition:transform .15s ease, box-shadow .15s ease;
+  color:#fff;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+}
+.control-btn:hover{
+  transform:translateY(-2px);
+  box-shadow:0 4px 10px rgba(0,0,0,.4);
+}
+.control-btn:active{
+  transform:translateY(0);
+  box-shadow:none;
+}
+
+/* colour‑coding */
+.pause-btn {background:#e6a700;}   /* amber  */
+.resume-btn{background:#148b21;}   /* green  */
+.stop-btn  {background:#c01221;}   /* red    */
+.home-btn  {background:#006cbd;}   /* blue   */
+
+
+/* ─── layout tweaks ─────────────────────────────────────────────── */
 .data-grid {
 display: grid;
 grid-template-columns: repeat(3, 1fr);
 gap: 20px;
 }
+.ambient-bar {
+  grid-column:1 / -1;            /* span all 3 columns of the parent grid */
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:20px;
+  margin-bottom:20px;
+  margin-top: 20px;
+}
+.section-title{
+  margin:20px 0 10px;
+  color:#bbb;
+  font-size:1.1rem;
+  font-weight:600;
+}
+
+/* status colouring (optional) */
+.status-tile[data-state="PRINTING"]{background:#0a4;}
+.status-tile[data-state="PAUSED"]  {background:#640;}
+.status-tile[data-state="ERROR"]   {background:#800;}
 
 /* Responsiivisuus: jos näyttö on kapea, aseta data ruudukko yhdelle sarakkeelle */
 @media (max-width: 600px) {

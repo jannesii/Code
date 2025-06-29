@@ -1,0 +1,19 @@
+.flash {
+  padding: 10px;
+  border-radius: 5px;
+  margin-bottom: 10px;
+  color: #fff;
+  text-align: center;
+}
+
+/* Green background for “success” */
+.flash.success {
+  background: #2a572a;
+}
+
+/* Red background for anything else (error, warning, etc.) */
+.flash.error,
+.flash.warning,
+.flash.info {
+  background: #572a2a;
+}
