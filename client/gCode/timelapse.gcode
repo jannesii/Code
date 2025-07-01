@@ -11,7 +11,8 @@
   G1 Z{max_layer_z + 0.4}
 
   G1 X-48 Y128 F42000 ; click the button
-  M400 P500
+  G1 X-47 F18000
+  M400 P1000
   G1 X-28 F18000 ; Clean up the nozzle
   G1 X-47 F18000
   G1 X-28 F18000
@@ -29,7 +30,8 @@
   G1 Z{max_layer_z + 0.4}
 
   G1 X-48 Y128 F42000 ; click the button
-  M400 P500
+  G1 X-47 F18000
+  M400 P1000
   G1 X-28 F18000 ; Clean up the nozzle
   G1 X-47 F18000
   G1 X-28 F18000
