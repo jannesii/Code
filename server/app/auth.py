@@ -59,7 +59,7 @@ def handle_rate_limit(e):
     "5/minute;20/hour",
     exempt_when=lambda: (
         current_user.is_admin
-        or request.remote_addr == '192.168.10.50'
+        or request.remote_addr in ['192.168.10.50', '192.168.0.3']
     )
 )
 def login():
