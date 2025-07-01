@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import tempfile
 import time
 import logging
 import threading
@@ -11,6 +12,7 @@ from gpiozero import LED
 
 from .camera_manager import CameraManager
 from .video_encoder import VideoEncoder
+from .bambu_handler import BambuHandler
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +29,6 @@ class TimelapseSession:
         red_led: LED,
         yellow_led: LED,
         green_led: LED,
-        root_dir: str,
-        logger: logging.Logger
     ) -> None:
         """
         camera: CameraManager instance
@@ -36,16 +36,16 @@ class TimelapseSession:
         red_led, yellow_led, green_led: gpiozero.LED instances
         root_dir: base directory for Photos/Timelapses
         """
+        self.printer = BambuHandler()
         self.camera = camera
         self.encoder = encoder
         self.red_led = red_led
         self.yellow_led = yellow_led
         self.green_led = green_led
-        self.root = root_dir
+        self.root = os.getcwd()
 
         self.images: list[str] = []
         self.active = False
-        self.paused = False
         self.should_create = True
         self.image_callback: Optional[Callable[[bytes], None]] = None
 
@@ -54,7 +54,7 @@ class TimelapseSession:
             path = os.path.join(self.root, subdir)
             if not os.path.exists(path):
                 os.makedirs(path)
-                logger.info("TimelapseSession: created %s", path)
+                logger.info("created %s", path)
 
         # initialize to streaming-preview LED state
         self._set_streaming_leds()
@@ -83,51 +83,35 @@ class TimelapseSession:
         self.yellow_led.off()
         self.green_led.off()
 
-    def start_and_stop(self) -> None:
+    def start(self) -> bool:
         """
-        Toggle timelapse: start if inactive, otherwise stop with video.
+        Start the timelapse session.
         """
-        if self.active:
-            self.stop(create_video=True)
-        else:
-            self.active = True
-            self.paused = False
+        try:
             self.images.clear()
-            logger.info("TimelapseSession: started")
+            logger.info("started")
             self._set_active_leds()
+            self.active = True
+            return True
+        except Exception:
+            logger.exception("error starting session")
+            return False
 
-    def pause_and_resume(self) -> None:
-        """
-        Pause if active and not already paused, otherwise resume.
-        """
-        if self.active:
-            if not self.paused:
-                self.paused = True
-                logger.info("TimelapseSession: paused")
-                self._set_paused_leds()
-            else:
-                self.resume()
-
-    def resume(self) -> None:
-        """
-        Resume a paused timelapse.
-        """
-        if self.active and self.paused:
-            self.paused = False
-            logger.info("TimelapseSession: resumed")
-            self._set_active_leds()
-
-    def stop(self, create_video: bool = True) -> None:
+    def stop(self, create_video: bool = True) -> bool:
         """
         Stop timelapse and optionally assemble video.
         create_video: if False, skip video creation.
         """
-        self.active = False
-        self.should_create = create_video
-        logger.info(
-            "TimelapseSession: stopped, create_video=%s", create_video)
-        self._set_stopped_leds()
-        self.finalize()
+        try:
+            self.active = False
+            self.should_create = create_video
+            logger.info(
+                "stopped, create_video=%s", create_video)
+            self._set_stopped_leds()
+            return self.finalize()
+        except Exception:
+            logger.exception("error stopping session")
+            return False
 
     def capture(self) -> None:
         """
@@ -143,7 +127,7 @@ class TimelapseSession:
             self.image_callback(data)
 
         # save frames for timelapse video
-        if self.active and not self.paused:
+        if self.active and self.printer.running_and_printing:
             threading.Thread(target=self._blink_red_led,
                              args=(False, 0.2)).start()
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -153,9 +137,11 @@ class TimelapseSession:
                 with open(filename, "wb") as f:
                     f.write(data)
                 self.images.append(filename)
-                logger.info("TimelapseSession: saved %s", filename)
+                logger.info("saved %s", filename)
             except Exception:
-                logger.exception("TimelapseSession: error saving image")
+                logger.exception("error saving image")
+        else:
+            logger.info("Not saving image, timelapse not active or printer not printing")
 
     def _blink_red_led(self, reverse, delay) -> None:
         """Briefly blink the red LED to indicate a capture."""
@@ -168,13 +154,14 @@ class TimelapseSession:
             time.sleep(delay)
             self.red_led.off()
 
-    def finalize(self) -> None:
+    def finalize(self) -> bool:
         """
         Assemble captured images into a video if requested,
         then clean up image files and reset LEDs.
         """
+        ret = True
         if not self.images:
-            logger.info("TimelapseSession: no images to assemble")
+            logger.info("no images to assemble")
         elif self.should_create:
             fps = min(25, len(self.images)) or 1
             video_name = os.path.join(
@@ -199,22 +186,25 @@ class TimelapseSession:
                         writer.write(frame)
                 writer.release()
                 logger.info(
-                    "TimelapseSession: video created %s", video_name)
+                    "video created %s", video_name)
                 if not self.encoder.encode(video_name):
                     logger.warning(
-                        "TimelapseSession: encoder fallback, video kept as-is")
+                        "encoder fallback, video kept as-is")
             except Exception:
-                logger.exception("TimelapseSession: error creating video")
+                ret = False
+                logger.exception("error creating video")
         else:
             logger.info(
-                "TimelapseSession: video creation skipped by user")
+                "video creation skipped by user")
 
         for img in self.images:
             try:
                 os.remove(img)
-                logger.info("TimelapseSession: deleted %s", img)
+                logger.info("deleted %s", img)
             except Exception:
                 logger.exception(
-                    "TimelapseSession: error deleting %s", img)
+                    "error deleting %s", img)
         self.images.clear()
         self._set_streaming_leds()
+        
+        return ret

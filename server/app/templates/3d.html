@@ -46,11 +46,21 @@
     </div>
   </div>
   <!-- ─── PRINTER CONTROL BUTTONS ─────────────────────────────────────── -->
+  <h2 class="section-title">Printer Control</h2>
   <div class="control-bar" id="controlBar">
     <button class="control-btn pause-btn"  data-action="pause">Pause</button>
     <button class="control-btn resume-btn" data-action="resume">Resume</button>
     <button class="control-btn stop-btn"   data-action="stop">Stop</button>
     <button class="control-btn home-btn"   data-action="home">Home</button>
+  </div>
+  <!-- ─── TIMELAPSE SECTION ────────────────────────────────────────────── -->
+  <h2 class="section-title">Timelapse Control</h2>
+  <div class="timelapse-bar" id="timelapseSwitch">
+    <button class="control-btn start-btn" data-action="timelapse_start">Start</button>
+    <button class="control-btn stop-btn" data-action="timelapse_stop">Stop</button>
+  </div>
+  <div class="timelapse-status-bar" id="timelapseStatus">
+    <button class="control-btn-status pause-btn">N/A</button>
   </div>
 
   <!-- ─── AMBIENT SECTION ──────────────────────────────────────────────── -->
@@ -72,8 +82,19 @@
     <div class="tile" id="nozzleTypeTile">Nozzle Type<br><strong id="nozzleType">–</strong></div>
     <div class="tile" id="nozzleDiamTile">Diameter<br><strong id="nozzleDiam">– mm</strong></div>
     <div class="tile status-tile" id="printerStatusTile">Status<br><strong id="printerStatus">–</strong></div>
-    <div class="tile" id="gcodeStatusTile">G‑code<br><strong id="gcodeStatus">–</strong></div>
+    <div class="tile gcode-status-tile" id="gcodeStatusTile">G‑code<br><strong id="gcodeStatus">–</strong></div>
   </div>
+</div>
+
+<!-- ─── Run custom G‑code SECTION ────────────────────────────── -->
+<h2 class="section-title">Run Custom G-code</h2>
+<div class="gcode-tile">
+  <textarea class="textarea" id="gcodeInput"
+            placeholder="Enter G-code commands here…"></textarea>
+  <button class="control-btn gcode-btn"
+          id="runGcodeBtn" data-action="run_gcode">Run G-code</button>
+
+  <ul id="gcodeSuggest" class="autocomplete-list"></ul>
 </div>
 
 <div id="chartModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;">

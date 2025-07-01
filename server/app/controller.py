@@ -10,6 +10,7 @@ import pytz
 
 logger = logging.getLogger(__name__)
 
+
 class Controller:
     def __init__(self, db_path: str = 'app.db'):
         self.db = DatabaseManager(db_path)
@@ -21,13 +22,14 @@ class Controller:
         Creates the user if it doesn't exist, or returns the existing one.
         Uses INSERT OR IGNORE to avoid UNIQUE errors, then SELECT to fetch.
         """
-        logging.info(f"Registering user: {username}")
+        logger.info(f"Registering user: {username}")
 
         # 1) Hash the password up front
         if password_hash is None:
             pw_hash = generate_password_hash(password)
         elif password is None and password_hash is None:
-            raise ValueError("Either password or password_hash must be provided")
+            raise ValueError(
+                "Either password or password_hash must be provided")
         else:
             pw_hash = password_hash
 
@@ -37,9 +39,9 @@ class Controller:
             (username, pw_hash, is_admin)
         )
         if cursor.rowcount == 1:
-            logging.info(f"User '{username}' created successfully.")
+            logger.info(f"User '{username}' created successfully.")
         else:
-            logging.info(f"User '{username}' already exists, skipping INSERT.")
+            logger.info(f"User '{username}' already exists, skipping INSERT.")
 
         # 3) Fetch whatever is now in the table
         row = self.db.fetchone(
@@ -48,10 +50,11 @@ class Controller:
         )
         if row is None:
             # This really should never happen
-            logging.error(f"After INSERT OR IGNORE, no row for '{username}' found.")
+            logger.error(
+                f"After INSERT OR IGNORE, no row for '{username}' found.")
             raise RuntimeError(f"Failed to retrieve user '{username}'")
 
-        logging.info(f"Returning user '{username}' with id={row['id']}")
+        logger.info(f"Returning user '{username}' with id={row['id']}")
         return User(
             id=row['id'],
             username=row['username'],
@@ -85,7 +88,7 @@ class Controller:
                  password_hash=row['password_hash'], is_admin=row['is_admin'])
             for row in rows
         ]
-        
+
     def get_user_by_username(self, username: str) -> User | None:
         row = self.db.fetchone(
             "SELECT id, username, password_hash, is_admin FROM users WHERE username = ?",
@@ -213,7 +216,7 @@ class Controller:
             temphum_delay=row['temphum_delay'],
             status_delay=row['status_delay']
         )
-        
+
     def update_timelapse_conf(self, image_delay: int, temphum_delay: int, status_delay: int) -> None:
         self.db.execute_query(
             """
@@ -224,3 +227,17 @@ class Controller:
             """,
             (image_delay, temphum_delay, status_delay)
         )
+
+    def record_gcode_command(self, gcode: str) -> None:
+        logger.info(f"Recording G-code command: {gcode}")
+        now = datetime.now(self.finland_tz).isoformat()
+        self.db.execute_query(
+            "INSERT INTO gcode_commands (timestamp, gcode) VALUES (?, ?)",
+            (now, gcode)
+        )
+    def get_all_gcode_commands(self) -> List[str]:
+        rows = self.db.fetchall(
+            "SELECT gcode FROM gcode_commands ORDER BY id DESC"
+        )
+        gcode_set = set([row['gcode'] for row in rows])
+        return list(gcode_set)

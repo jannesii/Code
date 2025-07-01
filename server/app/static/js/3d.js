@@ -1,4 +1,4 @@
-// static/js/dashboard.js
+// static/js/3d.js
 
 // Initial load
 console.log('📦 Dashboard script loaded');
@@ -56,6 +56,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const layerInfoEl     = document.getElementById('layerInfo');
     const remainingTimeEl = document.getElementById('remainingTime');
     const printSpeedEl    = document.getElementById('printSpeed');
+    // ── Timelapse status ──
+    const timelapseStatusEl = document.getElementById('timelapseStatus');
 
     function formatTime(sec){
       const h = Math.floor(sec/3600).toString().padStart(2,'0');
@@ -75,7 +77,9 @@ document.addEventListener('DOMContentLoaded', () => {
         printerStatEl.textContent = data.status;
         printerStatTile.dataset.state = data.status;   // colour via CSS
       }
-      if ('gcode_status'       in data) gcodeStatEl.textContent  = data.gcode_status;
+      if ('gcode_status'       in data){
+        gcodeStatEl.textContent  = data.gcode_status;
+      }
 
       // ── progress‑bar update (guard against partially‑filled packets) ──
       if ('percentage' in data){
@@ -96,6 +100,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if ('print_speed' in data){
         printSpeedEl.textContent = data.print_speed + ' mm/s';
       }
+      // ── Timelapse status ──
+      if ('timelapse_status' in data) {
+        const isActive = data.timelapse_status === true      // boolean true
+                      || data.timelapse_status === 'True';   // string "True" (just in case)
+
+        timelapseStatusEl.innerHTML = isActive
+          ? '<button class="control-btn-status start-btn">Active</button>'
+          : '<button class="control-btn-status stop-btn">Inactive</button>';
+      }
     });
 
     socket.on('temphum2v', data => {
@@ -108,11 +121,91 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── printer control buttons ─
     document.querySelectorAll('.control-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        const action = btn.dataset.action;          // pause / resume / stop / home
+        var body = {};
+        const action = btn.dataset.action;
+        body.action = action;  // unified action name
+        if (action == 'run_gcode') {
+          const gcodeInput = document.getElementById('gcodeInput').value.trim();
+          body.gcode = gcodeInput;
+        } 
         console.log(`🔘 "${action}" button clicked`);
-        socket.emit('printerAction', {"action": action});       // <-- unified Socket.IO event
+        socket.emit('printerAction', body); 
       });
     });
+    // ─── G‑code autocomplete ──────────────────────────────────────
+    const gcodeInput  = document.getElementById('gcodeInput');
+    const suggestBox  = document.getElementById('gcodeSuggest');
+    let   gcodeCache  = [];
+
+    // one fetch at startup
+    fetch('/api/gcode')
+      .then(r => r.json())
+      .then(data => { gcodeCache = data.gcode_list || []; })
+      .catch(err => console.error('⚠️ Could not load /api/gcode:', err));
+
+    /* helpers ----------------------------------------------------- */
+    function closeSuggest(){ suggestBox.style.display='none'; }
+    function showSuggest(items){
+      suggestBox.innerHTML = items
+        .map(cmd => `<li class="autocomplete-item">${cmd}</li>`).join('');
+      suggestBox.style.display = items.length ? 'block' : 'none';
+    }
+
+    /* replace the partial word before caret with full command */
+    function insertCmd(cmd){
+      const {selectionStart:pos, value:txt} = gcodeInput;
+      const before = txt.slice(0,pos);
+      const after  = txt.slice(pos);
+      const chunks = before.split(/\n/);          // last line only
+      chunks[chunks.length-1] = cmd;              // replace partial
+      gcodeInput.value = chunks.join('\n') + after;
+      gcodeInput.focus();
+      closeSuggest();
+    }
+
+    /* main listener ---------------------------------------------- */
+    gcodeInput.addEventListener('input', () => {
+      const {selectionStart:pos, value:txt} = gcodeInput;
+      const before = txt.slice(0,pos);
+      const last   = before.split(/\n/).pop().trim().toUpperCase();
+
+      if(!last){ closeSuggest(); return; }
+
+      const hits = gcodeCache
+                    .filter(c => c.toUpperCase().startsWith(last))
+                    .slice(0,10);                // top‑10 only
+      showSuggest(hits);
+    });
+
+    /* click‑to‑choose */
+    suggestBox.addEventListener('click', e => {
+      if(e.target.classList.contains('autocomplete-item')){
+        insertCmd(e.target.textContent);
+      }
+    });
+
+    /* basic up/down/enter navigation */
+    gcodeInput.addEventListener('keydown', e => {
+      const active = suggestBox.querySelector('.active');
+      let next;
+      if(e.key==='ArrowDown'){
+        next = active ? active.nextSibling : suggestBox.firstChild;
+      }else if(e.key==='ArrowUp'){
+        next = active ? active.previousSibling : suggestBox.lastChild;
+      }else if(e.key==='Enter' && active){
+        e.preventDefault();
+        insertCmd(active.textContent);
+        return;
+      }else{
+        return; // let other keys through
+      }
+      if(active) active.classList.remove('active');
+      if(next){ next.classList.add('active'); }
+    });
+
+    /* hide list when focus leaves */
+    gcodeInput.addEventListener('blur', () => setTimeout(closeSuggest,150));
+
 
     // — Chart.js modal logic —
     const modal       = document.getElementById('chartModal');

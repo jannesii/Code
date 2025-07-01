@@ -1,5 +1,7 @@
 # app/api.py
 import logging
+import os
+import tempfile
 from datetime import datetime
 import pytz
 from flask import Blueprint, request, jsonify, current_app, send_from_directory
@@ -40,13 +42,27 @@ def get_timelapse_config():
     )
     return jsonify(vals)
 
+@api_bp.route('/gcode')
+@login_required
+def get_gcode_commands():
+    """
+    Get all G-code commands from the database.
+    """
+    ctrl = current_app.ctrl
+    commands = ctrl.get_all_gcode_commands()
+    return jsonify({
+        'gcode_list': commands
+    })
+
 @api_bp.route('/previewJpg')
+@login_required
 def serve_tmp_file():
     """
     Serve any file under /tmp via HTTP.
     """
     # Log every request for debugging
-    current_app.logger.info("Serving tmp file: preview.jpg")
+    logger.info("Serving tmp file: preview.jpg")
 
-    # In production, you may want to sanitize `filename`!
-    return send_from_directory('/tmp', 'preview.jpg')
+    # In production, you may want to sanitize `path`!
+    temp_dir = tempfile.gettempdir()
+    return send_from_directory(temp_dir, 'preview.jpg')

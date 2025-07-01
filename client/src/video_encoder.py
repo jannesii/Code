@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 class VideoEncoder:
     """Wraps ffmpeg for H.264 transcoding."""
 
-    def __init__(self, logger: logging.Logger, ffmpeg_path: str = "/usr/bin/ffmpeg") -> None:
+    def __init__(self, ffmpeg_path: str = "/usr/bin/ffmpeg") -> None:
         """
         Initialize with a logger and optional ffmpeg binary path.
         """
@@ -21,7 +21,7 @@ class VideoEncoder:
         """
         if not os.path.exists(self.ffmpeg_path):
             logger.error(
-                "VideoEncoder: ffmpeg not found at %s", self.ffmpeg_path)
+                "ffmpeg not found at %s", self.ffmpeg_path)
             return False
 
         output = input_file.replace("_timelapse.mp4", "_timelapse_h264.mp4")
@@ -37,12 +37,12 @@ class VideoEncoder:
             subprocess.run(cmd, check=True, stdout=subprocess.PIPE,
                            stderr=subprocess.PIPE)
             os.remove(input_file)
-            logger.info("VideoEncoder: created %s", output)
+            logger.info("created %s", output)
             return True
         except subprocess.CalledProcessError as e:
             err = e.stderr.decode(errors='ignore')
-            logger.error("VideoEncoder: ffmpeg error: %s", err)
+            logger.error("ffmpeg error: %s", err)
             return False
         except Exception:
-            logger.exception("VideoEncoder: unexpected error")
+            logger.exception("unexpected error")
             return False

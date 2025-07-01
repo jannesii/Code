@@ -2,6 +2,7 @@ import json
 import logging
 import os
 from datetime import timedelta
+import tempfile
 
 import eventlet
 eventlet.monkey_patch()
@@ -24,24 +25,18 @@ limiter = Limiter(
     strategy="moving-window",
 )
 
-def create_app(development: bool = False):
-    # ─── Logging ───
-    debug = os.getenv("FLASK_DEBUG", 1)
-    if debug == "1":
-        logging.basicConfig(level=logging.DEBUG)
-    else: 
-        logging.basicConfig(level=logging.INFO)
-        
+def create_app():
     logger = logging.getLogger(__name__)
     logger.info("Starting application")
     logger.debug("Debug logging enabled")
+    _is_windows = os.name == "nt"
 
     # ─── SECRET_KEY ───
-    secret = os.getenv("SECRET_KEY")
+    secret = os.getenv("SECRET_KEY", "test")
     if not secret:
         raise RuntimeError("SECRET_KEY is missing – add to environment.")
-    
-    raw = os.getenv("RATE_LIMIT_WHITELIST")
+
+    raw = os.getenv("RATE_LIMIT_WHITELIST", "")
     if raw:
         try:
             whitelist = json.loads(raw)
@@ -55,18 +50,18 @@ def create_app(development: bool = False):
     app.config.update(
         SECRET_KEY=secret,
         PERMANENT_SESSION_LIFETIME=timedelta(days=7),
-        SESSION_COOKIE_SECURE=not development, 
+        SESSION_COOKIE_SECURE=not _is_windows, 
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
-        WEB_USERNAME=os.getenv("WEB_USERNAME"),
-        WEB_PASSWORD=os.getenv("WEB_PASSWORD"),
+        WEB_USERNAME=os.getenv("WEB_USERNAME", "admin"),
+        WEB_PASSWORD=os.getenv("WEB_PASSWORD", "admin"),
         # ← CSRF tokens now expire after 1 hour
         WTF_CSRF_TIME_LIMIT=None,
         whitelist=whitelist,
     )
 
     # ─── Rate limiting ───
-    if not development:
+    if not _is_windows:
         limiter.init_app(app)
         logger.info("Rate limiting enabled")
 
@@ -76,7 +71,7 @@ def create_app(development: bool = False):
     logger.info("CSRF protection enabled (1 h token lifetime)")
 
     # ─── Domain-controller ───
-    db_path = os.getenv("DB_PATH")
+    db_path = os.getenv("DB_PATH", os.path.join(tempfile.gettempdir(), "timelapse.db"))
     if not db_path:
         raise RuntimeError("DB_PATH is missing – add to environment.")
     app.ctrl = Controller(db_path)
@@ -84,11 +79,18 @@ def create_app(development: bool = False):
 
     # ─── Seed admin user ───
     try:
-        app.ctrl.register_user(
-            app.config["WEB_USERNAME"],
-            password_hash=app.config["WEB_PASSWORD"],
-            is_admin=True
-        )
+        if not _is_windows:
+            app.ctrl.register_user(
+                app.config["WEB_USERNAME"],
+                password_hash=app.config["WEB_PASSWORD"],
+                is_admin=True
+            )
+        else:
+            app.ctrl.register_user(
+                app.config["WEB_USERNAME"],
+                password=app.config["WEB_PASSWORD"],
+                is_admin=True
+            )
         logger.info("Seeded admin user %s (is_admin=True)", app.config["WEB_USERNAME"])
     except ValueError:
         app.ctrl.set_user_admin(app.config["WEB_USERNAME"], True)
@@ -104,7 +106,7 @@ def create_app(development: bool = False):
     logger.info("Login manager ready")
 
     # ─── Socket.IO ───
-    raw = os.getenv("ALLOWED_WS_ORIGINS")
+    raw = os.getenv("ALLOWED_WS_ORIGINS", '["http://127.0.0.1:5555"]')
     if raw:
         try:
             allowed_ws_origins = json.loads(raw)
@@ -114,7 +116,7 @@ def create_app(development: bool = False):
     else:
         allowed_ws_origins = []
         
-    if not development:
+    if not _is_windows:
         socketio = SocketIO(
             app,
             async_mode="eventlet",

@@ -4,7 +4,6 @@ import time
 import logging
 from typing import Callable, Dict
 
-from gpiozero import LED, Button
 
 from .bambu_handler import BambuHandler
 from .button_handler import ButtonHandler
@@ -14,6 +13,8 @@ from .status_reporter import StatusReporter
 from .timelapse_session import TimelapseSession
 from .video_encoder import VideoEncoder
 
+import gpiozero_compat
+from gpiozero import LED, Button
 
 # GPIO pins
 RED_LED_PIN = 17
@@ -39,16 +40,15 @@ def execute_main_loop() -> None:
     encoder = VideoEncoder()
     session = TimelapseSession(
         camera, encoder,
-        red_led, yellow_led, green_led,
-        os.getcwd(), logger
+        red_led, yellow_led, green_led
     )
     dht = DHT22Sensor(DHT_PIN)
     reporter = StatusReporter(session, dht)
 
+    """ 3: session.start_and_stop,
+    4: session.pause_and_resume,
+    5: lambda: session.stop(create_video=False), """
     callbacks: Dict[int, Callable[[], None]] = {
-        3: session.start_and_stop,
-        4: session.pause_and_resume,
-        5: lambda: session.stop(create_video=False),
         1: session.capture
     }
     button = Button(CAPTURE_BUTTON_PIN, pull_up=True, bounce_time=0.01)

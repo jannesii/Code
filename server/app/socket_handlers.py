@@ -23,7 +23,7 @@ class SocketEventHandler:
         self._initialized = True
         socketio.on_event('connect',    self.handle_connect)
         socketio.on_event('disconnect', self.handle_disconnect)
-        # socketio.on_event('image',      self.handle_image)
+        socketio.on_event('image',      self.handle_image)
         socketio.on_event('temphum',    self.handle_temphum)
         socketio.on_event('status',     self.handle_status)
         socketio.on_event('printerAction', self.handle_printer_action)
@@ -45,14 +45,9 @@ class SocketEventHandler:
         self.socketio.emit('flash', {'category': category, 'message': message})
         self.logger.info("Flash message: %s (%s)", category, message)
 
-    def handle_image(self, data):
-        if not data or 'image' not in data:
-            self.socketio.emit('error', {'message': 'Invalid image data'})
-            self.logger.warning("Bad image payload: %s", data)
-            return
-        saved = self.ctrl.record_image(data['image'])
-        self.socketio.emit('image2v', {'image': saved.image})
-        self.logger.info("Broadcasted image")
+    def handle_image(self):
+        self.socketio.emit('image')
+        self.logger.debug("Emitted 'image' event")
 
     def handle_temphum(self, data):
         temp, hum = data.get('temperature'), data.get('humidity')
@@ -75,9 +70,9 @@ class SocketEventHandler:
             return
         # saved = self.ctrl.update_status(data)
         self.socketio.emit('status2v', data)
-        self.logger.info("Broadcasted status: %s", data)
+        self.logger.debug("Broadcasted status: %s", data)
         
-    def handler_printer_result(self, result, action):
+    def handle_client_response(self, result, action):
         if result is None:
             self.socketio.emit('error', {'message': 'Invalid printer result'})
             self.logger.warning("Bad printer result: %s", result)
@@ -97,16 +92,35 @@ class SocketEventHandler:
             )
 
     def handle_printer_action(self, data):
+        self.logger.info("Received printer action data: %s", data)
         action = data.get('action', '')
         result = data.get('result', '')
         if result != '':
-            self.handler_printer_result(result, action)
+            self.handle_client_response(result, action)
             return
-        if action not in ['pause', 'resume', 'stop', 'home']:
+        if action not in ['pause', 'resume', 'stop', 'home', 
+                          'timelapse_start', 'timelapse_stop',
+                          'run_gcode'
+                          ]:
             self.socketio.emit(
                 'error', {'message': f'Invalid printer action: {action}'})
             self.logger.warning("Bad printer action: %s", action)
             return
         
-        self.socketio.emit('printerAction', {'action': action})
+        if action == 'run_gcode':
+            gcode = data.get('gcode', '')
+            if not gcode:
+                self.flash(
+                    "No G-code provided for run_gcode action",
+                    'error'
+                )
+                self.logger.error("No G-code provided for run_gcode action")
+                return
+            try:
+                result = self.ctrl.record_gcode_command(gcode=gcode)
+            except ValueError as e:
+                self.logger.exception("Error recording G-code: %s", e)
+                return
+
+        self.socketio.emit('printerAction', data)
         self.logger.info("Handled printer action: %s", action)

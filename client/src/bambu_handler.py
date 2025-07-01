@@ -3,6 +3,18 @@ import logging
 import os
 import bambulabs_api as bl
 
+if os.name == "nt":
+    import json
+    with open("client/config.json", "r") as f:
+        config = json.load(f)
+    IP = config.get("BAMBU_IP")
+    SERIAL = config.get("BAMBU_SERIAL")
+    ACCESS_CODE = config.get("BAMBU_ACCESS_CODE")
+
+    os.environ["BAMBU_IP"] = IP
+    os.environ["BAMBU_SERIAL"] = SERIAL
+    os.environ["BAMBU_ACCESS_CODE"] = ACCESS_CODE
+
 logger = logging.getLogger(__name__)
 
 
@@ -22,17 +34,17 @@ class BambuHandler:
         self._initialized = True
         
         IP = os.getenv("BAMBU_IP")
-        ACCESS_CODE = os.getenv("BAMBU_SERIAL")
-        SERIAL = os.getenv("BAMBU_ACCESS_CODE")
+        ACCESS_CODE = os.getenv("BAMBU_ACCESS_CODE")
+        SERIAL = os.getenv("BAMBU_SERIAL")
+        logger.info(f"Connecting to Bambu printer at {IP} with serial {SERIAL} and access code {ACCESS_CODE}")
 
         self.printer = bl.Printer(IP, ACCESS_CODE, SERIAL)
 
         self.printer.mqtt_start()
 
+        logger.info("Connecting to printer...")
         while not self.printer.mqtt_client_ready():
-            logger.info("Connecting to printer...")
-            sleep(1)
-        sleep(2)
+            sleep(0.2)
         logger.info("Printer connected!")
 
     def pause_print(self) -> bool:
@@ -73,30 +85,60 @@ class BambuHandler:
         else:
             logger.error("Failed to home printer.")
             return False
+        
+    def run_gcode(self, gcode: str) -> bool:
+        """Run a custom G-code command on the printer."""
+        try:
+            logger.info("Running custom G-code...")
+            return self.printer.gcode(gcode=gcode, gcode_check=False)
+        except ValueError as e:
+            logger.exception(e)
+            return False
+        
+    def start_timelapse(self) -> bool:
+        if self.printer.mqtt_client.set_onboard_printer_timelapse(enable=True):
+            logger.info("Timelapse started successfully.")
+            return True
+        else:
+            logger.error("Failed to start timelapse.")
+            return False
+        
+    def stop_timelapse(self) -> bool:
+        if self.printer.mqtt_client.set_onboard_printer_timelapse(enable=False):
+            logger.info("Timelapse stopped successfully.")
+            return True
+        else:
+            logger.error("Failed to stop timelapse.")
+            return False
 
-    def prepare_for_photo(self):
+    def take_photo(self) -> bool:
         gcode = [
+            "M204 S[default_acceleration]",
             "G92 E0",
             "G17",
-            "G2 Z{layer_z + 0.4} I0.86 J0.86 P1 F20000 ; spiral lift a little",
+            "G2 Z{layer_z + 0.4} I0.86 J0.86 P1 F20000", # Spiral lift a little
             "G1 Z{max_layer_z + 0.4}",
-            "G1 X-48.2 Y128 F18000 ; move to safe pos",
-            "M400 P1700",
-            "G1 X-28.2 F18000",
-            "G1 X-48.2 F18000 ; move to safe pos",
-            "G1 X-28.2 F18000",
-            "G1 X-48.2 F18000 ; move to safe pos",
-            "G1 X-28.2 F18000",
-            "G1 X-48.2 F18000 ; move to safe pos",
-            "G1 X-28.2 F18000",
+            "G1 X-48 Y128 F42000", # Move print head out of the way
+            "G1 X-28 F18000", # Clean up the nozzle
+            "G1 X-47 F18000",
+            "G1 X-28 F18000",
+            "G1 X-47 F18000",
+            "G1 X-28 F18000",
+            "G1 X-47 F18000",
+            "G1 X-28 F18000",
+            "G1 X128 F42000" # Move print head back to the middle
         ]
 
         try:
-            if self.gcode_status == "RUNNING" and self.status == "PRINTING":
+            if self.gcode_status == "RUNNING":
                 logger.info("Preparing for photo...")
                 return self.printer.gcode(gcode=gcode, gcode_check=False)
+            else:
+                return False
         except ValueError as e:
             logger.exception(e)
+            return False
+
 
     def to_dict(self) -> dict:
         """Return all @property values automatically."""
@@ -107,6 +149,18 @@ class BambuHandler:
         }
         return {name: getattr(self, name) for name in props}
 
+    @property
+    def running_and_printing(self) -> bool:
+        """
+        Check if the printer is currently printing and and gcode status is running.
+        Returns True if both conditions are met, False otherwise.
+        """
+        try:
+            return self.gcode_status == "RUNNING" and self.status == "PRINTING"
+        except ValueError as e:
+            logger.exception(e)
+            return False
+        
     @property
     def bed_temperature(self) -> (float | None):
         """Current bed temperature (°C)."""

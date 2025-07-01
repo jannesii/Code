@@ -1,12 +1,9 @@
-;===== A1 20240913 =======================
+;===== A1 20250206 =======================
+M1002 gcode_claim_action : 4
 M1007 S0 ; turn off mass estimation
 G392 S0
 M620 S[next_extruder]A
 M204 S9000
-{if toolchange_count > 1}
-G17
-G2 Z{max_layer_z + 0.4} I0.86 J0.86 P1 F10000 ; spiral lift a little from second lift
-{endif}
 G1 Z{max_layer_z + 3.0} F1200
 
 M400
@@ -16,16 +13,6 @@ M106 P2 S0
 M104 S[old_filament_temp]
 {endif}
 
-G1 X-38.2 F18000
-G1 X-48.2 F3000
-G1 X-38.2 F18000 ;wipe and shake
-G1 X-48.2 F3000
-G1 X-38.2 F12000 ;wipe and shake
-G1 X-48.2 F3000
-G1 X-38.2 F12000 ;wipe and shake
-G1 X-48.2 F3000
-
-M400
 G1 X267 F18000
 
 {if long_retractions_when_cut[previous_extruder]}
@@ -93,11 +80,11 @@ M400
 M106 P1 S178
 M400 S3
 G1 X-38.2 F18000
-G1 X-48.2 F3000
+G1 X-47 F3000
 G1 X-38.2 F18000
-G1 X-48.2 F3000
+G1 X-47 F3000
 G1 X-38.2 F18000
-G1 X-48.2 F3000
+G1 X-47 F3000
 M400
 M106 P1 S0
 {endif}
@@ -126,11 +113,11 @@ M400
 M106 P1 S178
 M400 S3
 G1 X-38.2 F18000
-G1 X-48.2 F3000
+G1 X-47 F3000
 G1 X-38.2 F18000
-G1 X-48.2 F3000
+G1 X-47 F3000
 G1 X-38.2 F18000
-G1 X-48.2 F3000
+G1 X-47 F3000
 M400
 M106 P1 S0
 {endif}
@@ -159,11 +146,11 @@ M400
 M106 P1 S178
 M400 S3
 G1 X-38.2 F18000
-G1 X-48.2 F3000
+G1 X-47 F3000
 G1 X-38.2 F18000
-G1 X-48.2 F3000
+G1 X-47 F3000
 G1 X-38.2 F18000
-G1 X-48.2 F3000
+G1 X-47 F3000
 M400
 M106 P1 S0
 {endif}
@@ -197,46 +184,28 @@ M400
 M106 P1 S178
 M400 S3
 G1 X-38.2 F18000
-M400 P50
-G1 X-48.2 F3000
+G1 X-47 F3000
 G1 X-38.2 F18000
-M400 P50
-G1 X-48.2 F3000
+G1 X-47 F3000
 G1 X-38.2 F18000
-M400 P50
-G1 X-48.2 F3000
+G1 X-47 F3000
 G1 X-38.2 F18000
-M400 P50
-G1 X-48.2 F3000
+G1 X-47 F3000
 M400
 G1 Z{max_layer_z + 3.0} F3000
 M106 P1 S0
+{if layer_z <= (initial_layer_print_height + 0.001)}
+M204 S[initial_layer_acceleration]
+{else}
+M204 S[default_acceleration]
+{endif}
+{else}
+G1 X[x_after_toolchange] Y[y_after_toolchange] Z[z_after_toolchange] F12000
+{endif}
 
 M622.1 S0
 M9833 F{outer_wall_volumetric_speed/2.4} A0.3 ; cali dynamic extrusion compensation
 M1002 judge_flag filament_need_cali_flag
-{if layer_z <= (initial_layer_print_height + 0.001)}
-M204 S[default_acceleration]
-M622 J1
-  G92 E0
-  G1 E-[new_retract_length_toolchange] F1800
-  M400
-  M106 P1 S178
-  M400 S4
-  G1 X-38.2 F18000
-  G1 X-48.2 F3000
-  G1 X-38.2 F18000
-  G1 X-48.2 F3000
-  G1 X-38.2 F18000
-  G1 X-48.2 F3000
-  G1 X-38.2 F18000
-  G1 X-48.2 F3000
-  M400
-  M106 P1 S0 
-M623
-M204 S[initial_layer_acceleration]
-{else}
-M204 S[default_acceleration]
 M622 J1
   G92 E0
   G1 E-[new_retract_length_toolchange] F1800
@@ -245,43 +214,17 @@ M622 J1
   M106 P1 S178
   M400 S4
   G1 X-38.2 F18000
-  G1 X-48.2 F3000
-  G1 X-38.2 F18000
-  G1 X-48.2 F3000
-  G1 X-38.2 F18000
-  G1 X-48.2 F3000
-  G1 X-38.2 F18000
-  G1 X-48.2 F3000
+  G1 X-47 F3000
+  G1 X-38.2 F18000 ;wipe and shake
+  G1 X-47 F3000
+  G1 X-38.2 F12000 ;wipe and shake
+  G1 X-47 F3000
   M400
   M106 P1 S0 
 M623
-{endif}
-{else}
-M204 S[default_acceleration]
-M622 J1
-  G92 E0
-  G1 E-[new_retract_length_toolchange] F1800
-  M400
-  
-  M106 P1 S178
-  M400 S4
-  G1 X-38.2 F18000
-  G1 X-48.2 F3000
-  G1 X-38.2 F18000
-  G1 X-48.2 F3000
-  G1 X-38.2 F18000
-  G1 X-48.2 F3000
-  G1 X-38.2 F18000
-  G1 X-48.2 F3000
-  M400
-  M106 P1 S0 
-M623
-
-G1 X[x_after_toolchange] Y[y_after_toolchange] Z[z_after_toolchange] F12000
-{endif}
-
 
 M621 S[next_extruder]A
 G392 S0
 
 M1007 S1
+M1002 gcode_claim_action : 0

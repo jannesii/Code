@@ -4,9 +4,11 @@ import sys
 import json
 import base64
 import logging
+import tempfile
 import threading
 import signal
 from typing import Optional
+from time import sleep
 
 import requests
 import re
@@ -28,16 +30,18 @@ class StatusReporter:
         self,
         session: TimelapseSession,
         dht: DHT22Sensor,
-        logger: logging.Logger
     ) -> None:
         """
         session: TimelapseSession instance
         dht: DHT22Sensor instance for readings
         """
+        self._is_windows = os.name == "nt"
+        
         self.session = session
         self.dht = dht
         self.printer = BambuHandler()
 
+        self.server = os.getenv("SERVER", "http://127.0.0.1:5555")
         self.rest = requests.Session()
         self._login()
 
@@ -46,7 +50,7 @@ class StatusReporter:
         self.sio.on('disconnect', self.on_disconnect)
         self.sio.on('error',      self.on_error)
         self.sio.on('timelapse_conf', self.on_config)
-        self.sio.on('printerActionRedirect', self.on_printer_action)
+        self.sio.on('printerAction', self.on_printer_action)
         self.status_interval = None
         self.temphum_interval = None
         self.image_interval = None
@@ -60,16 +64,21 @@ class StatusReporter:
         if conf:
             self.on_config(conf)
 
-        pid_file = '/tmp/server.pid'
-        try:
-            with open(pid_file) as f:
-                self.pid = int(f.read().strip())
-        except Exception as e:
-            logging.error(f"Could not read PID file {pid_file}: {e}")
+        self.tmp_dir = tempfile.gettempdir()
+        self.jpg_path = os.path.join(self.tmp_dir, "preview.jpg")
+
+        if not self._is_windows:
+            pid_file = os.path.join(self.tmp_dir, "server.pid")
+            try:
+                with open(pid_file) as f:
+                    self.pid = int(f.read().strip())
+                logger.debug(f"Read PID {self.pid} from {pid_file}")
+            except Exception as e:
+                logger.error(f"Could not read PID file {pid_file}: {e}")
 
     def _login(self) -> None:
         """Authenticate via HTTP to obtain session cookies (with CSRF)."""
-        login_url = f"{os.getenv('SERVER')}/login"
+        login_url = f"{self.server}/login"
 
         # 1) GET login page to set cookie and grab CSRF token
         resp_get = self.rest.get(login_url)
@@ -89,8 +98,8 @@ class StatusReporter:
 
         # 3) POST credentials + CSRF
         payload = {
-            "username": os.getenv("RASPI_USERNAME"),
-            "password": os.getenv("RASPI_PASSWORD"),
+            "username": os.getenv("RASPI_USERNAME", "admin"),
+            "password": os.getenv("RASPI_PASSWORD", "admin"),
             "csrf_token": token,
         }
         headers = {"Referer": login_url}
@@ -102,10 +111,10 @@ class StatusReporter:
         )
         if resp_post.status_code != 200 or "Invalid credentials" in resp_post.text:
             logger.error(
-                "StatusReporter: login failed: %s", resp_post.text)
+                "login failed: %s", resp_post.text)
             sys.exit(1)
 
-        logger.info("StatusReporter: logged in")
+        logger.info("logged in")
 
     def connect(self) -> None:
         """
@@ -115,7 +124,7 @@ class StatusReporter:
         cookies = "; ".join(
             f"{k}={v}" for k, v in self.rest.cookies.get_dict().items())
         self.sio.connect(
-            os.getenv("SERVER"),
+            self.server,
             headers={"Cookie": cookies},
             transports=["websocket", "polling"]
         )
@@ -124,20 +133,22 @@ class StatusReporter:
         threading.Thread(target=self._image_loop, daemon=True).start()
 
         # hook timelapse capture to immediate send
-        self.session.image_callback = self.send_image
+        self.session.image_callback = self.save_jpg_and_signal
 
     def _status_loop(self) -> None:
         """Periodically emit the current timelapse status."""
         while True:
             try:
-                self.sio.emit('status', self.printer.to_dict())
+                data = self.printer.to_dict()
+                data['timelapse_status'] = self.session.active
+                self.sio.emit('status', data)
             except Exception:
-                logger.exception("StatusReporter: error sending status")
+                logger.exception("error sending status")
 
             woke = self._status_event.wait(timeout=self.status_interval)
             if woke:
                 logger.info(
-                    "StatusReporter: status interval updated, resetting wait")
+                    "status interval updated, resetting wait")
             self._status_event.clear()
 
     def _temphum_loop(self) -> None:
@@ -147,12 +158,12 @@ class StatusReporter:
                 data = self.dht.read()
                 self.sio.emit('temphum', data)
             except Exception:
-                logger.exception("StatusReporter: error sending temphum")
+                logger.exception("error sending temphum")
 
             woke = self._temphum_event.wait(timeout=self.temphum_interval)
             if woke:
                 logger.info(
-                    "StatusReporter: temphum interval updated, resetting wait")
+                    "temphum interval updated, resetting wait")
             self._temphum_event.clear()
 
     def _image_loop(self) -> None:
@@ -161,67 +172,127 @@ class StatusReporter:
         """
         while True:
             try:
-                if not self.session.active:
+                if not self.session.active or self.printer.status != "PRINTING":
                     threading.Thread(
                         target=self.session._blink_red_led, args=(True, 0.2)).start()
                     jpeg = self.session.camera.capture_frame()
                     if jpeg:
-                        with open("/tmp/preview.jpg", "wb") as f:
+                        with open(self.jpg_path, "wb") as f:
                             f.write(jpeg)
                         self.send_signal()
-                        # self.send_image(jpeg)
             except Exception:
-                logger.exception("StatusReporter: error in image loop")
+                logger.exception("error in image loop")
 
             woke = self._image_event.wait(timeout=self.image_interval)
             if woke:
                 logger.info(
-                    "StatusReporter: image interval updated, resetting wait")
+                    "image interval updated, resetting wait")
             self._image_event.clear()
 
-    def send_image(self, jpeg_bytes: bytes) -> None:
-        """
-        Emit a base64-encoded image over Socket.IO.
-        """
+    def _timelapse_loop(self) -> None:
+        """Continuously check for layer changes and capture images."""
+        logger.info("Starting timelapse loop")
+        printer_initialized = False
+        self.stop_by_user = False
+        while self.session.active and self.printer.gcode_status in ["RUNNING", "PAUSE"]:
+            if self.printer.running_and_printing and not printer_initialized:
+                logger.info("Printer initialized, starting timelapse session")
+                printer_initialized = True
+            status = self.printer.status
+            if status != "PRINTING" and printer_initialized:
+                if status not in ["CHANGING FILAMENT", "M400 PAUSE"]:
+                    logger.info("Printer is not printing, stopping timelapse session")
+                    break
+            sleep(1)
+        if printer_initialized and not self.stop_by_user:
+            logger.info("Stopping timelapse session due to printer state change")
+            self.session.stop(create_video=True)
+        elif not printer_initialized:
+            self.session.stop(create_video=False)
+            logger.info("Timelapse session ended, printer not printing")
+
+    def save_jpg_and_signal(self, data: bytes) -> None:
+        """Save a preview image to disk so server can read it."""
         try:
-            payload = base64.b64encode(jpeg_bytes).decode('utf-8')
-            self.sio.emit('image', {'image': payload})
+            with open(self.jpg_path, "wb") as f:
+                f.write(data)
+            self.send_signal()
         except Exception:
-            logger.exception("StatusReporter: error sending image")
+            logger.exception("error saving image")
 
     def send_signal(self) -> None:
         try:
-            os.kill(self.pid, signal.SIGUSR1)
-            logging.info(f"Sent SIGUSR1 to server process {self.pid}")
+            if self._is_windows:
+                sig = "SOCKETIO_IMAGE"
+                self.sio.emit('image')
+            else:
+                sig = "SIGUSR1"
+                os.kill(self.pid, signal.SIGUSR1)
+                logger.info(f"Sent {sig} to server process {self.pid}")
         except Exception as e:
-            logging.error(f"Error sending SIGUSR1: {e}")
+            logger.exception(f"Error sending {sig}: {e}")
 
     def on_connect(self) -> None:
         """Socket.IO connect handler."""
-        logger.info("StatusReporter: connected to server")
+        logger.info("connected to server")
 
     def on_disconnect(self) -> None:
         """Socket.IO disconnect handler."""
-        logger.info("StatusReporter: disconnected from server")
+        logger.info("disconnected from server")
 
     def on_error(self, data: dict) -> None:
         """Socket.IO error handler."""
-        logger.error("StatusReporter: server error: %s", data)
+        logger.error("server error: %s", data)
 
     def on_printer_action(self, data: dict) -> None:
+        logger.info("Received printer action data: %s", data)
         action = data.get("action")
-        if action not in ['pause', 'resume', 'stop', 'home']:
-            logger.error("StatusReporter: invalid printer action: %s", action)
+        if action not in ['pause', 'resume', 'stop', 'home', 
+                          'timelapse_start', 'timelapse_stop',
+                          'run_gcode']:
+            logger.error("invalid printer action: %s", action)
             return
+        return_data = {}
         if action == 'pause':
-            result = self.printer.pause_print()
+            result = self.printer.test()
         elif action == 'resume':
             result = self.printer.resume_print()
         elif action == 'stop':
             result = self.printer.stop_print()
         elif action == 'home':
             result = self.printer.home_printer()
+        elif action == 'timelapse_start':
+            result = False
+            if not self.session.active:
+                logger.info("Starting timelapse session")
+                self.printer.start_timelapse()
+                result = self.session.start()
+            threading.Thread(target=self._timelapse_loop, daemon=True).start()
+            return_data['timelapse_status'] = self.session.active
+        elif action == 'timelapse_stop':
+            result = False
+            self.stop_by_user = False
+            if self.session.active:
+                logger.info("Stopping timelapse session by user request")
+                self.printer.stop_timelapse()
+                result = self.session.stop(create_video=True)
+            return_data['timelapse_status'] = self.session.active
+        elif action == 'run_gcode':
+            self.stop_by_user = True
+            gcode = data.get('gcode')
+            logger.info("Running G-code: %s", gcode)
+            if not gcode:
+                logger.error("No G-code provided for run_gcode action")
+                return
+            try:
+                result = self.printer.run_gcode(gcode=gcode)
+            except ValueError as e:
+                logger.exception("Error running G-code: %s", e)
+                result = False
         
+        if return_data:
+            self.sio.emit('status', return_data)
+
         logger.info("Printer action %s result: %s", action, result)
         self.sio.emit('printerAction', {'action': action, 'result': result})
 
@@ -243,7 +314,7 @@ class StatusReporter:
                 self.temphum_interval = data['temphum_delay']
                 changed.append("_temphum_event")
 
-            logger.info("StatusReporter: config updated %r, changed: %s",
+            logger.info("config updated %r, changed: %s",
                              data, changed)
             # wake up any sleeping loops so they pick up the new value immediately
             if "_status_event" in changed:
@@ -254,25 +325,25 @@ class StatusReporter:
                 self._image_event.set()
 
         except KeyError as e:
-            logger.warning("StatusReporter: invalid config key %s", e)
+            logger.warning("invalid config key %s", e)
 
     def get_config(self) -> Optional[dict]:
         """
         Return the current configuration settings.
         """
-        url = f"{os.getenv('SERVER')}/api/timelapse_config"
+        url = f"{self.server}/api/timelapse_config"
 
         resp = self.rest.get(url)
         if resp.status_code == 200:
             try:
                 data = resp.json()
-                logger.info("StatusReporter: config retrieved %r", data)
+                logger.info("config retrieved %r", data)
                 return data
             except json.JSONDecodeError:
                 logger.error(
-                    "StatusReporter: error decoding JSON response")
+                    "error decoding JSON response")
         else:
             logger.error(
-                "StatusReporter: failed to retrieve config, status code: %d", resp.status_code)
+                "failed to retrieve config, status code: %d", resp.status_code)
             return None
         return None

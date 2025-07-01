@@ -15,7 +15,6 @@ class ButtonHandler:
         button: Button,
         timeout: float,
         callbacks: Dict[int, Callable[[], None]],
-        logger: logging.Logger
     ) -> None:
         """
         button: gpiozero.Button instance
@@ -41,7 +40,7 @@ class ButtonHandler:
         delta = now - self.last_time if self.last_time else 0.0
         self.last_time = now
         self.count += 1
-        logger.info("ButtonHandler: Δ%.2fs, count=%d", delta, self.count)
+        logger.info("Δ%.2fs, count=%d", delta, self.count)
         if self.timer:
             self.timer.cancel()
         self.timer = threading.Timer(self.timeout, self._process)
@@ -55,14 +54,14 @@ class ButtonHandler:
         cb = self.callbacks.get(self.count)
         if cb:
             logger.info(
-                "ButtonHandler: invoking callback for count %d", self.count)
+                "invoking callback for count %d", self.count)
             try:
                 cb()
             except Exception:
-                logger.exception("ButtonHandler: callback error")
+                logger.exception("callback error")
         else:
             logger.info(
-                "ButtonHandler: no action for count %d", self.count)
+                "no action for count %d", self.count)
         self.count = 0
 
     def cancel(self) -> None:

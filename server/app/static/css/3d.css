@@ -75,32 +75,120 @@ border-radius: 10px;
 }
 
 /* shared look */
-.control-btn{
-  padding:12px 0;
+.control-btn,
+.control-btn-status{
+  padding:12px 12px;
   font-size:1em;
   font-weight:600;
   border:none;
   border-radius:8px;
   cursor:pointer;
-  transition:transform .15s ease, box-shadow .15s ease;
+  transition:transform .3s ease, box-shadow .3s ease, background-color 0.3s ease;
   color:#fff;
   text-transform:uppercase;
   letter-spacing:.5px;
 }
-.control-btn:hover{
-  transform:translateY(-2px);
+.control-btn:hover,
+.control-btn-status:hover{
+  transform: scale(1.05);
   box-shadow:0 4px 10px rgba(0,0,0,.4);
 }
-.control-btn:active{
-  transform:translateY(0);
+.control-btn:active,
+.control-btn-status:active{
+  transform:scale(1);
   box-shadow:none;
 }
 
 /* colour‑coding */
 .pause-btn {background:#e6a700;}   /* amber  */
+.pause-btn:hover {background:#a87e00;} /* darker amber */
 .resume-btn{background:#148b21;}   /* green  */
+.start-btn{background:#148b21;}   /* green  */
+.resume-btn:hover, .start-btn:hover{background:#0a5e14;} /* darker green */
 .stop-btn  {background:#c01221;}   /* red    */
+.stop-btn:hover  {background:#860000;}   /* darker red */
 .home-btn  {background:#006cbd;}   /* blue   */
+.home-btn:hover  {background:#004a8b;}   /* darker blue */
+.gcode-btn  {background:#7800bd;}   /* blue   */
+
+/* ─── timelapse control bar ──────────────────────────────────────────── */
+.timelapse-bar{
+  grid-column:1 / -1;            /* span all 3 columns of the parent grid */
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:20px;
+  margin-bottom:20px;
+  margin-top: 20px;
+}
+.timelapse-status-bar{
+  grid-column:1 / -1;            /* span all 3 columns of the parent grid */
+  display:grid;
+  grid-template-columns:repeat(1,1fr);
+  gap:20px;
+  margin-bottom:20px;
+  margin-top: 20px;
+}
+/* ─── G‑code tile ─────────────────────────────────────────── */
+.gcode-tile{
+  grid-column:1 / -1;               /* span the full parent width        */
+  background:#1e1e1e;
+  border:1px solid #333;
+  border-radius:10px;
+  padding:25px;
+  display:grid;
+  grid-template-columns:1fr auto;   /* textarea takes the free space     */
+  gap:20px;
+  align-items:start;                /* top‑align so both start together  */
+}
+
+/* Let the textarea fill its grid cell neatly */
+.gcode-tile .textarea{
+  width:100%;
+  min-height:50px;                 /* tweak to taste                    */
+  resize:vertical;                  /* keep the user’s resize handle */
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #333;
+  background-color: #272727;
+  color: #fff;
+  font-family: monospace;
+  font-size: 1em;
+}
+
+/* Mobile: stack textarea above the button */
+@media(max-width:600px){
+  .gcode-tile{
+    grid-template-columns:1fr;      /* single column                     */
+  }
+}
+/* ─── autocomplete dropdown ─────────────────────────────────── */
+.gcode-tile{ position:relative; }               /* allow abs‑pos children */
+
+.autocomplete-list{
+  display:none;               /* toggled in JS           */
+  position:absolute;
+  top:calc(100% - 10px);      /* hugs bottom of textarea */
+  left:0; right:0;
+  max-height:200px;
+  overflow-y:auto;
+  margin:0; padding:0;
+  list-style:none;
+  background:#1e1e1e;
+  border:1px solid #333;
+  border-top:none;
+  border-radius:0 0 8px 8px;
+  z-index:20;
+}
+.autocomplete-item{
+  padding:8px 14px;
+  cursor:pointer;
+  user-select:none;
+}
+.autocomplete-item:hover,
+.autocomplete-item.active{
+  background:#272727;
+}
+
 
 
 /* ─── layout tweaks ─────────────────────────────────────────────── */
@@ -128,6 +216,10 @@ gap: 20px;
 .status-tile[data-state="PRINTING"]{background:#0a4;}
 .status-tile[data-state="PAUSED"]  {background:#640;}
 .status-tile[data-state="ERROR"]   {background:#800;}
+
+.gcode-status-tile[data-state="RUNNING"]{background:#0a4;}
+.gcode-status-tile[data-state="PAUSED"]  {background:#640;}
+.gcode-status-tile[data-state="FAILED"]   {background:#800;}
 
 /* Responsiivisuus: jos näyttö on kapea, aseta data ruudukko yhdelle sarakkeelle */
 @media (max-width: 600px) {

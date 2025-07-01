@@ -54,6 +54,11 @@ class DatabaseManager:
                 'image_delay INTEGER NOT NULL,'
                 'temphum_delay INTEGER NOT NULL,'
                 'status_delay INTEGER NOT NULL'
+            ),
+            'gcode_commands': (
+                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+                'timestamp TEXT NOT NULL, '
+                'gcode TEXT NOT NULL'
             )
         }
         for name, schema in tables.items():

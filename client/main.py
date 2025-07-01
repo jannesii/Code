@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 import logging
+import os
 
 
 from src import execute_main_loop
 
 logging.basicConfig(
-    level=logging.DEBUG,      # show INFO+ from the root
+    level=logging.INFO,      # show INFO+ from the root
     format="%(asctime)s %(name)s %(levelname)s: %(message)s",
     datefmt="%H:%M:%S"
 )
+logging.getLogger("socketio.client").setLevel(logging.WARNING)
 
 if __name__ == "__main__":
     execute_main_loop()
