@@ -51,9 +51,7 @@ class CameraManager:
         else:
             # ----- Raspberry Pi path -----
             self.picam2 = Picamera2()  # type: ignore[reportMissingImports]
-            config = self.picam2.create_still_configuration(
-                main={"size": resolution}
-            )
+            config = self.picam2.create_still_configuration()
             self.picam2.configure(config)
             self.picam2.start_preview()
             self.picam2.start()

@@ -1,49 +1,73 @@
 import json
-import paramiko
 import os
 import time
+import paramiko
+from pathlib import Path
 
-# Load configuration data from JSON file.
-with open('config.json', 'r') as config_file:
-    config = json.load(config_file)
+# ─── Load configuration ────────────────────────────────────────────────
+with open("client/config.json", "r") as f:
+    cfg = json.load(f)
 
-RASPI_HOST = config["raspi_host"]
-RASPI_PORT = config["raspi_port"]
-USERNAME = config["username"]
-PASSWORD = config["password"]
-REMOTE_FOLDERS = config["remote_folders"]
+HOST          = cfg["raspi_host"]
+PORT          = cfg.get("raspi_port", 22)
+USERNAME      = cfg["username"]
 
-POLL_INTERVAL = config.get("poll_interval", 10)  # seconds, default to 10
+# Path to your private key (absolute or ~ expanded)
+KEY_PATH      = Path(cfg.get("private_key_path", "~/.ssh/pi_key")).expanduser()
+KEY_PASSPHRASE= cfg.get("private_key_passphrase")  # None if key is un‑encrypted
 
+REMOTE_FOLDERS= cfg["remote_folders"]
+POLL_INTERVAL = cfg.get("poll_interval", 10)       # seconds
+
+# ─── Helper ────────────────────────────────────────────────────────────
+def ensure_local_dir(remote_folder: str) -> Path:
+    """
+    Creates a matching local sub‑directory (basename of the parent folder)
+    and returns the absolute path.
+      e.g. "/home/pi/gcodes/out/" ➜ "./gcodes"
+    """
+    local_dir = Path.cwd() / Path(remote_folder).parent.name
+    local_dir.mkdir(exist_ok=True)
+    return local_dir
+
+# ─── Main transfer routine ─────────────────────────────────────────────
 def transfer_files():
-    transport = paramiko.Transport((RASPI_HOST, RASPI_PORT))
-    transport.connect(username=USERNAME, password=PASSWORD)
-    sftp = paramiko.SFTPClient.from_transport(transport)
+    # Key‑based login
+    pkey = paramiko.Ed25519Key.from_private_key_file(KEY_PATH)
+
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     try:
-        for REMOTE_FOLDER in REMOTE_FOLDERS:
-            remote_files = sftp.listdir(REMOTE_FOLDER)
-            if not remote_files:
-                print("No files found.")
-            for file_name in remote_files:
-                remote_file_path = os.path.join(REMOTE_FOLDER, file_name)
-                local_file_path = os.path.join(os.getcwd(), REMOTE_FOLDER.split("/")[-2], file_name)
-                print(f"Transferring {file_name}...")
-                sftp.get(remote_file_path, local_file_path)
-                print(f"{file_name} transferred to local machine.")
-                
-                # Remove remote file after successful download
-                print(f"Deleting {file_name} on Raspberry Pi...")
-                sftp.remove(remote_file_path)
-                print(f"{file_name} deleted on Raspberry Pi.\n")
-    except Exception as e:
-        print(f"An error occurred: {e}")
-    finally:
-        sftp.close()
-        transport.close()
+        ssh.connect(HOST, port=PORT, username=USERNAME, pkey=pkey)
+        with ssh.open_sftp() as sftp:
+            for remote_folder in REMOTE_FOLDERS:
+                try:
+                    remote_files = sftp.listdir(remote_folder)
+                except FileNotFoundError:
+                    print(f"⚠️  Remote folder not found: {remote_folder}")
+                    continue
 
-if __name__ == '__main__':
+                if not remote_files:
+                    print(f"📂 {remote_folder}: no files.")
+                    continue
+
+                local_dir = ensure_local_dir(remote_folder)
+
+                for fname in remote_files:
+                    r_path = f"{remote_folder}/{fname}"
+                    l_path = local_dir / fname
+                    print(f"⬇️  Downloading {r_path} → {l_path}")
+                    sftp.get(r_path, str(l_path))
+                    print("✅  Transfer complete; deleting remote copy…")
+                    sftp.remove(r_path)
+    except Exception as exc:
+        print("❗ Error:", exc)
+    finally:
+        ssh.close()
+
+# ─── Poll loop ─────────────────────────────────────────────────────────
+if __name__ == "__main__":
     while True:
         transfer_files()
-        break
         time.sleep(POLL_INTERVAL)
