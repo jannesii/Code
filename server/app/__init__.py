@@ -44,7 +44,7 @@ def create_app():
             raise RuntimeError("RATE_LIMIT_WHITELIST isn’t valid JSON list")
     else:
         whitelist = []
-        
+    logger.info("Rate limit whitelist: %s", whitelist)
     # ─── Flask app & config ───
     app = Flask(__name__)
     app.config.update(
