@@ -69,7 +69,7 @@ class BambuHandler:
             return False
 
     def stop_print(self):
-        if self.printer.stop_print():
+        if self.printer.stop_print() and self.run_gcode("M1002 gcode_claim_action : 255"):
             logger.info("Print stopped successfully.")
             return True
         else:
