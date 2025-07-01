@@ -1,40 +1,44 @@
 import os
+import tempfile
 import signal
 import logging
+# Choose a “user” signal that is present on both platforms
+if os.name == "nt":              # Windows
+    USER_SIGNAL = signal.SIGBREAK      # handled with Ctrl+Break
+    USER_KILL = signal.CTRL_BREAK_EVENT  # value to pass to os.kill
+else:                             # Linux / macOS
+    USER_SIGNAL = signal.SIGUSR1
+    USER_KILL = USER_SIGNAL
+
+logger = logging.getLogger(__name__)
+
 
 class SignalHandler:
-    """
-    Write our PID file and catch SIGUSR1.
-    When received, schedule a background task to emit the Socket.IO event.
-    """
-    def __init__(self, socketio, pid_file: str = '/tmp/server.pid') -> None:
+    def __init__(self, socketio) -> None:
         self.socketio = socketio
-        self.pid_file = pid_file
+        self.pid_file = os.path.join(
+            tempfile.gettempdir(), "server.pid"
+        )
         self._write_pid()
         self._register()
 
-    def _write_pid(self) -> None:
+    def _write_pid(self):
         pid = os.getpid()
-        with open(self.pid_file, 'w') as f:
+        with open(self.pid_file, "w") as f:
             f.write(str(pid))
-        logging.info(f"SignalHandler: Wrote server PID {pid} to {self.pid_file}")
+        logger.info("PID %s written to %s", pid, self.pid_file)
 
-    def _register(self) -> None:
-        signal.signal(signal.SIGUSR1, self._handle)
-        logging.info("SignalHandler: Registered SIGUSR1 handler")
+    def _register(self):
+        signal.signal(USER_SIGNAL, self._handle)   # <— works on both OSes
+        logger.info("Registered handler for %s", USER_SIGNAL.name)
 
-    def _handle(self, signum, frame) -> None:
-        logging.info(f"SignalHandler: Caught signal {signum!r}, scheduling emit")
-        # Schedule the actual emit in a background greenlet
+    def _handle(self, signum, frame):
+        logger.info("Caught %s, scheduling emit", signum)
         self.socketio.start_background_task(self._emit_server_signal)
 
-    def _emit_server_signal(self) -> None:
-        """
-        Runs in its own greenlet, so blocking Redis publish is safe.
-        """
+    def _emit_server_signal(self):
         try:
-            logging.debug("SignalHandler: Emitting 'image' event")
-            self.socketio.emit('image')
-            logging.info("SignalHandler: 'image' emitted successfully")
-        except Exception as e:
-            logging.error(f"SignalHandler: Error emitting signal: {e}")
+            self.socketio.emit("image")
+            logger.debug("'image' event emitted")
+        except Exception as exc:
+            logger.exception("Emit failed: %s", exc)

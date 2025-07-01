@@ -30,7 +30,8 @@ class DatabaseManager:
             'users': (
                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
                 'username TEXT UNIQUE NOT NULL, '
-                'password_hash TEXT NOT NULL'
+                'password_hash TEXT NOT NULL, '
+                'is_admin BOOLEAN NOT NULL DEFAULT FALSE'
             ),
             'temphum': (
                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
@@ -53,11 +54,27 @@ class DatabaseManager:
                 'image_delay INTEGER NOT NULL,'
                 'temphum_delay INTEGER NOT NULL,'
                 'status_delay INTEGER NOT NULL'
+            ),
+            'gcode_commands': (
+                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+                'timestamp TEXT NOT NULL, '
+                'gcode TEXT NOT NULL'
             )
         }
         for name, schema in tables.items():
             self.cursor.execute(f"CREATE TABLE IF NOT EXISTS {name} ({schema})")
-        
+            
+        # Insert default values for status and timelapse_conf if they don't exist
+        self.cursor.execute("""
+        INSERT OR IGNORE INTO status (id, timestamp, status)
+        VALUES (1, datetime('now'), 'IDLE')
+        """)
+
+        self.cursor.execute("""
+        INSERT OR IGNORE INTO timelapse_conf (id, image_delay, temphum_delay, status_delay)
+        VALUES (1, 5, 10, 15)
+        """)
+
         triggers = {
             'keep_only_last_10_images': """
             CREATE TRIGGER IF NOT EXISTS keep_only_last_10_images

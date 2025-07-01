@@ -521,18 +521,6 @@ M104 S{nozzle_temperature_initial_layer[initial_extruder]} ; prepare to print
 ;G1 Z1 F1200
 ;===== nozzle load line end ===========================
 
-M400
-G1 X-38.2 F18000
-G1 X-48.2 F3000
-;M400 P60
-G1 X-38.2 F18000
-G1 X-48.2 F3000
-;M400 P60
-G1 X-38.2 F18000
-G1 X-48.2 F3000
-;M400 P60
-G1 X108.000 Y-0.500 F30000
-
 ;===== extrude cali test ===============================
 
 M400
@@ -609,4 +597,3 @@ M211 X0 Y0 Z0 ;turn off soft endstop
 ;G392 S1 ; turn on clog detection
 M1007 S1 ; turn on mass estimation
 G29.4
-
