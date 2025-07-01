@@ -11,7 +11,7 @@ logging.basicConfig(
     datefmt="%H:%M:%S"
 )
 logging.getLogger("socketio.client").setLevel(logging.WARNING)
-logging.getLogger("picamera2").setLevel(logging.DEBUG)
+logging.getLogger("picamera2").setLevel(logging.INFO)
 
 if __name__ == "__main__":
     execute_main_loop()
