@@ -32,11 +32,12 @@ class BambuHandler:
         if self._initialized:
             return
         self._initialized = True
-        
+
         IP = os.getenv("BAMBU_IP")
         ACCESS_CODE = os.getenv("BAMBU_ACCESS_CODE")
         SERIAL = os.getenv("BAMBU_SERIAL")
-        logger.info(f"Connecting to Bambu printer at {IP} with serial {SERIAL} and access code {ACCESS_CODE}")
+        logger.info(
+            f"Connecting to Bambu printer at {IP} with serial {SERIAL} and access code {ACCESS_CODE}")
 
         self.printer = bl.Printer(IP, ACCESS_CODE, SERIAL)
 
@@ -48,7 +49,11 @@ class BambuHandler:
         logger.info("Printer connected!")
 
     def pause_print(self) -> bool:
-        if self.printer.pause_print():
+        pause_gcode = [
+            "M1002 gcode_claim_action : 5",
+            "M400 U1"
+        ]
+        if self.run_gcode(pause_gcode):
             logger.info("Print paused successfully.")
             return True
         else:
@@ -70,14 +75,7 @@ class BambuHandler:
         else:
             logger.error("Failed to stop print.")
             return False
-    def stop_print(self):
-        if self.printer.stop_print():
-            logger.info("Print stopped successfully.")
-            return True
-        else:
-            logger.error("Failed to stop print.")
-            return False
-        
+
     def home_printer(self):
         if self.printer.home_printer():
             logger.info("Printer homed successfully.")
@@ -85,7 +83,7 @@ class BambuHandler:
         else:
             logger.error("Failed to home printer.")
             return False
-        
+
     def run_gcode(self, gcode: str) -> bool:
         """Run a custom G-code command on the printer."""
         try:
@@ -94,7 +92,7 @@ class BambuHandler:
         except ValueError as e:
             logger.exception(e)
             return False
-        
+
     def start_timelapse(self) -> bool:
         if self.printer.mqtt_client.set_onboard_printer_timelapse(enable=True):
             logger.info("Timelapse started successfully.")
@@ -102,7 +100,7 @@ class BambuHandler:
         else:
             logger.error("Failed to start timelapse.")
             return False
-        
+
     def stop_timelapse(self) -> bool:
         if self.printer.mqtt_client.set_onboard_printer_timelapse(enable=False):
             logger.info("Timelapse stopped successfully.")
@@ -116,17 +114,18 @@ class BambuHandler:
             "M204 S[default_acceleration]",
             "G92 E0",
             "G17",
-            "G2 Z{layer_z + 0.4} I0.86 J0.86 P1 F20000", # Spiral lift a little
+            # Spiral lift a little
+            "G2 Z{layer_z + 0.4} I0.86 J0.86 P1 F20000",
             "G1 Z{max_layer_z + 0.4}",
-            "G1 X-48 Y128 F42000", # Move print head out of the way
-            "G1 X-28 F18000", # Clean up the nozzle
+            "G1 X-48 Y128 F42000",  # Move print head out of the way
+            "G1 X-28 F18000",  # Clean up the nozzle
             "G1 X-47 F18000",
             "G1 X-28 F18000",
             "G1 X-47 F18000",
             "G1 X-28 F18000",
             "G1 X-47 F18000",
             "G1 X-28 F18000",
-            "G1 X128 F42000" # Move print head back to the middle
+            "G1 X128 F42000"  # Move print head back to the middle
         ]
 
         try:
@@ -138,7 +137,6 @@ class BambuHandler:
         except ValueError as e:
             logger.exception(e)
             return False
-
 
     def to_dict(self) -> dict:
         """Return all @property values automatically."""
@@ -160,7 +158,7 @@ class BambuHandler:
         except ValueError as e:
             logger.exception(e)
             return False
-        
+
     @property
     def bed_temperature(self) -> (float | None):
         """Current bed temperature (°C)."""

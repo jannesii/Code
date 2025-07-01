@@ -254,7 +254,7 @@ class StatusReporter:
             return
         return_data = {}
         if action == 'pause':
-            result = self.printer.test()
+            result = self.printer.pause_print()
         elif action == 'resume':
             result = self.printer.resume_print()
         elif action == 'stop':
