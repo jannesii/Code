@@ -45,15 +45,9 @@ def execute_main_loop() -> None:
     dht = DHT22Sensor(DHT_PIN)
     reporter = StatusReporter(session, dht)
 
-    """ 3: session.start_and_stop,
-    4: session.pause_and_resume,
-    5: lambda: session.stop(create_video=False), """
-    callbacks: Dict[int, Callable[[], None]] = {
-        1: session.capture
-    }
     button = Button(CAPTURE_BUTTON_PIN, pull_up=True, bounce_time=0.01)
     handler = ButtonHandler(button, timeout=0.3,
-                            callbacks=callbacks)
+                            callbacks=session)
 
     reporter.connect()
 

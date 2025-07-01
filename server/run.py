@@ -9,7 +9,7 @@ logging.basicConfig(
     level=logging.INFO,
     datefmt="%H:%M:%S"
 )
-logging.getLogger("socketio.client").setLevel(logging.WARNING)
+logging.getLogger("socketio.server").setLevel(logging.WARNING)
 app, socketio = create_app()
 
 if os.name != 'nt':
