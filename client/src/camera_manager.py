@@ -94,9 +94,6 @@ class CameraManager:
                 if not ret:
                     raise RuntimeError("webcam read failed")
             else:
-                success = self.picam2.autofocus_cycle()
-                if not success:
-                    logger.warning("autofocus cycle failed, using last focus")
                 raw_rgb = self.picam2.capture_array()
                 # Convert to BGR for cv2.imencode
                 frame_bgr = cv2.cvtColor(raw_rgb, cv2.COLOR_RGB2BGR)
