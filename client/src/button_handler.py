@@ -14,7 +14,6 @@ class ButtonHandler:
     def __init__(
         self,
         button: Button,
-        timeout: float,
         session: TimelapseSession,
     ) -> None:
         """
@@ -23,9 +22,7 @@ class ButtonHandler:
         callbacks: map of press-count to function
         """
         self.button = button
-        self.timeout = timeout
         self.session = session
-        self.timer: Optional[threading.Timer] = None
         self.last_time = 0.0
 
         self.button.when_pressed = self._on_press

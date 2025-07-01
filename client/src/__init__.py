@@ -46,8 +46,7 @@ def execute_main_loop() -> None:
     reporter = StatusReporter(session, dht)
 
     button = Button(CAPTURE_BUTTON_PIN, pull_up=True, bounce_time=0.01)
-    handler = ButtonHandler(button, timeout=0.3,
-                            callbacks=session)
+    handler = ButtonHandler(button,session=session)
 
     reporter.connect()
 
