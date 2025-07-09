@@ -14,7 +14,7 @@ class SocketEventHandler:
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, socketio: SocketIO = None, ctrl: Controller = None):
+    def __init__(self, socketio: SocketIO, ctrl: Controller):
         if self._initialized:
             return
         self.socketio = socketio
@@ -34,18 +34,18 @@ class SocketEventHandler:
         if not current_user.is_authenticated:
             self.logger.warning("Socket connect refused: unauthenticated user")
             return False
-        self.logger.info("Client connected: %s", request.sid)
+        self.logger.info("Client connected: %s", request.sid) # type: ignore
 
     def handle_disconnect(self, *args):
         """Allow any positional args to avoid signature mismatch."""
-        self.logger.info("Client disconnected: %s", request.sid)
+        self.logger.info("Client disconnected: %s", request.sid) # type: ignore
 
     def flash(self, message, category):
         """Emit a flash message to the client."""
         self.socketio.emit('flash', {'category': category, 'message': message})
         self.logger.info("Flash message: %s (%s)", category, message)
 
-    def handle_image(self):
+    def handle_image(self, *args):
         self.socketio.emit('image')
         self.logger.debug("Emitted 'image' event")
 

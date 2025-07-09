@@ -57,6 +57,5 @@ def execute_main_loop() -> None:
     except KeyboardInterrupt:
         logger.info("Shutting down")
     finally:
-        handler.cancel()
         session.finalize()
         camera.shutdown()

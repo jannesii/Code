@@ -221,13 +221,14 @@ class StatusReporter:
             logger.exception("error saving image")
 
     def send_signal(self) -> None:
+        sig = ""
         try:
             if self._is_windows:
                 sig = "SOCKETIO_IMAGE"
                 self.sio.emit('image')
             else:
                 sig = "SIGUSR1"
-                os.kill(self.pid, signal.SIGUSR1)
+                os.kill(self.pid, signal.SIGUSR1) # type: ignore
                 logger.info(f"Sent {sig} to server process {self.pid}")
         except Exception as e:
             logger.exception(f"Error sending {sig}: {e}")
@@ -252,6 +253,7 @@ class StatusReporter:
                           'run_gcode']:
             logger.error("invalid printer action: %s", action)
             return
+        result = False
         return_data = {}
         if action == 'pause':
             result = self.printer.pause_print()

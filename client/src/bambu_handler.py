@@ -33,9 +33,9 @@ class BambuHandler:
             return
         self._initialized = True
 
-        IP = os.getenv("BAMBU_IP")
-        ACCESS_CODE = os.getenv("BAMBU_ACCESS_CODE")
-        SERIAL = os.getenv("BAMBU_SERIAL")
+        IP = os.getenv("BAMBU_IP", "default_ip")
+        ACCESS_CODE = os.getenv("BAMBU_ACCESS_CODE", "default_access_code")
+        SERIAL = os.getenv("BAMBU_SERIAL", "default_serial")
         logger.info(
             f"Connecting to Bambu printer at {IP} with serial {SERIAL} and access code {ACCESS_CODE}")
 
@@ -84,7 +84,7 @@ class BambuHandler:
             logger.error("Failed to home printer.")
             return False
 
-    def run_gcode(self, gcode: str) -> bool:
+    def run_gcode(self, gcode: str | list[str]) -> bool:
         """Run a custom G-code command on the printer."""
         try:
             logger.info("Running custom G-code...")
@@ -162,12 +162,14 @@ class BambuHandler:
     @property
     def bed_temperature(self) -> (float | None):
         """Current bed temperature (°C)."""
-        return round(self.printer.get_bed_temperature(), 2)
+        temp = self.printer.get_bed_temperature()
+        return round(temp if temp else 0.00, 2)
 
     @property
     def nozzle_temperature(self) -> (float | None):
         """Current nozzle temperature (°C)."""
-        return round(self.printer.get_nozzle_temperature(), 2)
+        temp = self.printer.get_nozzle_temperature()
+        return round(temp if temp else 0.00, 2)
 
     @property
     def file_name(self) -> str:

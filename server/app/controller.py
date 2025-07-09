@@ -1,4 +1,6 @@
 # controller.py
+import os
+import tempfile
 from typing import Optional, List
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -12,12 +14,12 @@ logger = logging.getLogger(__name__)
 
 
 class Controller:
-    def __init__(self, db_path: str = 'app.db'):
+    def __init__(self, db_path: str = os.getenv("DB_PATH", os.path.join(tempfile.gettempdir(), "timelapse.db"))):
         self.db = DatabaseManager(db_path)
         self.finland_tz = pytz.timezone('Europe/Helsinki')
 
     # --- User operations ---
-    def register_user(self, username: str, password: str = None, password_hash: str = None, is_admin: bool = False) -> User:
+    def register_user(self, username: str, password: str | None = None, password_hash: str | None = None, is_admin: bool = False) -> User:
         """
         Creates the user if it doesn't exist, or returns the existing one.
         Uses INSERT OR IGNORE to avoid UNIQUE errors, then SELECT to fetch.
@@ -25,7 +27,7 @@ class Controller:
         logger.info(f"Registering user: {username}")
 
         # 1) Hash the password up front
-        if password_hash is None:
+        if password_hash is None and password:
             pw_hash = generate_password_hash(password)
         elif password is None and password_hash is None:
             raise ValueError(

@@ -1,5 +1,6 @@
 # database.py
 import sqlite3
+from sqlite3 import Connection, Cursor
 import threading
 from typing import Any, List, Optional, Tuple
 
@@ -19,9 +20,9 @@ class DatabaseManager:
             return
         self._initialized = True
         self.db_path = db_path
-        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        self.conn: Connection = sqlite3.connect(self.db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
-        self.cursor = self.conn.cursor()
+        self.cursor: Cursor = self.conn.cursor()
         self._create_tables()
 
     def _create_tables(self) -> None:
@@ -110,7 +111,7 @@ class DatabaseManager:
         self,
         query: str,
         params: Tuple[Any, ...] = ()
-    ) -> None:
+    ) -> Cursor:
         self.cursor.execute(query, params)
         self.conn.commit()
         return self.cursor

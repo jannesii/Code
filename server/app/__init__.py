@@ -74,31 +74,31 @@ def create_app():
     db_path = os.getenv("DB_PATH", os.path.join(tempfile.gettempdir(), "timelapse.db"))
     if not db_path:
         raise RuntimeError("DB_PATH is missing – add to environment.")
-    app.ctrl = Controller(db_path)
+    app.ctrl = Controller(db_path) # type: ignore
     logger.info("Controller init: %s", db_path)
 
     # ─── Seed admin user ───
     try:
         if not _is_windows:
-            app.ctrl.register_user(
+            app.ctrl.register_user( # type: ignore
                 app.config["WEB_USERNAME"],
                 password_hash=app.config["WEB_PASSWORD"],
                 is_admin=True
             )
         else:
-            app.ctrl.register_user(
+            app.ctrl.register_user( # type: ignore
                 app.config["WEB_USERNAME"],
                 password=app.config["WEB_PASSWORD"],
                 is_admin=True
             )
         logger.info("Seeded admin user %s (is_admin=True)", app.config["WEB_USERNAME"])
     except ValueError:
-        app.ctrl.set_user_admin(app.config["WEB_USERNAME"], True)
+        app.ctrl.set_user_as_admin(app.config["WEB_USERNAME"], True) # type: ignore
         logger.info("Ensured %s has is_admin=True", app.config["WEB_USERNAME"])
 
     # ─── Flask-Login ───
     login_manager = LoginManager()
-    login_manager.login_view = "auth.login"
+    login_manager.login_view = "auth.login" # type: ignore
     login_manager.init_app(app)
     from .auth import load_user, AuthAnonymous
     login_manager.user_loader(load_user)
@@ -137,11 +137,11 @@ def create_app():
             ping_timeout=20,
             logger=True,
         )
-    app.socketio = socketio
+    app.socketio = socketio # type: ignore
     logger.info("Socket.IO ready (origins: %s)", allowed_ws_origins)
     # ─── Socket event handlers ───
     from .socket_handlers import SocketEventHandler
-    SocketEventHandler(socketio, app.ctrl)
+    SocketEventHandler(socketio, app.ctrl) # type: ignore
 
     # ─── Blueprints ───
     from .auth import auth_bp

@@ -4,6 +4,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, curren
 from flask_login import login_required, current_user
 from dataclasses import asdict
 from .utils import check_vals
+from .controller import Controller
 
 
 web_bp = Blueprint('web', __name__)
@@ -20,7 +21,7 @@ def get_home_page():
 @web_bp.route('/3d')
 @login_required
 def get_3d_page():
-    ctrl = current_app.ctrl
+    ctrl: Controller = current_app.ctrl # type: ignore
     logger.info("Rendering 3D page for %s", current_user.get_id())
     img = ctrl.get_last_image()
     th = ctrl.get_last_temphum()
@@ -43,7 +44,7 @@ def get_settings_page():
 @web_bp.route('/settings/add_user', methods=['GET', 'POST'])
 @login_required
 def add_user():
-    ctrl = current_app.ctrl
+    ctrl: Controller = current_app.ctrl # type: ignore
     if not current_user.is_admin:
         flash("Sinulla ei ole oikeuksia lisätä käyttäjiä.", "error")
         logger.warning("Non-admin user %s attempted to add user.", current_user.get_id())
@@ -68,7 +69,7 @@ def add_user():
 @web_bp.route('/settings/delete_user', methods=['GET', 'POST'])
 @login_required
 def delete_user():
-    ctrl = current_app.ctrl
+    ctrl: Controller = current_app.ctrl # type: ignore
     users = ctrl.get_all_users()
     if not current_user.is_admin:
         flash("Sinulla ei ole oikeuksia poistaa käyttäjiä.", "error")
@@ -108,7 +109,7 @@ def delete_user():
 @web_bp.route('/settings/timelapse_conf', methods=['GET', 'POST'])
 @login_required
 def timelapse_conf():
-    ctrl = current_app.ctrl
+    ctrl: Controller = current_app.ctrl # type: ignore
     vals = {}
     if not current_user.is_admin:
         flash("Sinulla ei ole oikeuksia muuttaa asetuksia.", "error")
@@ -133,7 +134,7 @@ def timelapse_conf():
                 return render_template('timelapse_conf.html', **vals)
             else:
                 ctrl.update_timelapse_conf(**vals)
-                current_app.socketio.emit('timelapse_conf', vals)
+                current_app.socketio.emit('timelapse_conf', vals) # type: ignore
                 flash("Timelapsen konfiguraatio päivitetty onnistuneesti.", "success")
                 logger.info("Timelapse updated %s by %s",
                             vals, current_user.get_id())
@@ -142,12 +143,13 @@ def timelapse_conf():
             flash(str(ve), "error")
             logger.warning("Invalid timelapse input: %s", ve)
     else:
-        conf = ctrl.get_timelapse_conf() or vals
-        vals = {
-            'image_delay':   conf.image_delay,
-            'temphum_delay': int(conf.temphum_delay/60),
-            'status_delay':  conf.status_delay
-        }
+        conf = ctrl.get_timelapse_conf() 
+        if conf:
+            vals = {
+                'image_delay':   conf.image_delay,
+                'temphum_delay': int(conf.temphum_delay/60),
+                'status_delay':  conf.status_delay
+            }
     return render_template(
         'timelapse_conf.html',
         **vals

@@ -174,7 +174,7 @@ class TimelapseSession:
                 h, w, _ = first.shape
                 writer = cv2.VideoWriter(
                     video_name,
-                    cv2.VideoWriter_fourcc(*"mp4v"),
+                    cv2.VideoWriter_fourcc(*"mp4v"), # type: ignore
                     fps,
                     (w, h)
                 )

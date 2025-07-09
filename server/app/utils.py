@@ -8,8 +8,8 @@ def check_vals(image_delay: int, temphum_delay: int, status_delay: int):
     """Check if the values are valid."""
     logger.debug("Checking values: image_delay=%s, temphum_delay=%s, status_delay=%s", image_delay, temphum_delay, status_delay)
     
+    ret = []
     try:
-        ret = []
         if (image_delay <= 0):
             msg, cat = "Kuvan viiveen on oltava suurempi kuin 0 sekuntia.", "error"
             ret.append({"msg": msg, "cat": cat})

@@ -59,10 +59,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── Timelapse status ──
     const timelapseStatusEl = document.getElementById('timelapseStatus');
 
-    function formatTime(sec){
-      const h = Math.floor(sec/3600).toString().padStart(2,'0');
-      const m = Math.floor(sec%3600/60).toString().padStart(2,'0');
-      const s = Math.floor(sec%60).toString().padStart(2,'0');
+    function formatTime(minutes) {
+      // convert minutes to total seconds
+      const totalSeconds = Math.floor(minutes * 60);
+
+      const h = Math.floor(totalSeconds / 3600)
+        .toString()
+        .padStart(2, '0');
+      const m = Math.floor((totalSeconds % 3600) / 60)
+        .toString()
+        .padStart(2, '0');
+      const s = Math.floor(totalSeconds % 60)
+        .toString()
+        .padStart(2, '0');
+
       return `${h}:${m}:${s}`;
     }
 

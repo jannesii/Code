@@ -7,7 +7,7 @@ from src import execute_main_loop
 
 logging.basicConfig(
     level=logging.INFO,      # show INFO+ from the root
-    format="%(asctime)s %(name)s %(levelname)s: %(message)s",
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     datefmt="%H:%M:%S"
 )
 logging.getLogger("socketio.client").setLevel(logging.WARNING)

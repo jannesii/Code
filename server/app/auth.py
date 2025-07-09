@@ -10,6 +10,7 @@ from flask_login import (
 )
 from flask_limiter.errors import RateLimitExceeded
 from app import limiter
+from .controller import Controller
 
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ class AuthAnonymous(AnonymousUserMixin):
 
 
 def load_user(user_id: str):
-    ctrl = current_app.ctrl
+    ctrl: Controller = current_app.ctrl # type: ignore
     user = ctrl.get_user_by_username(user_id)
     if user:
         is_admin = getattr(user, "is_admin", False)
@@ -64,7 +65,7 @@ def handle_rate_limit(e):
 )
 def login():
     logger.info("Accessed /login via %s", request.method)
-    ctrl = current_app.ctrl
+    ctrl: Controller = current_app.ctrl # type: ignore
 
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
