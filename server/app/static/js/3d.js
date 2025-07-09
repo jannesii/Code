@@ -60,20 +60,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const timelapseStatusEl = document.getElementById('timelapseStatus');
 
     function formatTime(minutes) {
-      // convert minutes to total seconds
-      const totalSeconds = Math.floor(minutes * 60);
+      // use total whole minutes
+      const totalMinutes = Math.floor(minutes);
 
-      const h = Math.floor(totalSeconds / 3600)
+      const h = Math.floor(totalMinutes / 60)
         .toString()
         .padStart(2, '0');
-      const m = Math.floor((totalSeconds % 3600) / 60)
-        .toString()
-        .padStart(2, '0');
-      const s = Math.floor(totalSeconds % 60)
+      const m = (totalMinutes % 60)
         .toString()
         .padStart(2, '0');
 
-      return `${h}:${m}:${s}`;
+      return `${h}:${m}`;
     }
 
     socket.on('status2v', data => {
