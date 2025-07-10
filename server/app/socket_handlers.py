@@ -1,6 +1,7 @@
 import logging
 from flask import request, flash
 from flask_socketio import SocketIO
+from flask_login import current_user
 
 from .controller import Controller
 
@@ -30,7 +31,6 @@ class SocketEventHandler:
 
     def handle_connect(self, auth):
         # Use Flask-Login session cookie for auth instead of API key
-        from flask_login import current_user
         if not current_user.is_authenticated:
             self.logger.warning("Socket connect refused: unauthenticated user")
             return False
@@ -92,6 +92,12 @@ class SocketEventHandler:
             )
 
     def handle_printer_action(self, data):
+        if not current_user.is_admin:
+            self.flash(
+                "You do not have permission to perform printer actions.",
+                'error'
+            )
+            return
         self.logger.info("Received printer action data: %s", data)
         action = data.get('action', '')
         result = data.get('result', '')
