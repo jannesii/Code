@@ -3,27 +3,28 @@
 {% block title %}Asetukset{% endblock %}
 
 {% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+<link rel="stylesheet"
+  href="{{ url_for('static', filename='css/settings.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/flash.css') }}">
 {% endblock %}
 
 {% block content %}
 {% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-  <div class="flash-container" style="max-width:800px; margin:20px auto;">
-    {% for category, msg in messages %}
-    <div class="flash {{ category }}">
-      {{ msg }}
-    </div>
-    {% endfor %}
+{% if messages %}
+<div class="flash-container" style="max-width:800px; margin:20px auto;">
+  {% for category, msg in messages %}
+  <div class="flash {{ category }}">
+    {{ msg }}
   </div>
-  {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
 {% endwith %}
 
 <div class="container">
-  <a class="tile" href="{{ url_for('web.add_user') }}">Lisää käyttäjä</a>
-  <a class="tile" href="{{ url_for('web.delete_user') }}">Poista käyttäjä</a>
-  <a class="tile" href="{{ url_for('web.timelapse_conf') }}">Muokkaa timelapsen asetuksia</a>
+  <a class="tile" href="{{ url_for('web.user_list') }}">Käyttäjähallinta</a>
+  <a class="tile" href="{{ url_for('web.timelapse_conf') }}">Muokkaa timelapsen
+    asetuksia</a>
 </div>
 {% endblock %}
 

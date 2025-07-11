@@ -32,7 +32,9 @@ class DatabaseManager:
                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
                 'username TEXT UNIQUE NOT NULL, '
                 'password_hash TEXT NOT NULL, '
-                'is_admin BOOLEAN NOT NULL DEFAULT FALSE'
+                'is_admin BOOLEAN NOT NULL DEFAULT FALSE, '
+                'is_temporary BOOLEAN DEFAULT 0, '
+                'expires_at TEXT'
             ),
             'temphum': (
                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
@@ -60,6 +62,12 @@ class DatabaseManager:
                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
                 'timestamp TEXT NOT NULL, '
                 'gcode TEXT NOT NULL'
+            ),
+            'logs': (
+                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+                'timestamp TEXT NOT NULL, '
+                'type TEXT NOT NULL, '
+                'message TEXT NOT NULL'
             )
         }
         for name, schema in tables.items():

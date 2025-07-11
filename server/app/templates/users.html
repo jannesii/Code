@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}Käyttäjähallinta{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/users.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flash.css') }}">
+{% endblock %}
+
+{% block content %}
+{% include 'settings_flash.html' %}
+<div class="container">
+  <div class="user-grid">
+    {% for u in users %}
+    <form method="post" class="user-tile">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="user-info">
+        <div>{{ u.username }}</div>
+        <div>{% if u.is_temporary %}Väliaikainen{% else %}Pysyvä{% endif
+          %}</div>
+        <div class="expiry-date" data-raw="{{ u.expires_at }}">{% if
+          u.expires_at %}{{ u.expires_at }}{% else %}-{% endif %}</div>
+        <div>{% if u.is_admin %}<b>Admin</b>{% else %}{% endif %}</div>
+      </div>
+      <div class="buttons">
+        <a {% if u.is_admin %}href="{{ url_for('web.edit_user', username=u.username) }}"{% else %} href="#" onclick="return false;"{% endif %}
+          class="edit-btn">Muokkaa</a>
+        <button {% if u.is_admin %}type="submit"{% endif %}
+          name="delete_user"
+          value="{{ u.username }}"
+          class="delete-btn">
+          Poista
+        </button>
+      </div>
+    </form>
+    {% endfor %}
+    <a href="{{ url_for('web.add_user') }}" class="add-tile">Lisää käyttäjä</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/users.js') }}"></script>
+{% endblock %}

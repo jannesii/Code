@@ -2,7 +2,8 @@
 import os
 import tempfile
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta
+from flask_login import current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 
@@ -19,7 +20,15 @@ class Controller:
         self.finland_tz = pytz.timezone('Europe/Helsinki')
 
     # --- User operations ---
-    def register_user(self, username: str, password: str | None = None, password_hash: str | None = None, is_admin: bool = False) -> User:
+    def register_user(
+        self, 
+        username: str, 
+        password: str | None = None, 
+        password_hash: str | None = None, 
+        is_admin: bool = False, 
+        is_temporary: bool = False, 
+        expires_at: str | None = None
+        ) -> User:
         """
         Creates the user if it doesn't exist, or returns the existing one.
         Uses INSERT OR IGNORE to avoid UNIQUE errors, then SELECT to fetch.
@@ -37,8 +46,8 @@ class Controller:
 
         # 2) Try to insert; if username exists, this is a no-op
         cursor = self.db.execute_query(
-            "INSERT OR IGNORE INTO users (username, password_hash, is_admin) VALUES (?, ?, ?)",
-            (username, pw_hash, is_admin)
+            "INSERT OR IGNORE INTO users (username, password_hash, is_admin, is_temporary, expires_at) VALUES (?, ?, ?, ?, ?)",
+            (username, pw_hash, is_admin, is_temporary, expires_at)
         )
         if cursor.rowcount == 1:
             logger.info(f"User '{username}' created successfully.")
@@ -47,7 +56,7 @@ class Controller:
 
         # 3) Fetch whatever is now in the table
         row = self.db.fetchone(
-            "SELECT id, username, password_hash, is_admin FROM users WHERE username = ?",
+            "SELECT id, username, password_hash, is_admin, is_temporary, expires_at FROM users WHERE username = ?",
             (username,)
         )
         if row is None:
@@ -61,8 +70,24 @@ class Controller:
             id=row['id'],
             username=row['username'],
             password_hash=row['password_hash'],
-            is_admin=row['is_admin']
+            is_admin=row['is_admin'],
+            is_temporary=row['is_temporary'],
+            expires_at=row['expires_at']
         )
+
+    def create_temporary_user(self, username: str, password: str, duration_value: int = 1, duration_unit: str = "hours") -> User:
+        """Creates a temporary user with expiration."""
+        now = datetime.now(self.finland_tz)
+        if duration_unit == "minutes":
+            expires = now + timedelta(minutes=duration_value)
+        elif duration_unit == "hours":
+            expires = now + timedelta(hours=duration_value)
+        elif duration_unit == "days":
+            expires = now + timedelta(days=duration_value)
+        else:
+            expires = now + timedelta(hours=duration_value)
+        expires_at = expires.isoformat()
+        return self.register_user(username, password=password, is_temporary=True, expires_at=expires_at)
 
     def set_user_as_admin(self, username: str, is_admin: bool) -> None:
         """Sets the is_admin flag for the user with the given username."""
@@ -79,21 +104,31 @@ class Controller:
             return False
         return check_password_hash(row['password_hash'], password)
 
-    def get_all_users(self) -> list[User]:
+    def get_all_users(self, exclude_admin: bool = False, exclude_current: bool = False, exclude_expired: bool = False) -> list[User]:
         """Palauttaa listan kaikista käyttäjistä."""
         rows = self.db.fetchall(
-            "SELECT id, username, password_hash, is_admin FROM users",
+            "SELECT id, username, password_hash, is_admin, is_temporary, expires_at FROM users",
             ()
         )
-        return [
+        users = [
             User(id=row['id'], username=row['username'],
-                 password_hash=row['password_hash'], is_admin=row['is_admin'])
+                 password_hash=row['password_hash'], is_admin=row['is_admin'], is_temporary=row['is_temporary'], expires_at=row['expires_at'])
             for row in rows
         ]
+        if exclude_admin:
+            users = [user for user in users if not user.is_admin]
+        if exclude_current:
+            users = [user for user in users if user.username !=
+                     current_user.get_id()]
+        if exclude_expired:
+            now = datetime.now(self.finland_tz)
+            users = [user for user in users if not user.is_temporary or not user.expires_at or datetime.fromisoformat(
+                user.expires_at) > now]
+        return users
 
-    def get_user_by_username(self, username: str) -> User | None:
+    def get_user_by_username(self, username: str, include_pw: bool = True) -> User | None:
         row = self.db.fetchone(
-            "SELECT id, username, password_hash, is_admin FROM users WHERE username = ?",
+            "SELECT id, username, password_hash, is_admin, is_temporary, expires_at FROM users WHERE username = ?",
             (username,)
         )
         if not row:
@@ -101,8 +136,10 @@ class Controller:
         return User(
             id=row['id'],
             username=row['username'],
-            password_hash=row['password_hash'],
-            is_admin=row['is_admin']
+            password_hash=row['password_hash'] if include_pw else None,
+            is_admin=row['is_admin'],
+            is_temporary=row['is_temporary'],
+            expires_at=row['expires_at']
         )
 
     def delete_user(self, username: str) -> None:
@@ -110,6 +147,21 @@ class Controller:
         self.db.execute_query(
             "DELETE FROM users WHERE username = ?",
             (username,)
+        )
+
+    def delete_temporary_users(self) -> None:
+        """Deletes all temporary users."""
+        self.db.execute_query(
+            "DELETE FROM users WHERE is_temporary = 1",
+            ()
+        )
+
+    def delete_expired_temporary_users(self) -> None:
+        """Deletes all expired temporary users."""
+        now = datetime.now(self.finland_tz).isoformat()
+        self.db.execute_query(
+            "DELETE FROM users WHERE is_temporary = 1 AND expires_at IS NOT NULL AND expires_at < ?",
+            (now,)
         )
 
     # --- Sensor data operations ---
@@ -237,9 +289,30 @@ class Controller:
             "INSERT INTO gcode_commands (timestamp, gcode) VALUES (?, ?)",
             (now, gcode)
         )
+
     def get_all_gcode_commands(self) -> List[str]:
         rows = self.db.fetchall(
             "SELECT gcode FROM gcode_commands ORDER BY id DESC"
         )
         gcode_set = set([row['gcode'] for row in rows])
         return list(gcode_set)
+
+    def log_message(self, message: str, log_type: str = 'info') -> None:
+        """
+        Logs a message with the given type ('info', 'warning', 'error').
+        """
+        now = datetime.now(self.finland_tz).isoformat()
+        self.db.execute_query(
+            "INSERT INTO logs (timestamp, type, message) VALUES (?, ?, ?)",
+            (now, log_type, message)
+        )
+
+    def get_logs(self, limit: int = 100) -> List[dict]:
+        """
+        Retrieves the most recent log messages.
+        """
+        rows = self.db.fetchall(
+            "SELECT timestamp, type, message FROM logs ORDER BY id DESC LIMIT ?",
+            (limit,)
+        )
+        return [dict(row) for row in rows]

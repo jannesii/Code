@@ -3,12 +3,17 @@
 from dataclasses import dataclass
 
 # --- Data classes for domain models ---
+
+
 @dataclass
 class User:
     id: int
     username: str
     password_hash: str
     is_admin: bool = False
+    is_temporary: bool = False
+    expires_at: str | None = None
+
 
 @dataclass
 class TemperatureHumidity:
@@ -17,18 +22,21 @@ class TemperatureHumidity:
     temperature: float
     humidity: float
 
+
 @dataclass
 class Status:
     id: int
     timestamp: str
     status: str
 
+
 @dataclass
 class ImageData:
     id: int
     timestamp: str
     image: str  # base64-encoded image data
-    
+
+
 @dataclass
 class TimelapseConf:
     id: int

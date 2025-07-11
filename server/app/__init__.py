@@ -1,11 +1,11 @@
+import eventlet
+eventlet.monkey_patch()
+
 import json
 import logging
 import os
 from datetime import timedelta
 import tempfile
-
-import eventlet
-eventlet.monkey_patch()
 
 from flask import Flask
 from flask_socketio import SocketIO

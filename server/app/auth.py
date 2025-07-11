@@ -32,7 +32,7 @@ class AuthAnonymous(AnonymousUserMixin):
 
 
 def load_user(user_id: str):
-    ctrl: Controller = current_app.ctrl # type: ignore
+    ctrl: Controller = current_app.ctrl  # type: ignore
     user = ctrl.get_user_by_username(user_id)
     if user:
         is_admin = getattr(user, "is_admin", False)
@@ -65,7 +65,7 @@ def handle_rate_limit(e):
 )
 def login():
     logger.info("Accessed /login via %s", request.method)
-    ctrl: Controller = current_app.ctrl # type: ignore
+    ctrl: Controller = current_app.ctrl  # type: ignore
 
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
@@ -73,12 +73,26 @@ def login():
         remember = request.form.get('remember') == 'on'
         logger.debug("Login attempt for %s (remember=%s)", username, remember)
 
+        user_obj = ctrl.get_user_by_username(username)
+        logger.info("User object (temporary=%s, expires_at=%s)", user_obj.is_temporary, user_obj.expires_at)
+        if user_obj and user_obj.is_temporary and user_obj.expires_at:
+            from datetime import datetime
+            now = datetime.now(ctrl.finland_tz)
+            expires_at = datetime.fromisoformat(user_obj.expires_at)
+            if expires_at < now:
+                flash('Tämä väliaikainen käyttäjätili on vanhentunut.', 'error')
+                logger.warning(
+                    "Expired temporary account login attempt for %s", username)
+                ctrl.log_message(
+                    'auth', f"Expired temporary login attempt for {username}")
+                return render_template('login.html')
+
         if ctrl.authenticate_user(username, password):
             session.permanent = remember
             login_user(
                 # load_user will restore is_admin from DB on reload
                 AuthUser(username, is_admin=getattr(
-                    ctrl.get_user_by_username(username), "is_admin", False)),
+                    user_obj, "is_admin", False)),
                 remember=remember
             )
             logger.info("User %s authenticated", username)
@@ -92,9 +106,13 @@ def login():
                 response.headers.get("X-RateLimit-Reset")
             )
             return response
-
+        # Authentication failed
         flash('Virheellinen käyttäjätunnus tai salasana', 'error')
         logger.warning("Auth failed for %s", username)
+        ctrl.log_message(
+            'auth',
+            f"Failed login attempt for {username}",
+        )
 
     return render_template('login.html')
 
