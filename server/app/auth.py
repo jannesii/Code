@@ -82,7 +82,6 @@ def login():
         logger.debug("Login attempt for %s (remember=%s)", username, remember)
 
         user_obj = ctrl.get_user_by_username(username)
-        logger.info("User object (temporary=%s, expires_at=%s)", user_obj.is_temporary, user_obj.expires_at)
         if user_obj and user_obj.is_temporary and user_obj.expires_at:
             from datetime import datetime
             now = datetime.now(ctrl.finland_tz)
@@ -92,7 +91,7 @@ def login():
                 logger.warning(
                     "Expired temporary account login attempt for %s", username)
                 ctrl.log_message(
-                    'auth', f"Expired temporary login attempt for {username}")
+                    log_type='auth', message=f"Expired temporary login attempt for {username}")
                 return render_template('login.html')
 
         if ctrl.authenticate_user(username, password):
@@ -118,8 +117,8 @@ def login():
         flash('Virheellinen käyttäjätunnus tai salasana', 'error')
         logger.warning("Auth failed for %s", username)
         ctrl.log_message(
-            'auth',
-            f"Failed login attempt for {username}",
+            log_type='auth',
+            message=f"Failed login attempt for {username}",
         )
 
     return render_template('login.html')

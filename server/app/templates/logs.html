@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block title %}Lokitiedot{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/logs.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Lokitiedot</h2>
+    <div class="logs-grid">
+        <div class="logs-header">
+            <span>Aika</span>
+            <span>Tyyppi</span>
+            <span>Viesti</span>
+        </div>
+        {% for log in logs %}
+        <div class="log-row {{ log.type }}">
+            <span class="log-timestamp">{{ log.timestamp }}</span>
+            <span class="log-type">{{ log.type }}</span>
+            <span class="log-message">{{ log.message }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/logs.js') }}"></script>
+{% endblock %}

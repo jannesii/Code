@@ -234,3 +234,12 @@ def edit_user(username):
         flash('Käyttäjä päivitetty.', 'success')
         return redirect(url_for('web.user_list'))
     return render_template('edit_user.html', user=user)
+
+
+@web_bp.route('/settings/logs')
+@login_required
+def logs():
+    from app import controller
+    ctrl = controller.Controller()
+    logs = ctrl.get_logs(limit=200)
+    return render_template('logs.html', logs=logs)

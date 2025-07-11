@@ -1,0 +1,44 @@
+/* logs.css */
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+}
+.logs-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  background: #222;
+  border-radius: 10px;
+  padding: 18px;
+}
+.logs-header {
+  display: grid;
+  grid-template-columns: 180px 100px 1fr;
+  font-weight: bold;
+  color: #fff;
+  background: #333;
+  border-radius: 6px;
+  padding: 8px 0;
+}
+.log-row {
+  display: grid;
+  grid-template-columns: 180px 100px 1fr;
+  align-items: center;
+  background: #1e1e1e;
+  color: #fff;
+  border-radius: 6px;
+  padding: 8px 0;
+  font-size: 1em;
+}
+.log-row.info { border-left: 6px solid #007bff; }
+.log-row.warning { border-left: 6px solid #ffc107; }
+.log-row.error { border-left: 6px solid #c01221; }
+.log-type { cursor: pointer; text-decoration: underline; }
+.log-message { word-break: break-word; }
+@media (max-width: 700px) {
+  .logs-header, .log-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .log-message { grid-column: 1 / -1; }
+}
