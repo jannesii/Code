@@ -30,6 +30,14 @@ class AuthAnonymous(AnonymousUserMixin):
     def is_admin(self):
         return False
 
+def kick_if_expired():
+    """Check if the user is temporary and expired."""
+    ctrl: Controller = current_app.ctrl
+    user = ctrl.get_user_by_username(current_user.get_id(), include_pw=False)
+    if user and user.is_expired:
+        logout_user()
+        flash("Istuntosi on vanhentunut.", "warning")
+        return redirect(url_for("auth.login"))
 
 def load_user(user_id: str):
     ctrl: Controller = current_app.ctrl  # type: ignore

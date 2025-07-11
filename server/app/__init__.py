@@ -1,20 +1,18 @@
 import eventlet
 eventlet.monkey_patch()
-
-import json
-import logging
-import os
-from datetime import timedelta
-import tempfile
-
-from flask import Flask
-from flask_socketio import SocketIO
-from flask_login import LoginManager
-from flask_wtf.csrf import CSRFProtect
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-
 from .controller import Controller
+from flask_limiter.util import get_remote_address
+from flask_limiter import Limiter
+from flask_wtf.csrf import CSRFProtect
+from flask_login import LoginManager
+from flask_socketio import SocketIO
+from flask import Flask
+import tempfile
+from datetime import timedelta
+import os
+import logging
+import json
+
 
 # ─── Module-level limiter ───
 limiter = Limiter(
@@ -24,6 +22,7 @@ limiter = Limiter(
     storage_options={"socket_connect_timeout": 30},
     strategy="moving-window",
 )
+
 
 def create_app():
     logger = logging.getLogger(__name__)
@@ -50,7 +49,7 @@ def create_app():
     app.config.update(
         SECRET_KEY=secret,
         PERMANENT_SESSION_LIFETIME=timedelta(days=7),
-        SESSION_COOKIE_SECURE=not _is_windows, 
+        SESSION_COOKIE_SECURE=not _is_windows,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         WEB_USERNAME=os.getenv("WEB_USERNAME", "admin"),
@@ -71,36 +70,40 @@ def create_app():
     logger.info("CSRF protection enabled (1 h token lifetime)")
 
     # ─── Domain-controller ───
-    db_path = os.getenv("DB_PATH", os.path.join(tempfile.gettempdir(), "timelapse.db"))
+    db_path = os.getenv("DB_PATH", os.path.join(
+        tempfile.gettempdir(), "timelapse.db"))
     if not db_path:
         raise RuntimeError("DB_PATH is missing – add to environment.")
-    app.ctrl = Controller(db_path) # type: ignore
+    app.ctrl = Controller(db_path)  # type: ignore
     logger.info("Controller init: %s", db_path)
 
     # ─── Seed admin user ───
     try:
         if not _is_windows:
-            app.ctrl.register_user( # type: ignore
+            app.ctrl.register_user(  # type: ignore
                 app.config["WEB_USERNAME"],
                 password_hash=app.config["WEB_PASSWORD"],
                 is_admin=True
             )
         else:
-            app.ctrl.register_user( # type: ignore
+            app.ctrl.register_user(  # type: ignore
                 app.config["WEB_USERNAME"],
                 password=app.config["WEB_PASSWORD"],
                 is_admin=True
             )
-        logger.info("Seeded admin user %s (is_admin=True)", app.config["WEB_USERNAME"])
+        logger.info("Seeded admin user %s (is_admin=True)",
+                    app.config["WEB_USERNAME"])
     except ValueError:
-        app.ctrl.set_user_as_admin(app.config["WEB_USERNAME"], True) # type: ignore
+        app.ctrl.set_user_as_admin(
+            app.config["WEB_USERNAME"], True)  # type: ignore
         logger.info("Ensured %s has is_admin=True", app.config["WEB_USERNAME"])
 
     # ─── Flask-Login ───
     login_manager = LoginManager()
-    login_manager.login_view = "auth.login" # type: ignore
+    login_manager.login_view = "auth.login"  # type: ignore
     login_manager.init_app(app)
-    from .auth import load_user, AuthAnonymous
+    from .auth import load_user, AuthAnonymous, kick_if_expired
+    app.before_request(kick_if_expired)
     login_manager.user_loader(load_user)
     login_manager.anonymous_user = AuthAnonymous
     logger.info("Login manager ready")
@@ -115,7 +118,7 @@ def create_app():
             raise RuntimeError("ALLOWED_WS_ORIGINS isn’t valid JSON list")
     else:
         allowed_ws_origins = []
-        
+
     if not _is_windows:
         socketio = SocketIO(
             app,
@@ -137,11 +140,11 @@ def create_app():
             ping_timeout=20,
             logger=True,
         )
-    app.socketio = socketio # type: ignore
+    app.socketio = socketio  # type: ignore
     logger.info("Socket.IO ready (origins: %s)", allowed_ws_origins)
     # ─── Socket event handlers ───
     from .socket_handlers import SocketEventHandler
-    SocketEventHandler(socketio, app.ctrl) # type: ignore
+    SocketEventHandler(socketio, app.ctrl)  # type: ignore
 
     # ─── Blueprints ───
     from .auth import auth_bp
@@ -150,6 +153,5 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(web_bp)
     app.register_blueprint(api_bp)
-
 
     return app, socketio

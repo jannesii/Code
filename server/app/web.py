@@ -230,7 +230,7 @@ def edit_user(username):
         expires_at = request.form.get('expires_at')
         is_admin = bool(request.form.get('is_admin'))
 
-        #ctrl.update_user(user.id, new_username, is_temporary, expires_at, is_admin)
+        # ctrl.update_user(user.id, new_username, is_temporary, expires_at, is_admin)
         flash('Käyttäjä päivitetty.', 'success')
         return redirect(url_for('web.user_list'))
     return render_template('edit_user.html', user=user)
