@@ -61,7 +61,7 @@ class SocketEventHandler:
             'temperature': saved.temperature,
             'humidity':    saved.humidity
         })
-        self.logger.info("Broadcasted temphum: %s", data)
+        self.logger.debug("Broadcasted temphum: %s", data)
 
     def handle_status(self, data):
         if data is None:
