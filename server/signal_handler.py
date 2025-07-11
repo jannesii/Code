@@ -33,7 +33,7 @@ class SignalHandler:
         logger.info("Registered handler for %s", USER_SIGNAL.name)
 
     def _handle(self, signum, frame):
-        logger.info("Caught %s, scheduling emit", signum)
+        logger.debug("Caught %s, scheduling emit", signum)
         self.socketio.start_background_task(self._emit_server_signal)
 
     def _emit_server_signal(self):

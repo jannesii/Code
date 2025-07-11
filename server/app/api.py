@@ -62,7 +62,7 @@ def serve_tmp_file():
     Serve any file under /tmp via HTTP.
     """
     # Log every request for debugging
-    logger.info("Serving tmp file: preview.jpg")
+    logger.debug("Serving tmp file: preview.jpg")
 
     # In production, you may want to sanitize `path`!
     temp_dir = tempfile.gettempdir()
