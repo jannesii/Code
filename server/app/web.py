@@ -239,6 +239,11 @@ def edit_user(username):
 @web_bp.route('/settings/logs')
 @login_required
 def logs():
+    if not current_user.is_admin:
+        flash("Sinulla ei ole oikeuksia tarkastella lokitietoja.", "error")
+        logger.warning(
+            "Non-admin user %s attempted to access logs.", current_user.get_id())
+        return redirect(url_for('web.get_settings_page'))
     from app import controller
     ctrl = controller.Controller()
     logs = ctrl.get_logs(limit=200)
