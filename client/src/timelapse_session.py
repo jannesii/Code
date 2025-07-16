@@ -55,6 +55,9 @@ class TimelapseSession:
             if not os.path.exists(path):
                 os.makedirs(path)
                 logger.info("created %s", path)
+        
+        # Purge old photos
+        self.clear_photos()
 
         # initialize to streaming-preview LED state
         self._set_streaming_leds()
@@ -118,7 +121,7 @@ class TimelapseSession:
         Capture one frame, send immediately if callback set,
         and save to disk if timelapse active and not paused.
         """
-        data = self.camera.capture_frame()
+        data = self.camera.capture_frame(autofocus_cycle=self.active)
         if data is None:
             return
 
@@ -153,6 +156,24 @@ class TimelapseSession:
             self.red_led.on()
             time.sleep(delay)
             self.red_led.off()
+            
+    def clear_photos(self) -> None:
+        """
+        Clear all captured photos.
+        """
+        photos_dir = os.path.join(self.root, "Photos")
+        photos = [f for f in os.listdir(photos_dir) if f.endswith(".jpg")]
+        if not photos:
+            logger.info("no photos to clear")
+            return
+        
+        for img in photos:
+            try:
+                os.remove(os.path.join("Photos", img))
+            except Exception:
+                logger.exception("error deleting %s", img)
+        logger.info("Cleared %d photos", len(photos))
+        self.images.clear()
 
     def finalize(self) -> bool:
         """
@@ -197,14 +218,7 @@ class TimelapseSession:
             logger.info(
                 "video creation skipped by user")
 
-        for img in self.images:
-            try:
-                os.remove(img)
-                logger.info("deleted %s", img)
-            except Exception:
-                logger.exception(
-                    "error deleting %s", img)
-        self.images.clear()
+        self.clear_photos()
         self._set_streaming_leds()
         
         return ret

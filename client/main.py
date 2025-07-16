@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import logging
 import os
-
+from dotenv import load_dotenv
+success = load_dotenv("/etc/timelapse.env", override=True)
 
 from src import execute_main_loop
 

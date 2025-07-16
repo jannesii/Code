@@ -238,7 +238,7 @@ class StatusReporter:
                     self.sio.emit('image')
                 else:
                     os.kill(self.pid, signal.SIGUSR1)
-                logger.info(f"Sent {sig_name} to server process {self.pid}")
+                logger.debug(f"Sent {sig_name} to server process {self.pid}")
                 return  # success!
 
             except ProcessLookupError:

@@ -12,6 +12,7 @@ if os.name != "nt":
     from libcamera import controls   # type: ignore[reportMissingImports]
 
 logger = logging.getLogger(__name__)
+logger.setLevel((logging.DEBUG))
 
 
 class CameraManager:
@@ -51,8 +52,9 @@ class CameraManager:
         else:
             # ----- Raspberry Pi path -----
             self.picam2 = Picamera2()  # type: ignore[reportMissingImports]
-            config = self.picam2.create_still_configuration()
-            self.picam2.configure(config)
+            still_config = self.picam2.create_still_configuration()
+            video_config = self.picam2.create_video_configuration(main={"size": (2560, 1440)}, controls={"FrameRate": 50.0})
+            self.picam2.configure(video_config)
             self.picam2.start_preview()
             self.picam2.start()
             time.sleep(2)  # let AGC/AWB settle
@@ -71,6 +73,7 @@ class CameraManager:
             self.picam2.set_controls(
                 {
                     "AfMode": controls.AfModeEnum.Continuous,   # type: ignore[reportMissingImports]
+                    "AfSpeed": controls.AfSpeedEnum.Fast,
                     "AfRange": controls.AfRangeEnum.Normal,      # type: ignore[reportMissingImports]
                     "AfWindows": [(16384, 16384, 49152, 49152)],
                     "ExposureValue": -0.5,
@@ -83,7 +86,7 @@ class CameraManager:
     # ------------------------------------------------------------------ #
     #  Public API
     # ------------------------------------------------------------------ #
-    def capture_frame(self) -> Optional[bytes]:
+    def capture_frame(self, autofocus_cycle: bool = False, verbose: bool = False) -> Optional[bytes]:
         """
         Grab one frame and return JPEG‑encoded bytes.
         Returns None on failure.
@@ -94,9 +97,15 @@ class CameraManager:
                 if not ret:
                     raise RuntimeError("webcam read failed")
             else:
-                success = self.picam2.autofocus_cycle()
-                if not success:
-                    logger.warning("autofocus cycle failed, using last focus")
+                if autofocus_cycle:
+                    start = time.perf_counter()
+                    success = self.picam2.autofocus_cycle()
+                    elapsed = time.perf_counter() - start
+                    if not success:
+                        logger.warning(f"autofocus cycle failed, using last focus, time: {elapsed:.2f} seconds")
+                    else:
+                        logger.debug(f"autofocus cycle completed, time: {elapsed:.2f} seconds")
+                time.sleep(0.2)
                 raw_rgb = self.picam2.capture_array()
                 # Convert to BGR for cv2.imencode
                 frame_bgr = cv2.cvtColor(raw_rgb, cv2.COLOR_RGB2BGR)
