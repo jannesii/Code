@@ -92,8 +92,8 @@ class SocketEventHandler:
             )
 
     def handle_printer_action(self, data):
-        if not current_user.is_admin:
-            self.logger.info("Unauthorized printer action attempt by user: %s, is admin: %s", current_user.get_id(), current_user.is_admin)
+        result = data.get('result', '')
+        if not current_user.is_admin and result == '':
             self.flash(
                 "You do not have permission to perform printer actions.",
                 'error'
@@ -101,7 +101,6 @@ class SocketEventHandler:
             return
         self.logger.info("Received printer action data: %s", data)
         action = data.get('action', '')
-        result = data.get('result', '')
         if result != '':
             self.handle_client_response(result, action)
             return
