@@ -6,7 +6,7 @@ import os
 from src import execute_main_loop
 
 logging.basicConfig(
-    level=logging.WARNING,
+    level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     datefmt="%H:%M:%S"
 )
