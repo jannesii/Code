@@ -32,4 +32,13 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   });
+
+  // Add confirmation to delete buttons
+  document.querySelectorAll('.delete-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      if (!confirm('Haluatko varmasti poistaa tämän käyttäjän?')) {
+        e.preventDefault();
+      }
+    });
+  });
 });
