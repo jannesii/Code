@@ -33,9 +33,9 @@ class ButtonHandler:
         Internal handler for each button press.
         Increments count and resets the sequence timer.
         """
-        self.session.capture()
         now = time.time()
         delta = now - self.last_time if self.last_time else 0.0
         self.last_time = now
         logger.info("Δ%.2fs", delta)
+        self.session.capture()
 
