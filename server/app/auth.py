@@ -102,7 +102,7 @@ def login():
                     user_obj, "is_admin", False)),
                 remember=remember
             )
-            logger.info("User %s authenticated", username)
+            logger.info("User %s authenticated, is admin: %s", username, user_obj.is_admin)
 
             next_page = request.args.get(
                 'next') or url_for('web.get_home_page')
