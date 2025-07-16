@@ -35,6 +35,9 @@ class StatusReporter:
         session: TimelapseSession instance
         dht: DHT22Sensor instance for readings
         """
+        self.max_retries = 5
+        self.retry_interval = 2.0
+        
         self._is_windows = os.name == "nt"
         
         self.session = session
@@ -68,13 +71,18 @@ class StatusReporter:
         self.jpg_path = os.path.join(self.tmp_dir, "preview.jpg")
 
         if not self._is_windows:
-            pid_file = os.path.join(self.tmp_dir, "server.pid")
-            try:
-                with open(pid_file) as f:
-                    self.pid = int(f.read().strip())
-                logger.debug(f"Read PID {self.pid} from {pid_file}")
-            except Exception as e:
-                logger.error(f"Could not read PID file {pid_file}: {e}")
+            self.pid = self._read_pid()
+                
+    def _read_pid(self) -> int:
+        """Read the server process PID from a file."""
+        pid_file = os.path.join(self.tmp_dir, "server.pid")
+        try:
+            with open(pid_file) as f:
+                pid = int(f.read().strip())
+            logger.debug(f"Read PID {pid} from {pid_file}")
+            return pid
+        except Exception as e:
+            logger.exception(f"Could not read PID file {pid_file}: {e}")
 
     def _login(self) -> None:
         """Authenticate via HTTP to obtain session cookies (with CSRF)."""
@@ -221,17 +229,37 @@ class StatusReporter:
             logger.exception("error saving image")
 
     def send_signal(self) -> None:
-        sig = ""
-        try:
-            if self._is_windows:
-                sig = "SOCKETIO_IMAGE"
-                self.sio.emit('image')
-            else:
-                sig = "SIGUSR1"
-                os.kill(self.pid, signal.SIGUSR1) # type: ignore
-                logger.info(f"Sent {sig} to server process {self.pid}")
-        except Exception as e:
-            logger.exception(f"Error sending {sig}: {e}")
+        sig_name = "SOCKETIO_IMAGE" if self._is_windows else "SIGUSR1"
+        attempts = 0
+
+        while attempts < self.max_retries:
+            try:
+                if self._is_windows:
+                    self.sio.emit('image')
+                else:
+                    os.kill(self.pid, signal.SIGUSR1)
+                logger.info(f"Sent {sig_name} to server process {self.pid}")
+                return  # success!
+
+            except ProcessLookupError:
+                attempts += 1
+                logger.error(
+                    f"[{attempts}/{self.max_retries}] "
+                    f"Process {self.pid} not found, retrying..."
+                )
+                # re-read the PID and wait before next attempt
+                self._read_pid()
+                sleep(self.retry_interval)
+
+            except Exception as e:
+                logger.exception(f"Error sending {sig_name}: {e}")
+                return
+
+        # if we get here, all retries failed
+        logger.error(
+            f"Failed to send {sig_name} after {self.max_retries} attempts — exiting."
+        )
+        sys.exit(1)
 
     def on_connect(self) -> None:
         """Socket.IO connect handler."""
