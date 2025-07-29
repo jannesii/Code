@@ -30,7 +30,7 @@
     ;G1 X-28 F18000
     ;G1 X-47 F18000
 
-    G1 X128 F42000 ; move print head back to the middle
+    ;G1 X128 F42000 ; move print head back to the middle
 
     M204 S[initial_layer_acceleration]
   {else}
@@ -49,7 +49,7 @@
     ;G1 X-28 F18000
     ;G1 X-47 F18000
 
-    G1 X128 F42000 ; move print head back to the middle
+    ;G1 X128 F42000 ; move print head back to the middle
   {endif}
   M623
   ; SKIPPABLE_END

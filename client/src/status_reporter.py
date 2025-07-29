@@ -234,7 +234,7 @@ class StatusReporter:
 
         while attempts < self.max_retries:
             try:
-                if self._is_windows:
+                if True:#self._is_windows:
                     self.sio.emit('image')
                 else:
                     os.kill(self.pid, signal.SIGUSR1)

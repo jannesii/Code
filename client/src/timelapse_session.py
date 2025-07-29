@@ -217,7 +217,10 @@ class TimelapseSession:
         else:
             logger.info(
                 "video creation skipped by user")
-
+        times = self.camera.times
+        if times:
+            avg_time = sum(times) / len(times)
+            logger.info(f"autofocus cycle time: \navg: {avg_time:.2f} seconds\n max: {max(times):.2f} seconds\n min: {min(times):.2f} seconds\ncount: {len(times)}")
         self.clear_photos()
         self._set_streaming_leds()
         

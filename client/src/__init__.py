@@ -30,7 +30,6 @@ def execute_main_loop() -> None:
     """
     Application entry point: set up components and enter main loop.
     """
-
     red_led = LED(RED_LED_PIN)
     yellow_led = LED(YELLOW_LED_PIN)
     green_led = LED(GREEN_LED_PIN)
@@ -42,6 +41,7 @@ def execute_main_loop() -> None:
         camera, encoder,
         red_led, yellow_led, green_led
     )
+
     dht = DHT22Sensor(DHT_PIN)
     reporter = StatusReporter(session, dht)
 
