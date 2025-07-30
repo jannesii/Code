@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 import os
+import shutil
 import tempfile
 import time
 import logging
 import threading
+import subprocess
 from datetime import datetime
 from typing import Callable, Optional
 
@@ -24,7 +26,6 @@ class TimelapseSession:
 
     def __init__(
         self,
-        camera: CameraManager,
         encoder: VideoEncoder,
         red_led: LED,
         yellow_led: LED,
@@ -37,7 +38,7 @@ class TimelapseSession:
         root_dir: base directory for Photos/Timelapses
         """
         self.printer = BambuHandler()
-        self.camera = camera
+        self.camera = None
         self.encoder = encoder
         self.red_led = red_led
         self.yellow_led = yellow_led
@@ -48,6 +49,9 @@ class TimelapseSession:
         self.active = False
         self.should_create = True
         self.image_callback: Optional[Callable[[bytes], None]] = None
+        
+        self.service = "live-hls.service"
+        self.systemctl =  ["/usr/bin/sudo", "/bin/systemctl", "--quiet"]
 
         # ensure directories exist
         for subdir in ("Photos", "Timelapses"):
@@ -85,12 +89,29 @@ class TimelapseSession:
         self.red_led.off()
         self.yellow_led.off()
         self.green_led.off()
+        
+    def _systemctl(self, *args):
+        subprocess.run(self.systemctl + list(args), check=True)
+
+    def _wait_state(self, state, timeout=5):
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < timeout:
+            res = subprocess.run(self.systemctl + ["is-active", self.service],
+                                capture_output=True, text=True)
+            logger.info("systemctl status: %s", res.stdout.strip())
+            if res.stdout.strip() == state:
+                return
+            time.sleep(0.05)
+        raise RuntimeError(f"{self.service} didn’t reach {state}")
 
     def start(self) -> bool:
         """
         Start the timelapse session.
         """
         try:
+            self._systemctl("stop", self.service)
+            time.sleep(5)
+            self.camera = CameraManager()
             self.images.clear()
             logger.info("started")
             self._set_active_leds()
@@ -111,7 +132,13 @@ class TimelapseSession:
             logger.info(
                 "stopped, create_video=%s", create_video)
             self._set_stopped_leds()
-            return self.finalize()
+            success = self.finalize()
+            if self.camera:
+                self.camera.shutdown()
+                logger.info("camera shutdown completed")
+            self._systemctl("start", self.service)
+            #self._wait_state("active")
+            return success
         except Exception:
             logger.exception("error stopping session")
             return False
@@ -217,7 +244,7 @@ class TimelapseSession:
         else:
             logger.info(
                 "video creation skipped by user")
-        times = self.camera.times
+        times = self.camera.times if self.camera else []
         if times:
             avg_time = sum(times) / len(times)
             logger.info(f"autofocus cycle time: \navg: {avg_time:.2f} seconds\n max: {max(times):.2f} seconds\n min: {min(times):.2f} seconds\ncount: {len(times)}")

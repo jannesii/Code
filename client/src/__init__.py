@@ -35,10 +35,10 @@ def execute_main_loop() -> None:
     green_led = LED(GREEN_LED_PIN)
 
     printer = BambuHandler()
-    camera = CameraManager()
+    #camera = CameraManager()
     encoder = VideoEncoder()
     session = TimelapseSession(
-        camera, encoder,
+        encoder,
         red_led, yellow_led, green_led
     )
 
@@ -58,4 +58,4 @@ def execute_main_loop() -> None:
         logger.info("Shutting down")
     finally:
         session.finalize()
-        camera.shutdown()
+        #camera.shutdown()

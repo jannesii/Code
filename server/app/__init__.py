@@ -6,7 +6,8 @@ from flask_limiter import Limiter
 from flask_wtf.csrf import CSRFProtect
 from flask_login import LoginManager
 from flask_socketio import SocketIO
-from flask import Flask
+from flask import Flask, send_from_directory
+import pathlib
 import tempfile
 from datetime import timedelta
 import os
@@ -58,7 +59,13 @@ def create_app():
         WTF_CSRF_TIME_LIMIT=None,
         whitelist=whitelist,
     )
+    
+    HLS_ROOT = pathlib.Path("/srv/hls")    # parent of “printer1”
 
+    @app.route("/live/<path:filename>")
+    def live(filename):
+        return send_from_directory(HLS_ROOT, filename)
+    
     # ─── Rate limiting ───
     if not _is_windows:
         limiter.init_app(app)

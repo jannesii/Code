@@ -3,9 +3,30 @@
 // Initial load
 console.log('📦 Dashboard script loaded');
 
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && hls.liveSyncPosition)
+    video.currentTime = hls.liveSyncPosition;
+});
+
 // Wait for DOM to be ready
 document.addEventListener('DOMContentLoaded', () => {
     console.log('📑 DOMContentLoaded fired');
+
+    const video = document.getElementById('live');
+    const hls   = new Hls({
+      // Keep as little latency as possible (1 segment)
+      liveSyncDurationCount: 1,
+      // If we fall behind, allow 2× speed until we catch up
+      maxLiveSyncPlaybackRate: 2.0
+    });
+    hls.loadSource('/live/printer1/index.m3u8');
+    hls.attachMedia(video);
+
+    // optional: auto‑reseek if we drift >3 s
+    /* hls.on(Hls.Events.LEVEL_UPDATED, () => {
+      const lag = (hls.liveSyncPosition || 0) - video.currentTime;
+      if (lag > 3) video.currentTime = hls.liveSyncPosition;
+    }); */
   
     // — Socket.IO setup using cookie auth —
     console.log('🛠️ Initializing Socket.IO with session cookie');
@@ -59,6 +80,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── Timelapse status ──
     const timelapseStatusEl = document.getElementById('timelapseStatus');
 
+    const imageEl = document.getElementById('image');
+    const liveVideoEl = document.getElementById('live-video');
+
     function formatTime(minutes) {
       // use total whole minutes
       const totalMinutes = Math.floor(minutes);
@@ -111,7 +135,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if ('timelapse_status' in data) {
         const isActive = data.timelapse_status === true      // boolean true
                       || data.timelapse_status === 'True';   // string "True" (just in case)
-
+        if (isActive) {
+          liveVideoEl.classList.add('hidden');  // hide live video
+          imageEl.classList.remove('hidden');   // show static image
+        } else {
+          liveVideoEl.classList.remove('hidden'); // show live video
+          imageEl.classList.add('hidden');        // hide static image
+        }
         timelapseStatusEl.innerHTML = isActive
           ? '<button class="control-btn-status start-btn">Active</button>'
           : '<button class="control-btn-status stop-btn">Inactive</button>';

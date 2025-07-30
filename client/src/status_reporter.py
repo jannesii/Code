@@ -138,7 +138,7 @@ class StatusReporter:
         )
         threading.Thread(target=self._status_loop, daemon=True).start()
         threading.Thread(target=self._temphum_loop, daemon=True).start()
-        threading.Thread(target=self._image_loop, daemon=True).start()
+        #threading.Thread(target=self._image_loop, daemon=True).start()
 
         # hook timelapse capture to immediate send
         self.session.image_callback = self.save_jpg_and_signal
