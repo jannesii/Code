@@ -27,6 +27,15 @@ def get_temphum():
         for d in data
     ])
 
+@api_bp.route('/temperature', methods=["POST"])
+@login_required
+def temperature():
+    data = request.get_json(force=True, silent=True) or {}
+    logger.debug(
+        "API /temperature test=%s", data
+    )
+    return jsonify({"ok": True}), 200
+
 @api_bp.route('/timelapse_config')
 @login_required
 def get_timelapse_config():

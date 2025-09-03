@@ -22,11 +22,11 @@ document.addEventListener('DOMContentLoaded', () => {
     hls.loadSource('/live/printer1/index.m3u8');
     hls.attachMedia(video);
 
-    // optional: auto‑reseek if we drift >3 s
-    /* hls.on(Hls.Events.LEVEL_UPDATED, () => {
+    // Auto-reseek if we drift >3 s
+    hls.on(Hls.Events.LEVEL_UPDATED, () => {
       const lag = (hls.liveSyncPosition || 0) - video.currentTime;
       if (lag > 3) video.currentTime = hls.liveSyncPosition;
-    }); */
+    });
   
     // — Socket.IO setup using cookie auth —
     console.log('🛠️ Initializing Socket.IO with session cookie');

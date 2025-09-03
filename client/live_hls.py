@@ -7,7 +7,6 @@ rpicam-vid
   --nopreview --timeout 0
   --bitrate 4000000
   --libav-format hls
-  --autofocus-mode auto
   --output /srv/hls/printer1/index.m3u8
 """
 
