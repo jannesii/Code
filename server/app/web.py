@@ -4,7 +4,7 @@ from operator import ne
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash
 from flask_login import login_required, current_user
 from dataclasses import asdict
-from .utils import check_vals
+from .utils import check_vals, get_ctrl, require_admin_or_redirect, combine_local_date_time, can_edit_user, can_delete_user
 from .controller import Controller
 
 
@@ -22,7 +22,7 @@ def get_home_page():
 @web_bp.route('/3d')
 @login_required
 def get_3d_page():
-    ctrl: Controller = current_app.ctrl  # type: ignore
+    ctrl: Controller = get_ctrl()
     logger.info("Rendering 3D page for %s", current_user.get_id())
     img = ctrl.get_last_image()
     th = ctrl.get_last_temphum()
@@ -38,7 +38,7 @@ def get_3d_page():
 @web_bp.route('/temperatures', methods=['GET', 'POST'])
 @login_required
 def get_temperatures_page():
-    ctrl: Controller = current_app.ctrl  # type: ignore
+    ctrl: Controller = get_ctrl()
     locations = ctrl.get_unique_locations()
     logger.info("Rendering temperatures page for %s", current_user.get_id())
     return render_template('temperatures.html', locations=locations)
@@ -54,7 +54,7 @@ def get_settings_page():
 @web_bp.route('/settings/change_password', methods=['GET', 'POST'])
 @login_required
 def change_password():
-    ctrl: Controller = current_app.ctrl  # type: ignore
+    ctrl: Controller = get_ctrl()
     # Root-Admin cannot change password (by requirement)
     me = ctrl.get_user_by_username(current_user.get_id(), include_pw=False)
     if me and getattr(me, 'is_root_admin', False):
@@ -98,12 +98,10 @@ def change_password():
 @web_bp.route('/settings/add_user', methods=['GET', 'POST'])
 @login_required
 def add_user():
-    ctrl: Controller = current_app.ctrl  # type: ignore
-    if not current_user.is_admin:
-        flash("Sinulla ei ole oikeuksia lisätä käyttäjiä.", "error")
-        logger.warning("Non-admin user %s attempted to add user.",
-                       current_user.get_id())
-        return redirect(url_for('web.user_list'))
+    ctrl: Controller = get_ctrl()
+    guard = require_admin_or_redirect("Sinulla ei ole oikeuksia lisätä käyttäjiä.", 'web.user_list')
+    if guard:
+        return guard
     if request.method == 'POST':
         u = request.form.get('username', '').strip()
         # Support both new and legacy field names
@@ -242,25 +240,18 @@ def timelapse_conf():
 @web_bp.route('/settings/users', methods=['GET', 'POST'])
 @login_required
 def user_list():
-    ctrl: Controller = current_app.ctrl  # type: ignore
-    if not current_user.is_admin:
-        flash("Sinulla ei ole oikeuksia hallita käyttäjiä.", "error")
-        logger.warning(
-            "Non-admin user %s attempted to access user management.", current_user.get_id())
-        return redirect(url_for('web.get_settings_page'))
+    ctrl: Controller = get_ctrl()
+    guard = require_admin_or_redirect("Sinulla ei ole oikeuksia hallita käyttäjiä.", 'web.get_settings_page')
+    if guard:
+        return guard
     if request.method == 'POST':
         username = request.form.get('delete_user')
         if username:
             try:
                 user = ctrl.get_user_by_username(username, include_pw=False)
-                if getattr(user, 'is_root_admin', False):
-                    flash("Et voi poistaa Root-Admin tiliä.", "error")
-                    logger.warning(
-                        "Attempted to delete root-admin user %s by %s", username, current_user.get_id())
-                    return redirect(url_for('web.user_list'))
-                if username == current_user.get_id():
-                    flash("Et voi poistaa omaa tiliäsi.", "error")
-                    logger.warning("Self-deletion attempt by %s", username)
+                ok, msg = can_delete_user(user, current_user.get_id()) if user else (False, 'Käyttäjää ei löytynyt.')
+                if not ok:
+                    flash(msg, 'error')
                     return redirect(url_for('web.user_list'))
                 ctrl.delete_user(username)
                 flash(f"Käyttäjä «{username}» poistettu.", "success")
@@ -274,7 +265,7 @@ def user_list():
 @web_bp.route('/settings/users/edit/<username>', methods=['GET', 'POST'])
 @login_required
 def edit_user(username):
-    ctrl: Controller = current_app.ctrl  # type: ignore
+    ctrl: Controller = get_ctrl()
     user = ctrl.get_user_by_username(username, include_pw=False)
     if not current_user.is_admin:
         flash("Sinulla ei ole oikeuksia muokata käyttäjiä.", "error")
@@ -285,8 +276,9 @@ def edit_user(username):
     if not user:
         flash('Käyttäjää ei löytynyt.', 'error')
         return redirect(url_for('web.user_list'))
-    if getattr(user, 'is_root_admin', False):
-        flash('Et voi muokata Root-Admin tiliä.', 'error')
+    ok, msg = can_edit_user(user)
+    if not ok:
+        flash(msg, 'error')
         return redirect(url_for('web.user_list'))
     if request.method == 'POST':
         new_username = (request.form.get('username') or '').strip()
@@ -301,14 +293,8 @@ def edit_user(username):
         expires_at: str | None = None
         if is_temporary and (expires_date and expires_time):
             try:
-                # Combine date + time in Finland timezone as ISO string
-                from datetime import datetime
-                import pytz
-                fin = pytz.timezone('Europe/Helsinki')
-                dt_naive = datetime.fromisoformat(f"{expires_date}T{expires_time}")
-                dt_local = fin.localize(dt_naive)
-                expires_at = dt_local.isoformat()
-            except Exception as e:
+                expires_at = combine_local_date_time(expires_date, expires_time)
+            except Exception:
                 flash('Virheellinen vanhenemisaika.', 'error')
                 return render_template('edit_user.html', user=user)
         elif is_temporary:
@@ -345,12 +331,9 @@ def edit_user(username):
 @web_bp.route('/settings/logs')
 @login_required
 def logs():
-    if not current_user.is_admin:
-        flash("Sinulla ei ole oikeuksia tarkastella lokitietoja.", "error")
-        logger.warning(
-            "Non-admin user %s attempted to access logs.", current_user.get_id())
-        return redirect(url_for('web.get_settings_page'))
-    from app import controller
-    ctrl = controller.Controller()
+    guard = require_admin_or_redirect("Sinulla ei ole oikeuksia tarkastella lokitietoja.", 'web.get_settings_page')
+    if guard:
+        return guard
+    ctrl: Controller = get_ctrl()
     logs = ctrl.get_logs(limit=200)
     return render_template('logs.html', logs=logs)
