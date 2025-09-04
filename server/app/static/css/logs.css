@@ -4,6 +4,20 @@
   margin: 0 auto;
   padding: 20px;
 }
+.logs-toolbar {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0 14px 0;
+}
+.filter-btn {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #333;
+  background: #2a2a2a;
+  color: #fff;
+  cursor: pointer;
+}
+.filter-btn.active { background: #1e1e1e; border-color: #555; }
 .logs-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -20,6 +34,9 @@
   background: #333;
   border-radius: 6px;
   padding: 8px 0;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 .log-row {
   display: grid;
@@ -31,11 +48,24 @@
   padding: 8px 0;
   font-size: 1em;
 }
+.log-row:nth-child(even) { background: #1a1a1a; }
 .log-row.info { border-left: 6px solid #007bff; }
 .log-row.warning { border-left: 6px solid #ffc107; }
 .log-row.error { border-left: 6px solid #c01221; }
-.log-type { cursor: pointer; text-decoration: underline; }
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.85em;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.badge.info { background: #004a99; }
+.badge.warning { background: #7a5a00; color: #fff; }
+.badge.error { background: #6b0a14; }
+.log-type { cursor: pointer; }
 .log-message { word-break: break-word; }
+.log-empty { padding: 12px; color: #bbb; text-align: center; }
 @media (max-width: 700px) {
   .logs-header, .log-row {
     grid-template-columns: 1fr 1fr;

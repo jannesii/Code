@@ -7,21 +7,32 @@
 {% endblock %}
 
 {% block content %}
+{% include 'settings_flash.html' %}
 <div class="container">
     <h2>Lokitiedot</h2>
+    <div class="logs-toolbar">
+        <button class="filter-btn active" data-filter="all">Kaikki</button>
+        <button class="filter-btn" data-filter="info">Info</button>
+        <button class="filter-btn" data-filter="warning">Varoitus</button>
+        <button class="filter-btn" data-filter="error">Virhe</button>
+    </div>
     <div class="logs-grid">
         <div class="logs-header">
             <span>Aika</span>
             <span>Tyyppi</span>
             <span>Viesti</span>
         </div>
-        {% for log in logs %}
-        <div class="log-row {{ log.type }}">
-            <span class="log-timestamp">{{ log.timestamp }}</span>
-            <span class="log-type">{{ log.type }}</span>
-            <span class="log-message">{{ log.message }}</span>
-        </div>
-        {% endfor %}
+        {% if logs|length == 0 %}
+          <div class="log-empty">Ei lokitietoja.</div>
+        {% else %}
+          {% for log in logs %}
+          <div class="log-row {{ log.type }}">
+              <span class="log-timestamp" data-raw="{{ log.timestamp }}">{{ log.timestamp }}</span>
+              <span class="log-type"><span class="badge {{ log.type }}">{{ log.type }}</span></span>
+              <span class="log-message">{{ log.message }}</span>
+          </div>
+          {% endfor %}
+        {% endif %}
     </div>
 </div>
 {% endblock %}

@@ -6,21 +6,33 @@ document.addEventListener('DOMContentLoaded', function() {
     window.location.reload();
   }, 30000);
 
-  // Example: filter logs by type
-  document.querySelectorAll('.log-type').forEach(function(typeElem) {
-    typeElem.addEventListener('click', function() {
-      const type = typeElem.textContent;
-      document.querySelectorAll('.log-row').forEach(function(row) {
-        row.style.display = row.classList.contains(type) ? '' : 'none';
-      });
+  // Toolbar filter
+  const buttons = document.querySelectorAll('.filter-btn');
+  function applyFilter(filter) {
+    document.querySelectorAll('.log-row').forEach(function(row) {
+      if (filter === 'all') {
+        row.style.display = '';
+      } else {
+        row.style.display = row.classList.contains(filter) ? '' : 'none';
+      }
+    });
+    buttons.forEach(b => b.classList.toggle('active', b.dataset.filter === filter));
+  }
+  buttons.forEach(btn => btn.addEventListener('click', () => applyFilter(btn.dataset.filter)));
+
+  // Still allow clicking the type badge to filter
+  document.querySelectorAll('.log-type .badge').forEach(function(badge) {
+    badge.addEventListener('click', function() {
+      const type = Array.from(badge.classList).find(c => ['info','warning','error'].includes(c));
+      if (type) applyFilter(type);
     });
   });
 
+  // Timestamp formatting
   document.querySelectorAll('.log-timestamp').forEach(function(tsElem) {
-    const iso = tsElem.textContent;
+    const iso = tsElem.dataset.raw || tsElem.textContent;
     if (!iso) return;
     try {
-      // Parse ISO string and format as local date/time
       const date = new Date(iso);
       if (!isNaN(date.getTime())) {
         tsElem.textContent = date.toLocaleString('fi-FI', {
