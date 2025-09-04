@@ -198,10 +198,10 @@ def user_list():
         if username:
             try:
                 user = ctrl.get_user_by_username(username, include_pw=False)
-                if user.is_admin:
-                    flash("Et voi poistaa ylläpitäjätilejä.", "error")
+                if getattr(user, 'is_root_admin', False):
+                    flash("Et voi poistaa Root-Admin tiliä.", "error")
                     logger.warning(
-                        "Attempted to delete admin user %s by %s", username, current_user.get_id())
+                        "Attempted to delete root-admin user %s by %s", username, current_user.get_id())
                     return redirect(url_for('web.user_list'))
                 if username == current_user.get_id():
                     flash("Et voi poistaa omaa tiliäsi.", "error")
@@ -230,8 +230,8 @@ def edit_user(username):
     if not user:
         flash('Käyttäjää ei löytynyt.', 'error')
         return redirect(url_for('web.user_list'))
-    if user.is_admin:
-        flash('Et voi muokata ylläpitäjätilejä.', 'error')
+    if getattr(user, 'is_root_admin', False):
+        flash('Et voi muokata Root-Admin tiliä.', 'error')
         return redirect(url_for('web.user_list'))
     if request.method == 'POST':
         new_username = (request.form.get('username') or '').strip()

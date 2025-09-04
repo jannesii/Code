@@ -27,6 +27,7 @@ class Controller:
         password: str | None = None, 
         password_hash: str | None = None, 
         is_admin: bool = False, 
+        is_root_admin: bool = False,
         is_temporary: bool = False, 
         expires_at: str | None = None
         ) -> User:
@@ -47,8 +48,8 @@ class Controller:
 
         # 2) Try to insert; if username exists, this is a no-op
         cursor = self.db.execute_query(
-            "INSERT OR IGNORE INTO users (username, password_hash, is_admin, is_temporary, expires_at) VALUES (?, ?, ?, ?, ?)",
-            (username, pw_hash, is_admin, is_temporary, expires_at)
+            "INSERT OR IGNORE INTO users (username, password_hash, is_admin, is_root_admin, is_temporary, expires_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (username, pw_hash, 1 if is_admin else 0, 1 if is_root_admin else 0, 1 if is_temporary else 0, expires_at)
         )
         if cursor.rowcount == 1:
             logger.info(f"User '{username}' created successfully.")
@@ -57,7 +58,7 @@ class Controller:
 
         # 3) Fetch whatever is now in the table
         row = self.db.fetchone(
-            "SELECT id, username, password_hash, is_admin, is_temporary, expires_at FROM users WHERE username = ?",
+            "SELECT id, username, password_hash, is_admin, is_root_admin, is_temporary, expires_at FROM users WHERE username = ?",
             (username,)
         )
         if row is None:
@@ -72,6 +73,7 @@ class Controller:
             username=row['username'],
             password_hash=row['password_hash'],
             is_admin=row['is_admin'],
+            is_root_admin=row['is_root_admin'],
             is_temporary=row['is_temporary'],
             expires_at=row['expires_at']
         )
@@ -108,12 +110,12 @@ class Controller:
     def get_all_users(self, exclude_admin: bool = False, exclude_current: bool = False, exclude_expired: bool = False) -> list[User]:
         """Palauttaa listan kaikista käyttäjistä."""
         rows = self.db.fetchall(
-            "SELECT id, username, password_hash, is_admin, is_temporary, expires_at FROM users",
+            "SELECT id, username, password_hash, is_admin, is_root_admin, is_temporary, expires_at FROM users",
             ()
         )
         users = [
             User(id=row['id'], username=row['username'],
-                 password_hash=row['password_hash'], is_admin=row['is_admin'], is_temporary=row['is_temporary'], expires_at=row['expires_at'])
+                 password_hash=row['password_hash'], is_admin=row['is_admin'], is_root_admin=row['is_root_admin'], is_temporary=row['is_temporary'], expires_at=row['expires_at'])
             for row in rows
         ]
         if exclude_admin:
@@ -129,7 +131,7 @@ class Controller:
 
     def get_user_by_username(self, username: str, include_pw: bool = True) -> User | None:
         row = self.db.fetchone(
-            "SELECT id, username, password_hash, is_admin, is_temporary, expires_at FROM users WHERE username = ?",
+            "SELECT id, username, password_hash, is_admin, is_root_admin, is_temporary, expires_at FROM users WHERE username = ?",
             (username,)
         )
         if not row:
@@ -139,6 +141,7 @@ class Controller:
             username=row['username'],
             password_hash=row['password_hash'] if include_pw else None,
             is_admin=row['is_admin'],
+            is_root_admin=row['is_root_admin'],
             is_temporary=row['is_temporary'],
             expires_at=row['expires_at']
         )

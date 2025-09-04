@@ -84,26 +84,28 @@ def create_app():
     app.ctrl = Controller(db_path)  # type: ignore
     logger.info("Controller init: %s", db_path)
 
-    # ─── Seed admin user ───
+    # ─── Seed admin user (Root-Admin) ───
     try:
         if not _is_windows:
             app.ctrl.register_user(  # type: ignore
                 app.config["WEB_USERNAME"],
                 password_hash=app.config["WEB_PASSWORD"],
-                is_admin=True
+                is_admin=True,
+                is_root_admin=True
             )
         else:
             app.ctrl.register_user(  # type: ignore
                 app.config["WEB_USERNAME"],
                 password=app.config["WEB_PASSWORD"],
-                is_admin=True
+                is_admin=True,
+                is_root_admin=True
             )
-        logger.info("Seeded admin user %s (is_admin=True)",
+        logger.info("Seeded admin user %s (is_admin=True, is_root_admin=True)",
                     app.config["WEB_USERNAME"])
     except ValueError:
         app.ctrl.set_user_as_admin(
             app.config["WEB_USERNAME"], True)  # type: ignore
-        logger.info("Ensured %s has is_admin=True", app.config["WEB_USERNAME"])
+        logger.info("Ensured %s has is_admin=True (existing)", app.config["WEB_USERNAME"])
 
     # ─── Flask-Login ───
     login_manager = LoginManager()

@@ -13,6 +13,7 @@ class User:
     username: str
     password_hash: str
     is_admin: bool = False
+    is_root_admin: bool = False
     is_temporary: bool = False
     expires_at: str | None = None
 

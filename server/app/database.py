@@ -33,6 +33,7 @@ class DatabaseManager:
                 'username TEXT UNIQUE NOT NULL, '
                 'password_hash TEXT NOT NULL, '
                 'is_admin BOOLEAN NOT NULL DEFAULT FALSE, '
+                'is_root_admin BOOLEAN NOT NULL DEFAULT 0, '
                 'is_temporary BOOLEAN DEFAULT 0, '
                 'expires_at TEXT'
             ),
@@ -79,6 +80,14 @@ class DatabaseManager:
         }
         for name, schema in tables.items():
             self.cursor.execute(f"CREATE TABLE IF NOT EXISTS {name} ({schema})")
+        # Migrate existing users table to include is_root_admin if missing
+        try:
+            self.cursor.execute("PRAGMA table_info(users)")
+            cols = [row[1] for row in self.cursor.fetchall()]
+            if 'is_root_admin' not in cols:
+                self.cursor.execute("ALTER TABLE users ADD COLUMN is_root_admin BOOLEAN NOT NULL DEFAULT 0")
+        except Exception:
+            pass
             
         # Insert default values for status and timelapse_conf if they don't exist
         self.cursor.execute("""
