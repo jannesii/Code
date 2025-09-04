@@ -234,14 +234,45 @@ def edit_user(username):
         flash('Et voi muokata ylläpitäjätilejä.', 'error')
         return redirect(url_for('web.user_list'))
     if request.method == 'POST':
-        new_username = request.form.get('username')
-        is_temporary = bool(request.form.get('is_temporary'))
-        expires_at = request.form.get('expires_at')
+        new_username = (request.form.get('username') or '').strip()
+        password = (request.form.get('password') or '').strip()
         is_admin = bool(request.form.get('is_admin'))
+        is_temporary = bool(request.form.get('is_temporary'))
 
-        # ctrl.update_user(user.id, new_username, is_temporary, expires_at, is_admin)
-        flash('Käyttäjä päivitetty.', 'success')
-        return redirect(url_for('web.user_list'))
+        expires_date = (request.form.get('expires_date') or '').strip()
+        expires_time = (request.form.get('expires_time') or '').strip()
+        expires_at: str | None = None
+        if is_temporary and (expires_date and expires_time):
+            try:
+                # Combine date + time in Finland timezone as ISO string
+                from datetime import datetime
+                import pytz
+                fin = pytz.timezone('Europe/Helsinki')
+                dt_naive = datetime.fromisoformat(f"{expires_date}T{expires_time}")
+                dt_local = fin.localize(dt_naive)
+                expires_at = dt_local.isoformat()
+            except Exception as e:
+                flash('Virheellinen vanhenemisaika.', 'error')
+                return render_template('edit_user.html', user=user)
+        elif is_temporary:
+            # Allow temporary without specific expiry (left blank)
+            expires_at = None
+
+        try:
+            updated = ctrl.update_user(
+                current_username=username,
+                new_username=new_username or None,
+                password=password or None,
+                is_temporary=is_temporary,
+                is_admin=is_admin,
+                expires_at=expires_at,
+            )
+            flash('Käyttäjä päivitetty.', 'success')
+            return redirect(url_for('web.user_list'))
+        except ValueError as ve:
+            flash(str(ve), 'error')
+        except Exception as e:
+            flash(f"Päivitys epäonnistui: {e}", 'error')
     return render_template('edit_user.html', user=user)
 
 

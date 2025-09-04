@@ -9,7 +9,7 @@
 
 .user-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(1, minmax(280px, 1fr));
   gap: 20px;
 }
 

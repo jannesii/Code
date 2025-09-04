@@ -10,6 +10,7 @@ import logging
 from models import User, TemperatureHumidity, ESP32TemperatureHumidity, Status, ImageData, TimelapseConf
 from .database import DatabaseManager
 import pytz
+import sqlite3
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +164,81 @@ class Controller:
             "DELETE FROM users WHERE is_temporary = 1 AND expires_at IS NOT NULL AND expires_at < ?",
             (now,)
         )
+
+    def update_user(
+        self,
+        current_username: str,
+        new_username: str | None = None,
+        password: str | None = None,
+        is_temporary: bool | None = None,
+        is_admin: bool | None = None,
+        expires_at: str | None = None,
+    ) -> User:
+        """
+        Updates the given user's fields. Pass None for fields you don't want to change.
+        If is_temporary is False, expires_at will be set to NULL regardless of value.
+        Returns the updated User object.
+        """
+        row = self.db.fetchone(
+            "SELECT id, username, password_hash, is_admin, is_temporary, expires_at FROM users WHERE username = ?",
+            (current_username,)
+        )
+        if row is None:
+            raise ValueError("User not found")
+
+        updates: list[str] = []
+        params: list[object] = []
+
+        if new_username and new_username != current_username:
+            updates.append("username = ?")
+            params.append(new_username)
+
+        if password:
+            pw_hash = generate_password_hash(password)
+            updates.append("password_hash = ?")
+            params.append(pw_hash)
+
+        if is_admin is not None:
+            updates.append("is_admin = ?")
+            params.append(1 if is_admin else 0)
+
+        if is_temporary is not None:
+            updates.append("is_temporary = ?")
+            params.append(1 if is_temporary else 0)
+            if is_temporary:
+                # Set provided expires_at (can be None, meaning no expiry yet)
+                updates.append("expires_at = ?")
+                params.append(expires_at)
+            else:
+                # Clear expiry when switching to permanent
+                updates.append("expires_at = NULL")
+
+        elif expires_at is not None:
+            # Only update expiry if caller asked and did not change is_temporary
+            updates.append("expires_at = ?")
+            params.append(expires_at)
+
+        if not updates:
+            # Nothing to change; return current user state
+            return User(
+                id=row['id'],
+                username=row['username'],
+                password_hash=row['password_hash'],
+                is_admin=row['is_admin'],
+                is_temporary=row['is_temporary'],
+                expires_at=row['expires_at']
+            )
+
+        query = f"UPDATE users SET {', '.join(updates)} WHERE username = ?"
+        params.append(current_username)
+
+        try:
+            self.db.execute_query(query, tuple(params))
+        except sqlite3.IntegrityError as ie:
+            # Likely UNIQUE constraint failure on username
+            raise ValueError("Käyttäjätunnus on jo käytössä.") from ie
+
+        return self.get_user_by_username(new_username or current_username)
 
     # --- Sensor data operations ---
     def record_temphum(self, temperature: float, humidity: float) -> TemperatureHumidity:

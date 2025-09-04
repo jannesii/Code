@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block title %}Muokkaa käyttäjää{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flash.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/edit_user.css') }}">
+{% endblock %}
+
+{% block content %}
+{% include 'settings_flash.html' %}
+<div class="container">
+  <div class="edit-card">
+    <h2>Muokkaa käyttäjää</h2>
+    <form method="post" id="editUserForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="form-row">
+        <label for="username">Käyttäjätunnus</label>
+        <input type="text" id="username" name="username" value="{{ user.username }}" required>
+      </div>
+
+      <div class="form-row">
+        <label for="password">Salasana (jätä tyhjäksi jos ei muutosta)</label>
+        <input type="password" id="password" name="password" autocomplete="new-password">
+      </div>
+
+      <div class="form-row inline">
+        <label class="checkbox">
+          <input type="checkbox" id="is_admin" name="is_admin" {% if user.is_admin %}checked{% endif %}> Ylläpitäjä
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" id="is_temporary" name="is_temporary" {% if user.is_temporary %}checked{% endif %}> Väliaikainen käyttäjä
+        </label>
+      </div>
+
+      <div id="expiryFields" class="form-row grid" style="display:{% if user.is_temporary %}grid{% else %}none{% endif %};">
+        <div>
+          <label for="expires_date">Vanhenemispäivä</label>
+          <input type="date" id="expires_date" name="expires_date" value="{% if user.expires_at %}{{ user.expires_at[:10] }}{% endif %}">
+        </div>
+        <div>
+          <label for="expires_time">Kellonaika</label>
+          <input type="time" id="expires_time" name="expires_time" value="{% if user.expires_at %}{{ user.expires_at[11:16] }}{% endif %}">
+        </div>
+      </div>
+
+      <div class="actions">
+        <a class="btn secondary" href="{{ url_for('web.user_list') }}">Peruuta</a>
+        <button type="submit" class="btn primary">Tallenna</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/edit_user.js') }}"></script>
+{% endblock %}
+
