@@ -15,17 +15,23 @@
     <form method="post" class="user-tile">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="user-info">
-        <div>{{ u.username }}</div>
-        <div>{% if u.is_temporary %}Väliaikainen{% else %}Pysyvä{% endif
-          %}</div>
-        <div class="expiry-date" data-raw="{{ u.expires_at }}">{% if
-          u.expires_at %}{{ u.expires_at }}{% else %}-{% endif %}</div>
-        <div>{% if u.is_admin %}<b>Admin</b>{% else %}{% endif %}</div>
+        <div class="field username">{{ u.username }}</div>
+        <div class="field type">{% if u.is_temporary %}Väliaikainen{% else %}Pysyvä{% endif %}</div>
+        <div class="field expires"><span class="expiry-date" data-raw="{{ u.expires_at }}">{% if u.expires_at %}{{ u.expires_at }}{% else %}-{% endif %}</span></div>
+        <div class="field role">{% if u.is_admin %}<b>Admin</b>{% else %}–{% endif %}</div>
       </div>
       <div class="buttons">
-        <a {% if u.is_admin %}href="{{ url_for('web.edit_user', username=u.username) }}"{% else %} href="#" onclick="return false;"{% endif %}
-          class="edit-btn">Muokkaa</a>
-        <button {% if u.is_admin %}type="submit"{% endif %}
+        {# Enable editing only for non-admin users #}
+        {% if not u.is_admin %}
+          <a href="{{ url_for('web.edit_user', username=u.username) }}" class="edit-btn">Muokkaa</a>
+        {% else %}
+          <a href="#" class="edit-btn is-disabled" aria-disabled="true" tabindex="-1" onclick="return false;">Muokkaa</a>
+        {% endif %}
+
+        {# Disable delete for admin and self; backend also enforces this #}
+        {% set is_self = (u.username == current_user.get_id()) %}
+        <button
+          {% if (not u.is_admin) and (not is_self) %}type="submit"{% else %}type="button" disabled{% endif %}
           name="delete_user"
           value="{{ u.username }}"
           class="delete-btn">
