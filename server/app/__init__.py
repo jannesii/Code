@@ -13,7 +13,7 @@ from datetime import timedelta
 import os
 import logging
 import json
-
+import signal
 
 # ─── Module-level limiter ───
 limiter = Limiter(
@@ -147,6 +147,11 @@ def create_app():
             ping_timeout=20,
             logger=True,
         )
+    def exit_signal():
+        socketio.emit('server_shutdown')
+        socketio.stop()
+    signal.signal(signal.SIGTERM, exit_signal)
+    signal.signal(signal.SIGINT, exit_signal)
     app.socketio = socketio  # type: ignore
     logger.info("Socket.IO ready (origins: %s)", allowed_ws_origins)
     # ─── Socket event handlers ───

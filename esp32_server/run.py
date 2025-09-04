@@ -9,6 +9,7 @@ from typing import Tuple
 import requests
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, current_app
+import socketio
 
 
 # ---------------------------
@@ -30,7 +31,34 @@ class BackendConfig:
     username: str
     password: str
 
+def on_connect() -> None:
+    """Socket.IO connect handler."""
+    logger.info("connected to server")
 
+def on_disconnect() -> None:
+    """Socket.IO disconnect handler."""
+    logger.info("disconnected from server")
+
+def on_error(data: dict) -> None:
+    """Socket.IO error handler."""
+    logger.error("server error: %s", data)
+
+def on_server_shutdown() -> None:
+    """Socket.IO server shutdown handler."""
+    logger.info("server is shutting down")
+    sio.disconnect()
+
+def connect() -> None:
+    """
+    Establish Socket.IO connection and start background loops
+    for status, temphum, and preview image streaming.
+    """
+
+sio = socketio.Client(logger=True)    
+sio.on('connect',    on_connect)
+sio.on('disconnect', on_disconnect)
+sio.on('error',      on_error)
+sio.on('server_shutdown', on_server_shutdown)
 # ---------------------------
 # Backend (CSRF) Session Setup
 # ---------------------------
@@ -94,6 +122,14 @@ def _authenticate_session(cfg: BackendConfig, timeout: float = 5.0) -> Tuple[req
             "Referer": cfg.server,  # some CSRF setups check Referer origin
         }
     )
+    cookies = "; ".join(
+        f"{k}={v}" for k, v in session.cookies.get_dict().items())
+    sio.connect(
+        cfg.server,
+        headers={"Cookie": cookies},
+        transports=["websocket", "polling"]
+    )
+
 
     logger.info("Authenticated to backend")
     return session, token
@@ -140,7 +176,7 @@ def create_app() -> Flask:
         logger.info("Got reading: %s", data)  # e.g., {'temperature_c': 25.5, 'humidity_pct': 54.2}
 
         # Forward to backend API
-        url = f"{current_app.config['BACKEND_CONFIG'].server}/api/temperature"
+        """ url = f"{current_app.config['BACKEND_CONFIG'].server}/temperature"
         try:
             resp = session.post(url, json=data, timeout=5.0)
             if resp.status_code != 200:
@@ -148,7 +184,8 @@ def create_app() -> Flask:
                 return jsonify({"ok": False, "error": "upstream_error"}), 502
         except requests.RequestException as e:
             logger.error("Error posting to backend: %s", e)
-            return jsonify({"ok": False, "error": "network_error"}), 502
+            return jsonify({"ok": False, "error": "network_error"}), 502 """
+        sio.emit('esp32_temphum', data)
 
         return jsonify({"ok": True}), 200
 

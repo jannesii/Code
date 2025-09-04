@@ -1,0 +1,40 @@
+<!-- Dual-panel modal: shows Temperature and Humidity side by side (stacks on small screens) -->
+<div id="chartModal">
+  <div class="dialog">
+    <div class="header">
+      <h3 id="chartTitle">Lämpötila &amp; Kosteus</h3>
+      <button id="closeModal" aria-label="Close">✕</button>
+    </div>
+
+    <div class="nav">
+      <button id="prevDay">← Edellinen</button>
+      <span id="currentDate"></span>
+      <button id="nextDay">Seuraava →</button>
+    </div>
+
+    <!-- Two panels: Temperature (left) and Humidity (right) -->
+    <div class="modal-grid">
+      <!-- Temperature Panel -->
+      <div class="panel">
+        <h4 id="chartTitleTemp">Lämpötila</h4>
+        <div class="stat">
+          <span id="avgTemp">Lämpötila: –</span>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="chartCanvasTemp" width="600" height="360"></canvas>
+        </div>
+      </div>
+
+      <!-- Humidity Panel -->
+      <div class="panel">
+        <h4 id="chartTitleHum">Kosteus</h4>
+        <div class="stat">
+          <span id="avgHum">Kosteus: –</span>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="chartCanvasHum" width="600" height="360"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

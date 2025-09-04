@@ -22,6 +22,11 @@
   </div>
 
   <!-- Page-specific scripts -->
-  {% block scripts %}{% endblock %}
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="{{ url_for('static', filename='js/socket.io.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
+  {% block scripts %}
+  {% endblock %}
 </body>
 </html>

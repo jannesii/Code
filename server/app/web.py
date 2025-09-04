@@ -35,6 +35,15 @@ def get_3d_page():
     )
 
 
+@web_bp.route('/temperatures', methods=['GET', 'POST'])
+@login_required
+def get_temperatures_page():
+    ctrl: Controller = current_app.ctrl  # type: ignore
+    locations = ctrl.get_unique_locations()
+    logger.info("Rendering temperatures page for %s", current_user.get_id())
+    return render_template('temperatures.html', locations=locations)
+
+
 @web_bp.route('/settings')
 @login_required
 def get_settings_page():

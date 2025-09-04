@@ -1,7 +1,7 @@
 # Updated script
 #!/usr/bin/env bash
 set -e
-
+sudo systemctl stop esp32_server
 echo "[INFO] Pulling latest code..."
 OUTPUT=$(git pull)
 echo "[INFO] Git pull output:"
@@ -19,4 +19,5 @@ echo "[INFO] Restarting jannenkoti service..."
 sudo systemctl restart jannenkoti
 
 echo "[INFO] Tailing jannenkoti service logs..."
+sudo systemctl start esp32_server
 journalctl -u jannenkoti.service -f

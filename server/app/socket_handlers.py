@@ -26,6 +26,7 @@ class SocketEventHandler:
         socketio.on_event('disconnect', self.handle_disconnect)
         socketio.on_event('image',      self.handle_image)
         socketio.on_event('temphum',    self.handle_temphum)
+        socketio.on_event('esp32_temphum', self.handle_esp32_temphum)
         socketio.on_event('status',     self.handle_status)
         socketio.on_event('printerAction', self.handle_printer_action)
 
@@ -62,6 +63,21 @@ class SocketEventHandler:
             'humidity':    saved.humidity
         })
         self.logger.debug("Broadcasted temphum: %s", data)
+        
+    def handle_esp32_temphum(self, data):
+        location, temp, hum = data.get('location'), data.get('temperature_c'), data.get('humidity_pct')
+        if location is None or temp is None or hum is None:
+            self.socketio.emit(
+                'error', {'message': 'Invalid location/temperature/humidity data'})
+            self.logger.warning("Bad esp32 temphum payload: %s", data)
+            return
+        saved = self.ctrl.record_esp32_temphum(location, temp, hum)
+        self.socketio.emit('esp32_temphum', {
+            'location': saved.location,
+            'temperature': saved.temperature,
+            'humidity':    saved.humidity
+        })
+        self.logger.debug("Broadcasted esp32 temphum: %s", data)
 
     def handle_status(self, data):
         if data is None:

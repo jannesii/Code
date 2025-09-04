@@ -1,9 +1,20 @@
+<!-- HTML -->
 <nav class="navbar">
-    <ul>
-      <li><a href="{{ url_for('web.get_home_page') }}">Home</a></li>
-      <li><a href="{{ url_for('web.get_3d_page') }}">3D Dashboard</a></li>
-      <li><a href="{{ url_for('web.get_settings_page') }}">Asetukset</a></li>
-      <li><a href="{{ url_for('auth.logout') }}">Kirjaudu Ulos</a></li>
-    </ul>
-  </nav>
-  
+  <button
+    class="menu-toggle"
+    id="menuToggle"
+    aria-expanded="false"
+    aria-controls="mobileMenu"
+    aria-label="Open menu"
+  >
+    ☰ Menu
+  </button>
+
+  <ul class="nav-list" id="mobileMenu">
+    <li><a href="{{ url_for('web.get_home_page') }}">Home</a></li>
+    <li><a href="{{ url_for('web.get_temperatures_page') }}">Temperatures</a></li>
+    <li><a href="{{ url_for('web.get_3d_page') }}">3D Dashboard</a></li>
+    <li><a href="{{ url_for('web.get_settings_page') }}">Asetukset</a></li>
+    <li><a href="{{ url_for('auth.logout') }}">Kirjaudu Ulos</a></li>
+  </ul>
+</nav>

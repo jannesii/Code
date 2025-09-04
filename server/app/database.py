@@ -42,6 +42,13 @@ class DatabaseManager:
                 'temperature REAL NOT NULL, '
                 'humidity REAL NOT NULL'
             ),
+            'esp32_temphum': (
+                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+                'location TEXT NOT NULL, '
+                'timestamp TEXT NOT NULL, '
+                'temperature REAL NOT NULL, '
+                'humidity REAL NOT NULL'
+            ),
             'status': (
                 'id INTEGER PRIMARY KEY CHECK (id = 1),'
                 'timestamp TEXT NOT NULL, '
@@ -104,6 +111,14 @@ class DatabaseManager:
             AFTER INSERT ON temphum
             BEGIN
                 DELETE FROM temphum
+                WHERE timestamp < datetime('now', '-7 days');
+            END;
+            """,
+            'cleanup_esp32_temphum_after_insert':"""  
+            CREATE TRIGGER IF NOT EXISTS cleanup_esp32_temphum_after_insert
+            AFTER INSERT ON esp32_temphum
+            BEGIN
+                DELETE FROM esp32_temphum
                 WHERE timestamp < datetime('now', '-7 days');
             END;
             """

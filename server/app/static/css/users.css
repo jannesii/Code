@@ -1,30 +1,37 @@
 /* --- LAYOUT ---------------------------------------------------------------- */
 .container {
-  max-width: 1000px;
-  margin: 0 auto;
+  /* container sizing */
+  width: 100%;
+  max-width: 800px;     /* cap on larger screens */
+  margin: 0 auto;       /* center when wider than 800px */
   padding: 20px;
+  box-sizing: border-box;
+
+  /* key line: center items horizontally */
+  justify-items: center;
 }
 
 .user-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(1, 1fr);
   gap: 24px;
 }
 
 /* --- USER TILE ------------------------------------------------------------- */
 .user-tile {
-    background: #1e1e1e;
-    border: 1px solid #333;
-    border-radius: 10px;
-    padding: 20px 18px;
-    color: #fff;
-    font-size: 1em;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    min-height: 120px;          /* thinner card */
-    transition: background 0.3s, transform 0.3s;
-    grid-column: 1 / -1;        /* spans full row */
+  background: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 10px;
+  padding: 20px 18px;
+  color: #fff;
+  font-size: 1em;
+  transition: background-color 0.3s, transform 0.3s;
+  display: flex;
+
+  /* Always 80% of viewport width, capped at 600px */
+  width: min(80vw, 600px);
+  margin: 0 auto;        /* center the tile */
+  box-sizing: border-box; /* include padding/border inside width */
 }
 .user-tile:hover {
   background: #272727;

@@ -43,6 +43,13 @@ class TemperatureHumidity:
     temperature: float
     humidity: float
 
+@dataclass
+class ESP32TemperatureHumidity:
+    id: int
+    location: str
+    timestamp: str
+    temperature: float
+    humidity: float
 
 @dataclass
 class Status:

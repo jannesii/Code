@@ -1,0 +1,73 @@
+.container {
+  max-width: 1000px;
+  width: 100%;
+  padding: 20px;
+}
+
+.section-title{
+  margin: 10px 0 14px;
+  color: #bbb;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.locations-grid{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+.tile{
+  background-color: #1e1e1e;
+  border: 1px solid #333;
+  padding: 18px;
+  border-radius: 10px;
+  color: #fff;
+  transition: background-color 0.3s, transform 0.3s;
+}
+
+.tile:hover {
+background-color: #272727;
+transform: scale(1.05);
+}
+
+.tile .loc{
+  font-size: 1.3rem;
+  margin-bottom: 10px;
+}
+
+.tile .row{
+  display: flex;
+  justify-content: space-between;
+  margin: 4px 0;
+}
+
+.tile .label{ color:#aaa; }
+.tile .value{ font-weight:600; }
+
+.tile .temp{ font-size: 1.3rem; }
+.tile .hum { font-size: 1.3rem; }
+
+/* Mobile: stack tiles in a single column */
+@media (max-width: 800px) {
+  .locations-grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(220px, 1fr));
+    gap: 16px;
+  }
+
+  .container {
+    padding: 16px;
+  }
+
+  .tile {
+    padding: 16px;
+  }
+}
+
+/* Disable hover grow on touch devices to avoid layout jank */
+@media (hover: none) {
+  .tile:hover {
+    transform: none;
+  }
+}

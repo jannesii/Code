@@ -1,13 +1,13 @@
 # controller.py
 import os
 import tempfile
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 from flask_login import current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 
-from models import User, TemperatureHumidity, Status, ImageData, TimelapseConf
+from models import User, TemperatureHumidity, ESP32TemperatureHumidity, Status, ImageData, TimelapseConf
 from .database import DatabaseManager
 import pytz
 
@@ -215,6 +215,87 @@ class Controller:
             )
             for row in rows
         ]
+        
+    def record_esp32_temphum(self, location: str, temperature: float, humidity: float) -> ESP32TemperatureHumidity:
+        now = datetime.now(self.finland_tz).isoformat()
+        self.db.execute_query(
+            "INSERT INTO esp32_temphum (location, timestamp, temperature, humidity) VALUES (?, ?, ?, ?)",
+            (location, now, temperature, humidity)
+        )
+        row = self.db.fetchone(
+            "SELECT id, location, timestamp, temperature, humidity FROM esp32_temphum ORDER BY id DESC LIMIT 1"
+        )
+        if row is None:
+            raise RuntimeError("Failed to retrieve inserted esp32_temphum record")
+        return ESP32TemperatureHumidity(
+            id=row['id'], location=row['location'], timestamp=row['timestamp'],
+            temperature=row['temperature'], humidity=row['humidity']
+        )
+
+    def get_last_esp32_temphum(self) -> Optional[ESP32TemperatureHumidity]:
+        row = self.db.fetchone(
+            "SELECT id, location, timestamp, temperature, humidity FROM esp32_temphum ORDER BY id DESC LIMIT 1"
+        )
+        if row is None:
+            return None
+        return ESP32TemperatureHumidity(
+            id=row['id'], location=row['location'], timestamp=row['timestamp'],
+            temperature=row['temperature'], humidity=row['humidity']
+        )
+
+    def get_esp32_temphum_for_date(self, date_str: str, location: str) -> List[ESP32TemperatureHumidity]:
+        rows = self.db.fetchall(
+            """
+            SELECT id, location, timestamp, temperature, humidity
+              FROM esp32_temphum
+             WHERE date(timestamp) = ? AND location = ?
+             ORDER BY timestamp
+            """,
+            (date_str, location)
+        )
+        return [
+            ESP32TemperatureHumidity(
+                id=row['id'],
+                location=row['location'],
+                timestamp=row['timestamp'],
+                temperature=row['temperature'],
+                humidity=row['humidity']
+            )
+            for row in rows
+        ]
+
+
+
+    def get_unique_locations(self) -> List[Dict[str, Any]]:
+        """
+        Return the latest (most recent) reading per unique location,
+        as a list of dicts with keys: location, temp, hum.
+        """
+        rows = self.db.fetchall(
+            """
+            SELECT e.id, e.location, e.timestamp, e.temperature, e.humidity
+            FROM esp32_temphum AS e
+            WHERE e.id = (
+                SELECT e2.id
+                    FROM esp32_temphum AS e2
+                    WHERE e2.location = e.location
+                ORDER BY e2.timestamp DESC, e2.id DESC
+                    LIMIT 1
+            )
+            ORDER BY e.location
+            """
+        )
+
+        return [
+            {
+                "location": row["location"],
+                "temperature": float(row["temperature"]) if row["temperature"] is not None else None,
+                "humidity": float(row["humidity"]) if row["humidity"] is not None else None,
+            }
+            for row in rows
+        ]
+
+
 
     def update_status(self, status: str) -> Status:
         now = datetime.now(self.finland_tz).isoformat()

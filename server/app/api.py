@@ -26,15 +26,24 @@ def get_temphum():
         {'timestamp': d.timestamp, 'temperature': d.temperature, 'humidity': d.humidity}
         for d in data
     ])
-
-@api_bp.route('/temperature', methods=["POST"])
+    
+@api_bp.route('/esp32_temphum')
 @login_required
-def temperature():
-    data = request.get_json(force=True, silent=True) or {}
-    logger.debug(
-        "API /temperature test=%s", data
+def get_esp32_temphum():
+    ctrl: Controller = current_app.ctrl # type: ignore
+    finland_tz = pytz.timezone('Europe/Helsinki')
+    date_str = request.args.get('date', datetime.now(finland_tz).date().isoformat())
+    location = request.args.get('location', 'default').strip()
+    logger.info(
+        "API /esp32_temphum for %s by %s",
+        date_str, current_user.get_id()
     )
-    return jsonify({"ok": True}), 200
+    data = ctrl.get_esp32_temphum_for_date(date_str, location)
+    return jsonify([
+        {'timestamp': d.timestamp, 'temperature': d.temperature, 'humidity': d.humidity}
+        for d in data
+    ])
+
 
 @api_bp.route('/timelapse_config')
 @login_required

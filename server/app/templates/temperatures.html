@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block title %}Server Sensors{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chart_modal.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/temperatures.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flash.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-container" style="max-width:800px; margin:20px auto;">
+      {% for category, msg in messages %}
+      <div class="flash {{ category }}">{{ msg }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endwith %}
+
+  <h2 class="section-title">Lämpötila ja kosteus</h2>
+  <div id="locationsGrid" class="locations-grid"></div>
+</div>
+{% include 'chart_modal.html' %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.LOCATIONS = {{ locations | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/chart_modal.js') }}"></script>
+<script src="{{ url_for('static', filename='js/init_sio.js') }}"></script>
+<script src="{{ url_for('static', filename='js/temperatures.js') }}"></script>
+<script src="{{ url_for('static', filename='js/flash.js') }}"></script>
+{% endblock %}
+
