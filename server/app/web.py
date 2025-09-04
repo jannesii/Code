@@ -4,7 +4,11 @@ from operator import ne
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash
 from flask_login import login_required, current_user
 from dataclasses import asdict
-from .utils import check_vals, get_ctrl, require_admin_or_redirect, combine_local_date_time, can_edit_user, can_delete_user
+from .utils import (
+    check_vals, get_ctrl, require_admin_or_redirect, combine_local_date_time,
+    can_edit_user, can_delete_user, flash_error, flash_success,
+    get_new_password_pair, validate_password_pair,
+)
 from .controller import Controller
 
 
@@ -58,38 +62,35 @@ def change_password():
     # Root-Admin cannot change password (by requirement)
     me = ctrl.get_user_by_username(current_user.get_id(), include_pw=False)
     if me and getattr(me, 'is_root_admin', False):
-        flash('Root-Admin ei voi vaihtaa salasanaa.', 'error')
+        flash_error('Root-Admin ei voi vaihtaa salasanaa.')
         return redirect(url_for('web.get_settings_page'))
 
     if request.method == 'POST':
-        current_pw = request.form.get('current_password', '')
-        new_pw = (request.form.get('new_password') or '').strip()
-        confirm_pw = (request.form.get('confirm_password') or '').strip()
+        current_pw = (request.form.get('current_password') or '').strip()
+        new_pw, confirm_pw = get_new_password_pair(request.form)
 
         # Validate input
-        if not current_pw or not new_pw or not confirm_pw:
-            flash('Täytä kaikki kentät.', 'error')
+        if not current_pw:
+            flash_error('Syötä nykyinen salasana.')
             return render_template('change_password.html')
-        if new_pw != confirm_pw:
-            flash('Uusi salasana ja vahvistus eivät täsmää.', 'error')
-            return render_template('change_password.html')
-        if len(new_pw) < 6:
-            flash('Uuden salasanan on oltava vähintään 6 merkkiä.', 'error')
+        ok, msg = validate_password_pair(new_pw, confirm_pw, required=True, min_len=6)
+        if not ok:
+            flash_error(msg or 'Virheellinen salasana.')
             return render_template('change_password.html')
 
         # Verify current password
         if not ctrl.authenticate_user(current_user.get_id(), current_pw):
-            flash('Nykyinen salasana on virheellinen.', 'error')
+            flash_error('Nykyinen salasana on virheellinen.')
             return render_template('change_password.html')
 
         # Update password
         try:
             ctrl.update_user(current_username=current_user.get_id(), password=new_pw)
             ctrl.log_message(log_type='info', message=f"User {current_user.get_id()} changed password")
-            flash('Salasana vaihdettu.', 'success')
+            flash_success('Salasana vaihdettu.')
             return redirect(url_for('web.get_settings_page'))
         except Exception as e:
-            flash(f"Salasanan vaihto epäonnistui: {e}", 'error')
+            flash_error(f"Salasanan vaihto epäonnistui: {e}")
             return render_template('change_password.html')
 
     return render_template('change_password.html')
@@ -103,18 +104,11 @@ def add_user():
     if guard:
         return guard
     if request.method == 'POST':
-        u = request.form.get('username', '').strip()
-        # Support both new and legacy field names
-        p = (request.form.get('new_password') or request.form.get('password') or '').strip()
-        p2 = (request.form.get('new_password_confirm') or request.form.get('password_confirm') or '').strip()
-        if not p or not p2:
-            flash('Salasana ja vahvistus vaaditaan.', 'error')
-            return render_template('add_user.html')
-        if p != p2:
-            flash('Salasanat eivät täsmää.', 'error')
-            return render_template('add_user.html')
-        if len(p) < 6:
-            flash('Salasanan on oltava vähintään 6 merkkiä.', 'error')
+        u = (request.form.get('username') or '').strip()
+        p, p2 = get_new_password_pair(request.form)
+        ok, msg = validate_password_pair(p, p2, required=True, min_len=6)
+        if not ok:
+            flash_error(msg or 'Virheellinen salasana.')
             return render_template('add_user.html')
         is_temp = bool(request.form.get('is_temporary'))
         duration_value = int(request.form.get(
@@ -127,15 +121,14 @@ def add_user():
                 logger.info("Adding temporary user %s (temporary=%s, duration=%s %s)",
                             u, is_temp, duration_value, duration_unit)
                 ctrl.create_temporary_user(u, p, duration_value, duration_unit)
-                flash(
-                    f"Väliaikainen käyttäjä «{u}» lisätty onnistuneesti.", 'success')
+                flash_success(f"Väliaikainen käyttäjä «{u}» lisätty onnistuneesti.")
             else:
                 ctrl.register_user(u, p)
-                flash(f"Käyttäjä «{u}» lisätty onnistuneesti.", 'success')
+                flash_success(f"Käyttäjä «{u}» lisätty onnistuneesti.")
             logger.info("User %s added by %s", u, current_user.get_id())
             return redirect(url_for('web.user_list'))
         except ValueError as ve:
-            flash(str(ve), "error")
+            flash_error(str(ve))
             logger.warning("Add user failed: %s", ve)
 
     return render_template('add_user.html')
@@ -274,11 +267,11 @@ def edit_user(username):
         next_url = request.args.get("next") or url_for("users.user_list")
         return redirect(next_url)
     if not user:
-        flash('Käyttäjää ei löytynyt.', 'error')
+        flash_error('Käyttäjää ei löytynyt.')
         return redirect(url_for('web.user_list'))
     ok, msg = can_edit_user(user)
     if not ok:
-        flash(msg, 'error')
+        flash_error(msg)
         return redirect(url_for('web.user_list'))
     if request.method == 'POST':
         new_username = (request.form.get('username') or '').strip()
@@ -295,7 +288,7 @@ def edit_user(username):
             try:
                 expires_at = combine_local_date_time(expires_date, expires_time)
             except Exception:
-                flash('Virheellinen vanhenemisaika.', 'error')
+                flash_error('Virheellinen vanhenemisaika.')
                 return render_template('edit_user.html', user=user)
         elif is_temporary:
             # Allow temporary without specific expiry (left blank)
@@ -303,11 +296,9 @@ def edit_user(username):
 
         # Validate password if provided
         if password:
-            if password != password_confirm:
-                flash('Uusi salasana ja vahvistus eivät täsmää.', 'error')
-                return render_template('edit_user.html', user=user)
-            if len(password) < 6:
-                flash('Uuden salasanan on oltava vähintään 6 merkkiä.', 'error')
+            ok, msg = validate_password_pair(password, password_confirm, required=True, min_len=6)
+            if not ok:
+                flash_error(msg or 'Virheellinen salasana.')
                 return render_template('edit_user.html', user=user)
 
         try:
@@ -319,12 +310,12 @@ def edit_user(username):
                 is_admin=is_admin,
                 expires_at=expires_at,
             )
-            flash('Käyttäjä päivitetty.', 'success')
+            flash_success('Käyttäjä päivitetty.')
             return redirect(url_for('web.user_list'))
         except ValueError as ve:
-            flash(str(ve), 'error')
+            flash_error(str(ve))
         except Exception as e:
-            flash(f"Päivitys epäonnistui: {e}", 'error')
+            flash_error(f"Päivitys epäonnistui: {e}")
     return render_template('edit_user.html', user=user)
 
 

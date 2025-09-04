@@ -75,3 +75,59 @@ def can_delete_user(target_user, acting_user_id: str) -> Tuple[bool, Optional[st
     if getattr(target_user, 'username', None) == acting_user_id:
         return False, 'Et voi poistaa omaa tiliäsi.'
     return True, None
+
+
+# --- Flash helpers ---
+
+def flash_success(message: str):
+    flash(message, 'success')
+
+
+def flash_error(message: str):
+    flash(message, 'error')
+
+
+def flash_warning(message: str):
+    flash(message, 'warning')
+
+
+def flash_info(message: str):
+    flash(message, 'info')
+
+
+# --- Password helpers ---
+
+def get_new_password_pair(form) -> Tuple[str, str]:
+    """Extract new password and confirmation from a form, supporting legacy names.
+    Returns (password, confirm) trimmed; missing values become ''.
+    Supported names:
+      - password, password_confirm
+      - new_password, new_password_confirm
+      - new_password, confirm_password
+    """
+    pw = (form.get('new_password') or form.get('password') or '').strip()
+    conf = (
+        form.get('new_password_confirm')
+        or form.get('password_confirm')
+        or form.get('confirm_password')
+        or ''
+    ).strip()
+    return pw, conf
+
+
+def validate_password_pair(password: str, confirm: str, *, required: bool = False, min_len: int = 6) -> Tuple[bool, Optional[str]]:
+    """Validate a password + confirmation pair.
+    - If required is False and both empty, returns (True, None).
+    - If required is True, both must be non-empty.
+    - If provided, they must match and meet min length.
+    Returns (ok, error_message).
+    """
+    if not password and not confirm:
+        return (not required), (None if not required else 'Salasana ja vahvistus vaaditaan.')
+    if required and (not password or not confirm):
+        return False, 'Salasana ja vahvistus vaaditaan.'
+    if password != confirm:
+        return False, 'Uusi salasana ja vahvistus eivät täsmää.'
+    if len(password) < min_len:
+        return False, f'Uuden salasanan on oltava vähintään {min_len} merkkiä.'
+    return True, None
