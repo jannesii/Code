@@ -17,12 +17,17 @@
 
       <div class="form-row">
         <label for="username">Käyttäjätunnus</label>
-        <input type="text" id="username" name="username" required>
+        <input type="text" id="username" name="username" required autocomplete="username">
       </div>
 
       <div class="form-row">
-        <label for="password">Salasana</label>
-        <input type="password" id="password" name="password" required autocomplete="new-password">
+        <label for="new_password">Salasana</label>
+        <input type="password" id="new_password" name="new_password" required autocomplete="new-password">
+      </div>
+
+      <div class="form-row">
+        <label for="new_password_confirm">Vahvista salasana</label>
+        <input type="password" id="new_password_confirm" name="new_password_confirm" required autocomplete="new-password">
       </div>
 
       <div class="form-row inline">

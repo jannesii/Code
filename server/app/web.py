@@ -51,6 +51,50 @@ def get_settings_page():
     return render_template('settings.html')
 
 
+@web_bp.route('/settings/change_password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    ctrl: Controller = current_app.ctrl  # type: ignore
+    # Root-Admin cannot change password (by requirement)
+    me = ctrl.get_user_by_username(current_user.get_id(), include_pw=False)
+    if me and getattr(me, 'is_root_admin', False):
+        flash('Root-Admin ei voi vaihtaa salasanaa.', 'error')
+        return redirect(url_for('web.get_settings_page'))
+
+    if request.method == 'POST':
+        current_pw = request.form.get('current_password', '')
+        new_pw = (request.form.get('new_password') or '').strip()
+        confirm_pw = (request.form.get('confirm_password') or '').strip()
+
+        # Validate input
+        if not current_pw or not new_pw or not confirm_pw:
+            flash('Täytä kaikki kentät.', 'error')
+            return render_template('change_password.html')
+        if new_pw != confirm_pw:
+            flash('Uusi salasana ja vahvistus eivät täsmää.', 'error')
+            return render_template('change_password.html')
+        if len(new_pw) < 6:
+            flash('Uuden salasanan on oltava vähintään 6 merkkiä.', 'error')
+            return render_template('change_password.html')
+
+        # Verify current password
+        if not ctrl.authenticate_user(current_user.get_id(), current_pw):
+            flash('Nykyinen salasana on virheellinen.', 'error')
+            return render_template('change_password.html')
+
+        # Update password
+        try:
+            ctrl.update_user(current_username=current_user.get_id(), password=new_pw)
+            ctrl.log_message(log_type='info', message=f"User {current_user.get_id()} changed password")
+            flash('Salasana vaihdettu.', 'success')
+            return redirect(url_for('web.get_settings_page'))
+        except Exception as e:
+            flash(f"Salasanan vaihto epäonnistui: {e}", 'error')
+            return render_template('change_password.html')
+
+    return render_template('change_password.html')
+
+
 @web_bp.route('/settings/add_user', methods=['GET', 'POST'])
 @login_required
 def add_user():
@@ -62,7 +106,18 @@ def add_user():
         return redirect(url_for('web.user_list'))
     if request.method == 'POST':
         u = request.form.get('username', '').strip()
-        p = request.form.get('password', '')
+        # Support both new and legacy field names
+        p = (request.form.get('new_password') or request.form.get('password') or '').strip()
+        p2 = (request.form.get('new_password_confirm') or request.form.get('password_confirm') or '').strip()
+        if not p or not p2:
+            flash('Salasana ja vahvistus vaaditaan.', 'error')
+            return render_template('add_user.html')
+        if p != p2:
+            flash('Salasanat eivät täsmää.', 'error')
+            return render_template('add_user.html')
+        if len(p) < 6:
+            flash('Salasanan on oltava vähintään 6 merkkiä.', 'error')
+            return render_template('add_user.html')
         is_temp = bool(request.form.get('is_temporary'))
         duration_value = int(request.form.get(
             'duration_value', '1')) if is_temp else None
@@ -235,7 +290,9 @@ def edit_user(username):
         return redirect(url_for('web.user_list'))
     if request.method == 'POST':
         new_username = (request.form.get('username') or '').strip()
-        password = (request.form.get('password') or '').strip()
+        # Support both new and legacy field names for password change
+        password = (request.form.get('new_password') or request.form.get('password') or '').strip()
+        password_confirm = (request.form.get('new_password_confirm') or request.form.get('password_confirm') or '').strip()
         is_admin = bool(request.form.get('is_admin'))
         is_temporary = bool(request.form.get('is_temporary'))
 
@@ -257,6 +314,15 @@ def edit_user(username):
         elif is_temporary:
             # Allow temporary without specific expiry (left blank)
             expires_at = None
+
+        # Validate password if provided
+        if password:
+            if password != password_confirm:
+                flash('Uusi salasana ja vahvistus eivät täsmää.', 'error')
+                return render_template('edit_user.html', user=user)
+            if len(password) < 6:
+                flash('Uuden salasanan on oltava vähintään 6 merkkiä.', 'error')
+                return render_template('edit_user.html', user=user)
 
         try:
             updated = ctrl.update_user(
