@@ -167,19 +167,21 @@ def create_app():
     SCHEMA = os.getenv("TUYA_SCHEMA")
     DEVICE_ID = os.getenv("TUYA_DEVICE_ID")
     
-    from .tuya import TuyaACController, TemperatureState, ThermostatConfig, ACThermostat
+    from .tuya import TuyaACController, ThermostatConfig, ACThermostat
     from tuya_iot import TuyaOpenAPI
 
     api = TuyaOpenAPI(API_ENDPOINT, ACCESS_ID, ACCESS_KEY)
     api.connect(USERNAME, PASSWORD, COUNTRY_CODE, SCHEMA)
 
     ac_controller = TuyaACController(device_id=DEVICE_ID, api=api)
-    room_temp = TemperatureState()
     ac_config = ThermostatConfig()
+    # Read thermostat location for shared temp source (defaults to previous value)
+    THERMOSTAT_LOCATION = os.getenv("THERMOSTAT_LOCATION", "Tietokonepöytä")
     ac_thermostat = ACThermostat(
         ac=ac_controller,
         cfg=ac_config,
-        temp_state=room_temp
+        ctrl=app.ctrl,  # type: ignore
+        location=THERMOSTAT_LOCATION,
     )
     ac_thread = threading.Thread(target=ac_thermostat.run_forever, daemon=True)
     ac_thread.start()
@@ -187,7 +189,7 @@ def create_app():
     
     # ─── Socket event handlers ───
     from .socket_handlers import SocketEventHandler
-    SocketEventHandler(socketio, app.ctrl, room_temp)  # type: ignore
+    SocketEventHandler(socketio, app.ctrl)  # type: ignore
 
 
     # ─── Blueprints ───

@@ -5,6 +5,7 @@ import time
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
 from tuya_iot import TuyaOpenAPI
+from .controller import Controller
 
 logger = logging.getLogger(__name__)
 
@@ -205,25 +206,20 @@ class ThermostatConfig:
     initial_power: bool = False        # assumed initial state (we don't read device state)
     max_stale_s: Optional[int] = 120   # if not None, ignore temps older than this
 
-@dataclass
-class TemperatureState:
-    current_c: float = None
-    # May be unix seconds (float/int) or ISO8601 string; we normalize at read time
-    updated_at: Optional[Any] = None
-
 # ----------------------------
 # Thermostat loop (no device temp reads)
 # ----------------------------
 class ACThermostat:
-    def __init__(self, ac: TuyaACController, cfg: ThermostatConfig, temp_state: TemperatureState):
+    def __init__(self, ac: TuyaACController, cfg: ThermostatConfig, ctrl: Controller, location: str):
         self.ac = ac
         self.cfg = cfg
-        self.temp_state = temp_state
+        self.ctrl = ctrl
+        self.location = location
         self._temps = deque(maxlen=max(1, cfg.smooth_window))
         self._is_on: bool = bool(cfg.initial_power)
         self._last_change_ts: float = 0.0
         logger.info(
-            "thermo: init setpoint=%.2f deadband=%.2f min_on=%ss min_off=%ss poll=%ss smooth=%d mode_on=%s fan_on=%s write_setpoint=%s initial_power=%s max_stale=%s",
+            "thermo: init setpoint=%.2f deadband=%.2f min_on=%ss min_off=%ss poll=%ss smooth=%d mode_on=%s fan_on=%s write_setpoint=%s initial_power=%s max_stale=%s location=%s",
             cfg.setpoint_c,
             cfg.deadband_c,
             cfg.min_on_s,
@@ -235,6 +231,7 @@ class ACThermostat:
             bool(cfg.write_setpoint_on_power_on),
             bool(cfg.initial_power),
             str(cfg.max_stale_s),
+            self.location,
         )
 
     def _now(self) -> float:
@@ -251,42 +248,43 @@ class ACThermostat:
         return ok
 
     def _read_external_temp(self) -> Optional[float]:
-        """Pulls temp from the shared dataclass and applies smoothing."""
-        t = self.temp_state.current_c
-        ts = self.temp_state.updated_at
-        logger.info(f"thermo: read_external_temp=t={t} updated_at={ts}")
-        if t is None:
-            logger.debug("thermo: external temp missing")
+        """Read latest temperature for the configured location from Controller/DB and apply smoothing."""
+        rec = self.ctrl.get_last_esp32_temphum_for_location(self.location)
+        if rec is None:
+            logger.debug("thermo: no DB reading for location=%s", self.location)
             return None
-        # Normalize timestamp (float seconds) for stale-check if provided
+        t = rec.temperature
+        ts = rec.timestamp  # ISO string stored by controller
+        logger.info("thermo: read_external_temp=t=%s updated_at=%s", t, ts)
+        if t is None:
+            logger.debug("thermo: DB reading missing temperature")
+            return None
+        # Stale check against max_stale_s
         if self.cfg.max_stale_s is not None and ts is not None:
             ts_epoch: Optional[float] = None
-            if isinstance(ts, (int, float)):
-                ts_epoch = float(ts)
-            elif isinstance(ts, str):
-                s = ts.strip()
+            s = str(ts).strip()
+            if s:
                 try:
-                    ts_epoch = float(s)
-                except ValueError:
+                    if s.endswith('Z'):
+                        s = s[:-1] + '+00:00'
+                    dt = datetime.fromisoformat(s)
+                    # If tz missing, treat as UTC to avoid local/UTC mismatch
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                    ts_epoch = dt.timestamp()
+                except Exception:
                     try:
-                        # Accept ISO8601; handle trailing 'Z' as UTC
-                        if s.endswith('Z'):
-                            s = s[:-1] + '+00:00'
-                        dt = datetime.fromisoformat(s)
-                        if dt.tzinfo is None:
-                            # Assume UTC if timezone missing
-                            dt = dt.replace(tzinfo=timezone.utc)
-                        ts_epoch = dt.timestamp()
+                        ts_epoch = float(s)
                     except Exception:
-                        logger.debug("thermo: could not parse updated_at=%r", ts)
+                        logger.debug("thermo: could not parse timestamp=%r", ts)
                         ts_epoch = None
             if ts_epoch is not None:
                 age = self._now() - ts_epoch
                 if age > self.cfg.max_stale_s:
                     logger.warning("thermo: ignoring stale temp age=%.1fs > %ss", age, self.cfg.max_stale_s)
-                    return None  # stale reading; skip decision this cycle
+                    return None
             else:
-                logger.debug("thermo: skipping stale-check due to unparsable updated_at=%r", ts)
+                logger.debug("thermo: skipping stale-check due to unparsable ts=%r", ts)
         self._temps.append(float(t))
         if len(self._temps) == 0:
             return None

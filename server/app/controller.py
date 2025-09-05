@@ -343,6 +343,28 @@ class Controller:
             for row in rows
         ]
 
+    def get_last_esp32_temphum_for_location(self, location: str) -> Optional[ESP32TemperatureHumidity]:
+        """Return the most recent ESP32TemperatureHumidity row for a given location, or None."""
+        row = self.db.fetchone(
+            """
+            SELECT id, location, timestamp, temperature, humidity
+              FROM esp32_temphum
+             WHERE location = ?
+             ORDER BY timestamp DESC, id DESC
+             LIMIT 1
+            """,
+            (location,)
+        )
+        if row is None:
+            return None
+        return ESP32TemperatureHumidity(
+            id=row['id'],
+            location=row['location'],
+            timestamp=row['timestamp'],
+            temperature=row['temperature'],
+            humidity=row['humidity']
+        )
+
 
 
     def get_unique_locations(self) -> List[Dict[str, Any]]:
