@@ -254,6 +254,7 @@ class ACThermostat:
         """Pulls temp from the shared dataclass and applies smoothing."""
         t = self.temp_state.current_c
         ts = self.temp_state.updated_at
+        logger.info(f"thermo: read_external_temp=t={t} updated_at={ts}")
         if t is None:
             logger.debug("thermo: external temp missing")
             return None

@@ -4,6 +4,7 @@ from flask_socketio import SocketIO
 from flask_login import current_user
 
 from .controller import Controller
+from datetime import datetime, timezone
 from .tuya import TemperatureState
 
 
@@ -82,7 +83,20 @@ class SocketEventHandler:
         
         if location == 'Tietokonepöytä':
             self.temperature_state.current_c = temp
-            self.temperature_state.updated_at = saved.timestamp
+            # Normalize timestamp to epoch seconds for thermostat calculations
+            ts_epoch = None
+            s = str(saved.timestamp).strip() if saved.timestamp is not None else ''
+            if s:
+                try:
+                    if s.endswith('Z'):
+                        s = s[:-1] + '+00:00'
+                    dt = datetime.fromisoformat(s)
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                    ts_epoch = dt.timestamp()
+                except Exception:
+                    ts_epoch = None
+            self.temperature_state.updated_at = ts_epoch if ts_epoch is not None else saved.timestamp
             
         self.logger.debug("Broadcasted esp32 temphum: %s", data)
 
