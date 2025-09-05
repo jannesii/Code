@@ -4,6 +4,7 @@ from flask_socketio import SocketIO
 from flask_login import current_user
 
 from .controller import Controller
+from .tuya import TemperatureState
 
 
 class SocketEventHandler:
@@ -15,11 +16,12 @@ class SocketEventHandler:
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, socketio: SocketIO, ctrl: Controller):
+    def __init__(self, socketio: SocketIO, ctrl: Controller, temperature_state: TemperatureState):
         if self._initialized:
             return
         self.socketio = socketio
         self.ctrl = ctrl
+        self.temperature_state = temperature_state
         self.logger = logging.getLogger(__name__)
         self._initialized = True
         socketio.on_event('connect',    self.handle_connect)
@@ -77,6 +79,11 @@ class SocketEventHandler:
             'temperature': saved.temperature,
             'humidity':    saved.humidity
         })
+        
+        if location == 'Tietokonepöytä':
+            self.temperature_state.current_c = temp
+            self.temperature_state.updated_at = saved.timestamp
+            
         self.logger.debug("Broadcasted esp32 temphum: %s", data)
 
     def handle_status(self, data):

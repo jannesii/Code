@@ -1,3 +1,4 @@
+import threading
 import eventlet
 eventlet.monkey_patch()
 from .controller import Controller
@@ -156,9 +157,38 @@ def create_app():
     signal.signal(signal.SIGINT, exit_signal)
     app.socketio = socketio  # type: ignore
     logger.info("Socket.IO ready (origins: %s)", allowed_ws_origins)
+    
+    ACCESS_ID = os.getenv("TUYA_ACCESS_ID")
+    ACCESS_KEY = os.getenv("TUYA_ACCESS_KEY")
+    API_ENDPOINT = os.getenv("TUYA_API_ENDPOINT")
+    USERNAME = os.getenv("TUYA_USERNAME")
+    PASSWORD = os.getenv("TUYA_PASSWORD")
+    COUNTRY_CODE = os.getenv("TUYA_COUNTRY_CODE")
+    SCHEMA = os.getenv("TUYA_SCHEMA")
+    DEVICE_ID = os.getenv("TUYA_DEVICE_ID")
+    
+    from .tuya import TuyaACController, TemperatureState, ThermostatConfig, ACThermostat
+    from tuya_iot import TuyaOpenAPI
+
+    api = TuyaOpenAPI(API_ENDPOINT, ACCESS_ID, ACCESS_KEY)
+    api.connect(USERNAME, PASSWORD, COUNTRY_CODE, SCHEMA)
+
+    ac_controller = TuyaACController(device_id=DEVICE_ID, api=api)
+    room_temp = TemperatureState()
+    ac_config = ThermostatConfig()
+    ac_thermostat = ACThermostat(
+        ac=ac_controller,
+        cfg=ac_config,
+        temp_state=room_temp
+    )
+    ac_thread = threading.Thread(target=ac_thermostat.run_forever, daemon=True)
+    ac_thread.start()
+    logger.info("Tuya AC controller started for device %s", DEVICE_ID)
+    
     # ─── Socket event handlers ───
     from .socket_handlers import SocketEventHandler
-    SocketEventHandler(socketio, app.ctrl)  # type: ignore
+    SocketEventHandler(socketio, app.ctrl, room_temp)  # type: ignore
+
 
     # ─── Blueprints ───
     from .auth import auth_bp

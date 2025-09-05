@@ -1,0 +1,378 @@
+import logging
+from collections import deque
+from dataclasses import dataclass
+import time
+from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
+from tuya_iot import TuyaOpenAPI
+
+logger = logging.getLogger(__name__)
+
+class TuyaACController:
+    """
+    Controller for a Tuya/Smart Life AC using Tuya Cloud OpenAPI.
+
+    Supported DP codes (from your device):
+      - switch (bool)                     -> power on/off
+      - mode (enum)                       -> 'cold' | 'hot' | 'wet' | 'wind'
+      - fan_speed_enum (enum)             -> 'low' | 'mid' | 'high' | 'auto'
+      - temp_set (int, 16..31, °C)        -> target temperature
+      - temp_current (int, -20..100, °C)  -> reported current temperature (read-only)
+
+    Usage:
+        api = TuyaOpenAPI(API_ENDPOINT, ACCESS_ID, ACCESS_KEY)
+        api.connect(USERNAME, PASSWORD, COUNTRY_CODE, SCHEMA)
+
+        ac = TuyaACController(api=api, device_id="YOUR_DEVICE_ID")
+        ac.turn_on()
+        ac.set_mode("cold")
+        ac.set_fan_speed("auto")
+        ac.set_temperature(23)
+        print(ac.get_status())
+    """
+
+    # Enumerations and ranges from your provided specs
+    FAN_SPEEDS = {"low", "mid", "high", "auto"}
+    MODES = {"cold", "hot", "wet", "wind"}
+    TEMP_MIN = 16
+    TEMP_MAX = 31
+
+    def __init__(
+        self,
+        device_id: str,
+        api: Optional[TuyaOpenAPI] = None,
+        *,
+        access_id: Optional[str] = None,
+        access_key: Optional[str] = None,
+        api_endpoint: Optional[str] = None,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        country_code: Optional[str] = None,
+        schema: Optional[str] = None,
+        auto_connect: bool = True,
+    ) -> None:
+        """
+        Initialize the controller.
+
+        You can either pass an existing connected TuyaOpenAPI instance via `api`
+        OR supply credentials (access_id/key, endpoint, username/password, country_code, schema)
+        and this class will connect for you when auto_connect=True.
+        """
+        self.device_id = device_id
+
+        if api is not None:
+            self.api = api
+        else:
+            missing = [k for k, v in {
+                "access_id": access_id,
+                "access_key": access_key,
+                "api_endpoint": api_endpoint,
+                "username": username,
+                "password": password,
+                "country_code": country_code,
+                "schema": schema,
+            }.items() if not v]
+            if missing:
+                raise ValueError(f"Missing required params for API connection: {', '.join(missing)}")
+
+            self.api = TuyaOpenAPI(api_endpoint, access_id, access_key)
+            if auto_connect:
+                self.api.connect(username, password, country_code, schema)
+
+    # -------------------------
+    # Public control operations
+    # -------------------------
+
+    def turn_on(self) -> Dict[str, Any]:
+        return self._send_commands([{"code": "switch", "value": True}])
+
+    def turn_off(self) -> Dict[str, Any]:
+        return self._send_commands([{"code": "switch", "value": False}])
+
+    def set_mode(self, mode: str) -> Dict[str, Any]:
+        mode_l = mode.strip().lower()
+        self._validate_mode(mode_l)
+        return self._send_commands([{"code": "mode", "value": mode_l}])
+
+    def set_fan_speed(self, speed: str) -> Dict[str, Any]:
+        speed_l = speed.strip().lower()
+        self._validate_fan_speed(speed_l)
+        return self._send_commands([{"code": "fan_speed_enum", "value": speed_l}])
+
+    def set_temperature(self, celsius: int) -> Dict[str, Any]:
+        self._validate_temperature(celsius)
+        return self._send_commands([{"code": "temp_set", "value": int(celsius)}])
+
+    def set_state(
+        self,
+        *,
+        power: Optional[bool] = None,
+        mode: Optional[str] = None,
+        fan_speed: Optional[str] = None,
+        temperature: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """
+        Set multiple attributes in one request. Any argument left as None is ignored.
+        """
+        commands: List[Dict[str, Any]] = []
+        if power is not None:
+            commands.append({"code": "switch", "value": bool(power)})
+        if mode is not None:
+            mode_l = str(mode).strip().lower()
+            self._validate_mode(mode_l)
+            commands.append({"code": "mode", "value": mode_l})
+        if fan_speed is not None:
+            speed_l = str(fan_speed).strip().lower()
+            self._validate_fan_speed(speed_l)
+            commands.append({"code": "fan_speed_enum", "value": speed_l})
+        if temperature is not None:
+            self._validate_temperature(int(temperature))
+            commands.append({"code": "temp_set", "value": int(temperature)})
+
+        if not commands:
+            raise ValueError("set_state: provide at least one of power/mode/fan_speed/temperature.")
+
+        return self._send_commands(commands)
+
+    def get_status(self) -> Dict[str, Any]:
+        """
+        Returns a dict keyed by DP code:
+          {
+            "switch": True/False,
+            "mode": "cold"|"hot"|"wet"|"wind",
+            "fan_speed_enum": "low"|"mid"|"high"|"auto",
+            "temp_set": int,
+            "temp_current": int,
+            ... (other codes if present)
+          }
+        """
+        resp = self.api.get(f"/v1.0/iot-03/devices/{self.device_id}/status")
+        self._ensure_ok(resp, "get_status")
+        result = resp.get("result", [])
+        status_map: Dict[str, Any] = {}
+        for item in result:
+            code = item.get("code")
+            value = item.get("value")
+            if code:
+                status_map[code] = value
+        return status_map
+
+    # -------------------------
+    # Internals / validation
+    # -------------------------
+
+    def _send_commands(self, commands: List[Dict[str, Any]]) -> Dict[str, Any]:
+        resp = self.api.post(
+            f"/v1.0/iot-03/devices/{self.device_id}/commands",
+            {"commands": commands},
+        )
+        self._ensure_ok(resp, "send_commands")
+        return resp
+
+    @staticmethod
+    def _ensure_ok(response: Dict[str, Any], action: str) -> None:
+        if not isinstance(response, dict) or not response.get("success", False):
+            raise RuntimeError(f"Tuya API {action} failed: {response}")
+
+    def _validate_mode(self, mode: str) -> None:
+        if mode not in self.MODES:
+            raise ValueError(f"Invalid mode '{mode}'. Allowed: {sorted(self.MODES)}")
+
+    def _validate_fan_speed(self, speed: str) -> None:
+        if speed not in self.FAN_SPEEDS:
+            raise ValueError(f"Invalid fan speed '{speed}'. Allowed: {sorted(self.FAN_SPEEDS)}")
+
+    def _validate_temperature(self, celsius: int) -> None:
+        if not (self.TEMP_MIN <= celsius <= self.TEMP_MAX):
+            raise ValueError(
+                f"Invalid temp_set {celsius}. Range: {self.TEMP_MIN}..{self.TEMP_MAX} °C"
+            )
+
+# ----------------------------
+# Thermostat configuration
+# ----------------------------
+@dataclass
+class ThermostatConfig:
+    setpoint_c: float = 24.0           # target temperature
+    deadband_c: float = 1.0            # total hysteresis width (e.g., 1.0°C)
+    min_on_s: int = 240                # minimum ON runtime (compressor protection)
+    min_off_s: int = 240               # minimum OFF downtime
+    poll_interval_s: int = 15          # control loop period
+    smooth_window: int = 5             # moving average window; 1 disables smoothing
+    mode_when_on: str = "cold"         # "cold" for cooling season, "hot" for heating
+    fan_when_on: str = "high"          # "auto" | "low" | "mid" | "high"
+    write_setpoint_on_power_on: bool = False  # optionally align device temp_set
+    initial_power: bool = False        # assumed initial state (we don't read device state)
+    max_stale_s: Optional[int] = 120   # if not None, ignore temps older than this
+
+@dataclass
+class TemperatureState:
+    current_c: float = None
+    # May be unix seconds (float/int) or ISO8601 string; we normalize at read time
+    updated_at: Optional[Any] = None
+
+# ----------------------------
+# Thermostat loop (no device temp reads)
+# ----------------------------
+class ACThermostat:
+    def __init__(self, ac: TuyaACController, cfg: ThermostatConfig, temp_state: TemperatureState):
+        self.ac = ac
+        self.cfg = cfg
+        self.temp_state = temp_state
+        self._temps = deque(maxlen=max(1, cfg.smooth_window))
+        self._is_on: bool = bool(cfg.initial_power)
+        self._last_change_ts: float = 0.0
+        logger.info(
+            "thermo: init setpoint=%.2f deadband=%.2f min_on=%ss min_off=%ss poll=%ss smooth=%d mode_on=%s fan_on=%s write_setpoint=%s initial_power=%s max_stale=%s",
+            cfg.setpoint_c,
+            cfg.deadband_c,
+            cfg.min_on_s,
+            cfg.min_off_s,
+            cfg.poll_interval_s,
+            cfg.smooth_window,
+            cfg.mode_when_on,
+            cfg.fan_when_on,
+            bool(cfg.write_setpoint_on_power_on),
+            bool(cfg.initial_power),
+            str(cfg.max_stale_s),
+        )
+
+    def _now(self) -> float:
+        return time.time()
+
+    def _can_turn_on(self) -> bool:
+        ok = (self._now() - self._last_change_ts) >= self.cfg.min_off_s
+        logger.debug("thermo: _can_turn_on=%s", ok)
+        return ok
+
+    def _can_turn_off(self) -> bool:
+        ok = (self._now() - self._last_change_ts) >= self.cfg.min_on_s
+        logger.debug("thermo: _can_turn_off=%s", ok)
+        return ok
+
+    def _read_external_temp(self) -> Optional[float]:
+        """Pulls temp from the shared dataclass and applies smoothing."""
+        t = self.temp_state.current_c
+        ts = self.temp_state.updated_at
+        if t is None:
+            logger.debug("thermo: external temp missing")
+            return None
+        # Normalize timestamp (float seconds) for stale-check if provided
+        if self.cfg.max_stale_s is not None and ts is not None:
+            ts_epoch: Optional[float] = None
+            if isinstance(ts, (int, float)):
+                ts_epoch = float(ts)
+            elif isinstance(ts, str):
+                s = ts.strip()
+                try:
+                    ts_epoch = float(s)
+                except ValueError:
+                    try:
+                        # Accept ISO8601; handle trailing 'Z' as UTC
+                        if s.endswith('Z'):
+                            s = s[:-1] + '+00:00'
+                        dt = datetime.fromisoformat(s)
+                        if dt.tzinfo is None:
+                            # Assume UTC if timezone missing
+                            dt = dt.replace(tzinfo=timezone.utc)
+                        ts_epoch = dt.timestamp()
+                    except Exception:
+                        logger.debug("thermo: could not parse updated_at=%r", ts)
+                        ts_epoch = None
+            if ts_epoch is not None:
+                age = self._now() - ts_epoch
+                if age > self.cfg.max_stale_s:
+                    logger.warning("thermo: ignoring stale temp age=%.1fs > %ss", age, self.cfg.max_stale_s)
+                    return None  # stale reading; skip decision this cycle
+            else:
+                logger.debug("thermo: skipping stale-check due to unparsable updated_at=%r", ts)
+        self._temps.append(float(t))
+        if len(self._temps) == 0:
+            return None
+        if self.cfg.smooth_window <= 1:
+            logger.debug("thermo: raw temp=%.2f (no smoothing)", float(t))
+            return float(t)
+        smoothed = sum(self._temps) / len(self._temps)
+        logger.debug("thermo: smoothed temp=%.2f window=%d", smoothed, len(self._temps))
+        return smoothed
+
+    def _thresholds(self):
+        half = self.cfg.deadband_c / 2.0
+        on_at = self.cfg.setpoint_c + half   # for cooling: turn ON above this
+        off_at = self.cfg.setpoint_c - half  # for cooling: turn OFF below this
+        return on_at, off_at
+
+    def step(self):
+        """One control step using external temperature."""
+        temp = self._read_external_temp()
+        if temp is None:
+            logger.warning("thermo: no valid temp (missing or stale); skipping")
+            time.sleep(self.cfg.poll_interval_s)
+            return
+
+        on_at, off_at = self._thresholds()
+        logger.debug(
+            "thermo: setpoint=%.2f deadband=%.2f on_at=%.2f off_at=%.2f",
+            self.cfg.setpoint_c,
+            self.cfg.deadband_c,
+            on_at,
+            off_at,
+        )
+        now = self._now()
+
+        if not self._is_on:
+            # OFF -> consider ON
+            if temp >= on_at and self._can_turn_on():
+                logger.info("thermo: ON trigger: temp=%.2f >= %.2f", temp, on_at)
+                self.ac.set_state(
+                    power=True,
+                    mode=self.cfg.mode_when_on,
+                    fan_speed=self.cfg.fan_when_on,
+                    temperature=int(round(self.cfg.setpoint_c)) if self.cfg.write_setpoint_on_power_on else None,
+                )
+                self._is_on = True
+                self._last_change_ts = now
+                logger.debug(
+                    "thermo: state changed -> ON; mode=%s fan=%s setpoint_write=%s",
+                    self.cfg.mode_when_on,
+                    self.cfg.fan_when_on,
+                    bool(self.cfg.write_setpoint_on_power_on),
+                )
+            else:
+                reasons = []
+                if temp < on_at:
+                    reasons.append(f"temp {temp:.2f} < on_at {on_at:.2f}")
+                wait = self.cfg.min_off_s - (now - self._last_change_ts)
+                if wait > 0:
+                    reasons.append(f"min-off {wait:.0f}s")
+                if reasons:
+                    logger.debug("thermo: staying OFF: %s", ", ".join(reasons))
+        else:
+            # ON -> consider OFF
+            if temp <= off_at and self._can_turn_off():
+                logger.info("thermo: OFF trigger: temp=%.2f <= %.2f", temp, off_at)
+                self.ac.turn_off()
+                self._is_on = False
+                self._last_change_ts = now
+                logger.debug("thermo: state changed -> OFF")
+            else:
+                reasons = []
+                if temp > off_at:
+                    reasons.append(f"temp {temp:.2f} > off_at {off_at:.2f}")
+                wait = self.cfg.min_on_s - (now - self._last_change_ts)
+                if wait > 0:
+                    reasons.append(f"min-on {wait:.0f}s")
+                if reasons:
+                    logger.debug("thermo: staying ON: %s", ", ".join(reasons))
+
+        logger.debug("thermo: sleeping %ss", self.cfg.poll_interval_s)
+        time.sleep(self.cfg.poll_interval_s)
+
+    def run_forever(self):
+        logger.info("thermo: starting thermostat loop (external temp source)")
+        while True:
+            try:
+                self.step()
+            except Exception as e:
+                logger.exception("thermo: error during control loop: %s", e)
+                time.sleep(self.cfg.poll_interval_s)
