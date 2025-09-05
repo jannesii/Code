@@ -370,6 +370,7 @@ class Controller:
                 "location": row["location"],
                 "temperature": float(row["temperature"]) if row["temperature"] is not None else None,
                 "humidity": float(row["humidity"]) if row["humidity"] is not None else None,
+                "timestamp": row["timestamp"],
             }
             for row in rows
         ]

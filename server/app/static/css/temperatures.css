@@ -48,6 +48,13 @@ transform: scale(1.05);
 .tile .temp{ font-size: 1.3rem; }
 .tile .hum { font-size: 1.3rem; }
 
+/* Subtle timestamp under the readings */
+.tile .timestamp{
+  margin-top: 8px;
+  color: #999;
+  font-size: 0.9rem;
+}
+
 /* Mobile: stack tiles in a single column */
 @media (max-width: 800px) {
   .locations-grid {

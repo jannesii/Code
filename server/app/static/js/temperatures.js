@@ -13,7 +13,22 @@ function fmtHum(v){
   return Number.isFinite(n) ? `${n.toFixed(0)} %` : '-';
 }
 
-function createTile(id, name, temp=null, hum=null){
+function fmtTime(ts){
+  // Returns a readable local timestamp without a label
+  if (!ts) return '—';
+  try {
+    const d = ts instanceof Date ? ts : new Date(ts);
+    // Prefer a concise local string; include date + time
+    return d.toLocaleString(undefined, {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+  } catch {
+    return '—';
+  }
+}
+
+function createTile(id, name, temp=null, hum=null, ts=null){
   const tile = document.createElement('div');
   tile.className = 'tile';
   tile.id = id;
@@ -21,10 +36,13 @@ function createTile(id, name, temp=null, hum=null){
     <div class="loc"></div>
     <div class="row"><span class="label">Lämpötila</span> <span class="value temp">-</span></div>
     <div class="row"><span class="label">Kosteus</span>    <span class="value hum">-</span></div>
+    <div class="timestamp">—</div>
   `;
   tile.querySelector('.loc').textContent = name || '—';
   tile.querySelector('.temp').textContent = fmtTemp(temp);
   tile.querySelector('.hum').textContent  = fmtHum(hum);
+  const tsEl = tile.querySelector('.timestamp');
+  if (tsEl) tsEl.textContent = fmtTime(ts);
 
   // Click handler opens charts for this location
   tile.addEventListener('click', () => {
@@ -56,7 +74,10 @@ function extractNameTempHum(entry){
     entry.humidity
   );
 
-  return { name, temp, hum };
+  // Optional timestamp if present in payload
+  const ts = (entry.timestamp || null);
+
+  return { name, temp, hum, ts };
 }
 
 function renderItems(locations){
@@ -67,9 +88,9 @@ function renderItems(locations){
   grid.innerHTML = '';
 
   locs.forEach(loc => {
-    const { name, temp, hum } = extractNameTempHum(loc);
+    const { name, temp, hum, ts } = extractNameTempHum(loc);
     const id = 'loc-' + slugify(name || 'default');
-    const tile = createTile(id, name, temp, hum);
+    const tile = createTile(id, name, temp, hum, ts);
     grid.appendChild(tile);
   });
 }
@@ -97,9 +118,12 @@ function updateTile(data){
 
   const tempEl = tile.querySelector('.temp');
   const humEl  = tile.querySelector('.hum');
+  const tsEl   = tile.querySelector('.timestamp');
 
   if (tempEl) tempEl.textContent = fmtTemp(temp);
   if (humEl)  humEl.textContent  = fmtHum(hum);
+  // Update timestamp to "now" on each update
+  if (tsEl)   tsEl.textContent   = fmtTime(new Date());
 }
 
 function initSIO(){
