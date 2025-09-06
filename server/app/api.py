@@ -121,6 +121,8 @@ def get_ac_status():
             "sleep_enabled": bool(getattr(ac_thermo.cfg, 'sleep_enabled', True)),
             "sleep_start": getattr(ac_thermo.cfg, 'sleep_start', None),
             "sleep_stop": getattr(ac_thermo.cfg, 'sleep_stop', None),
+            "setpoint_c": float(getattr(ac_thermo.cfg, 'setpoint_c', 0.0)),
+            "deadband_c": float(getattr(ac_thermo.cfg, 'deadband_c', 0.0)),
         })
     except Exception as e:
         logger.exception("Error reading AC status: %s", e)

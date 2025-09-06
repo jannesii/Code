@@ -33,6 +33,15 @@
         </select>
       </div>
       <div class="ctrl-group">
+        <label for="setpointC">Setpoint</label>
+        <input id="setpointC" type="number" step="0.1" min="5" max="35" />
+      </div>
+      <div class="ctrl-group">
+        <label for="hysteresis">Hysteresis</label>
+        <input id="hysteresis" type="number" step="0.1" min="0.1" max="10" />
+        <button id="btnThermoSave" class="btn">Save</button>
+      </div>
+      <div class="ctrl-group">
         <label for="sleepEnabled">Sleep</label>
         <input id="sleepEnabled" type="checkbox" />
       </div>

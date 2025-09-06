@@ -152,6 +152,11 @@ function initSIO(){
     if (!data) return;
     setSleepUI(data);
   });
+  socket.on('thermo_config', data => {
+    console.log('📡 Received thermo_config:', data);
+    if (!data) return;
+    setThermoConfigUI(data);
+  });
 }
 
 async function fetchACStatus(){
@@ -169,6 +174,7 @@ async function fetchACStatus(){
     if (data && data.mode) setSelectValue('acMode', data.mode);
     if (data && data.fan_speed) setSelectValue('acFan', data.fan_speed);
     setSleepUI(data);
+    setThermoConfigUI(data);
   }catch(err){
     console.error('AC status error:', err);
     updateACIndicator(null);
@@ -276,6 +282,22 @@ document.addEventListener('DOMContentLoaded', () => {
       socket.emit('ac_control', { action: 'set_sleep_times', start, stop });
     });
   }
+
+  const sp = document.getElementById('setpointC');
+  const hy = document.getElementById('hysteresis');
+  const btnThermoSave = document.getElementById('btnThermoSave');
+  if (btnThermoSave && sp && hy){
+    btnThermoSave.addEventListener('click', () => {
+      const setpoint = parseFloat(sp.value);
+      const hyst = parseFloat(hy.value);
+      if (!Number.isNaN(setpoint)){
+        socket.emit('ac_control', { action: 'set_setpoint', value: setpoint });
+      }
+      if (!Number.isNaN(hyst)){
+        socket.emit('ac_control', { action: 'set_hysteresis', value: hyst });
+      }
+    });
+  }
 });
 
 function setSelectValue(id, value){
@@ -309,4 +331,17 @@ function asTimeValue(s){
     const mm = String(m[2]).padStart(2,'0');
     return `${hh}:${mm}`;
   }catch{ return ''; }
+}
+
+function setThermoConfigUI(data){
+  const sp = document.getElementById('setpointC');
+  const hy = document.getElementById('hysteresis');
+  if ('setpoint_c' in data && sp){
+    const v = parseFloat(data.setpoint_c);
+    if (!Number.isNaN(v)) sp.value = v.toFixed(1);
+  }
+  if ('deadband_c' in data && hy){
+    const v = parseFloat(data.deadband_c);
+    if (!Number.isNaN(v)) hy.value = v.toFixed(1);
+  }
 }

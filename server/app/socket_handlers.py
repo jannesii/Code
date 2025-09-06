@@ -190,6 +190,22 @@ class SocketEventHandler:
                     return
                 ac_thermo.set_fan_speed(val)
                 return
+            if action == 'set_setpoint':
+                try:
+                    val = float(data.get('value'))
+                except Exception:
+                    self.socketio.emit('error', {'message': 'Invalid setpoint'})
+                    return
+                ac_thermo.set_setpoint(val)
+                return
+            if action == 'set_hysteresis':
+                try:
+                    val = float(data.get('value'))
+                except Exception:
+                    self.socketio.emit('error', {'message': 'Invalid hysteresis'})
+                    return
+                ac_thermo.set_hysteresis(val)
+                return
             if action == 'status':
                 # Re-emit current statuses to requester(s)
                 self.socketio.emit('ac_status', { 'is_on': bool(ac_thermo.is_on) })
@@ -208,6 +224,11 @@ class SocketEventHandler:
                     'sleep_enabled': bool(getattr(ac_thermo.cfg, 'sleep_enabled', True)),
                     'sleep_start': ac_thermo.cfg.sleep_start,
                     'sleep_stop': ac_thermo.cfg.sleep_stop,
+                })
+                # Emit thermostat configuration
+                self.socketio.emit('thermo_config', {
+                    'setpoint_c': float(getattr(ac_thermo.cfg, 'setpoint_c', 0.0)),
+                    'deadband_c': float(getattr(ac_thermo.cfg, 'deadband_c', 0.0)),
                 })
                 return
             if action == 'set_sleep_enabled':

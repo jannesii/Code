@@ -50,6 +50,10 @@
   background:#2a2a2a; color:#ddd; border:1px solid #444;
   border-radius:6px; padding:4px 8px;
 }
+.ac-controls input[type="number"]{
+  background:#2a2a2a; color:#ddd; border:1px solid #444;
+  border-radius:6px; padding:4px 8px; width: 90px;
+}
 .ac-controls input[type="time"]{
   background:#2a2a2a; color:#ddd; border:1px solid #444;
   border-radius:6px; padding:4px 8px;

@@ -16,8 +16,8 @@ class TuyaACController:
 
     Supported DP codes (from your device):
       - switch (bool)                     -> power on/off
-      - mode (enum)                       -> 'cold' | 'hot' | 'wet' | 'wind'
-      - fan_speed_enum (enum)             -> 'low' | 'mid' | 'high' | 'auto'
+      - mode (enum)                       -> 'cold' | 'wet' | 'wind'
+      - fan_speed_enum (enum)             -> 'low' | 'high'
       - temp_set (int, 16..31, °C)        -> target temperature
       - temp_current (int, -20..100, °C)  -> reported current temperature (read-only)
 
@@ -28,7 +28,7 @@ class TuyaACController:
         ac = TuyaACController(api=api, device_id="YOUR_DEVICE_ID")
         ac.turn_on()
         ac.set_mode("cold")
-        ac.set_fan_speed("auto")
+        ac.set_fan_speed("high")
         ac.set_temperature(23)
         print(ac.get_status())
     """
@@ -141,8 +141,8 @@ class TuyaACController:
         Returns a dict keyed by DP code:
           {
             "switch": True/False,
-            "mode": "cold"|"hot"|"wet"|"wind",
-            "fan_speed_enum": "low"|"mid"|"high"|"auto",
+            "mode": "cold"|"wet"|"wind",
+            "fan_speed_enum": "low"|"high",
             "temp_set": int,
             "temp_current": int,
             ... (other codes if present)
@@ -201,10 +201,6 @@ class ThermostatConfig:
     min_off_s: int = 240               # minimum OFF downtime
     poll_interval_s: int = 15          # control loop period
     smooth_window: int = 5             # moving average window; 1 disables smoothing
-    mode_when_on: str = "cold"         # "cold" for cooling season, "hot" for heating
-    fan_when_on: str = "high"          # "auto" | "low" | "mid" | "high"
-    write_setpoint_on_power_on: bool = False  # optionally align device temp_set
-    initial_power: bool = False        # assumed initial state (we don't read device state)
     max_stale_s: Optional[int] = 120   # if not None, ignore temps older than this
     sleep_enabled: bool = True        # master toggle for sleep mode
     # Sleep window in local time (HH:MM 24h). If both set and enabled, sleep is active.
@@ -230,24 +226,20 @@ class ACThermostat:
         self.notify = notify
         self._temps = deque(maxlen=max(1, cfg.smooth_window))
         ac_status = self.ac.get_status()
-        self._is_on: bool = bool(ac_status.get("switch", False)) if ac_status else bool(cfg.initial_power)
+        self._is_on: bool = bool(ac_status.get("switch", False)) if ac_status else False
         # Track last-known mode/fan to inform UI
         self._mode: Optional[str] = ac_status.get("mode") if isinstance(ac_status, dict) else None
         self._fan_speed: Optional[str] = ac_status.get("fan_speed_enum") if isinstance(ac_status, dict) else None
         self._enabled: bool = True
         self._last_change_ts: float = 0.0
         logger.info(
-            "thermo: init setpoint=%.2f deadband=%.2f min_on=%ss min_off=%ss poll=%ss smooth=%d mode_on=%s fan_on=%s write_setpoint=%s initial_power=%s max_stale=%s location=%s sleep_start=%s sleep_stop=%s",
+            "thermo: init setpoint=%.2f deadband=%.2f min_on=%ss min_off=%ss poll=%ss smooth=%d max_stale=%s location=%s sleep_start=%s sleep_stop=%s",
             cfg.setpoint_c,
             cfg.deadband_c,
             cfg.min_on_s,
             cfg.min_off_s,
             cfg.poll_interval_s,
             cfg.smooth_window,
-            cfg.mode_when_on,
-            cfg.fan_when_on,
-            bool(cfg.write_setpoint_on_power_on),
-            bool(cfg.initial_power),
             str(cfg.max_stale_s),
             self.location,
             cfg.sleep_start,
@@ -392,6 +384,16 @@ class ACThermostat:
         except Exception as e:
             logger.debug("thermo: notify sleep failed: %s", e)
 
+    def _emit_config(self) -> None:
+        try:
+            if self.notify:
+                self.notify('thermo_config', {
+                    "setpoint_c": float(self.cfg.setpoint_c),
+                    "deadband_c": float(self.cfg.deadband_c),
+                })
+        except Exception as e:
+            logger.debug("thermo: notify config failed: %s", e)
+
     def _emit_ac_state(self) -> None:
         try:
             if self.notify:
@@ -403,7 +405,6 @@ class ACThermostat:
         """Set AC mode immediately and update thermostat config for future ON events."""
         mode_l = str(mode).strip().lower()
         self.ac.set_mode(mode_l)
-        self.cfg.mode_when_on = mode_l
         self._mode = mode_l
         self._emit_ac_state()
 
@@ -411,7 +412,6 @@ class ACThermostat:
         """Set AC fan speed immediately and update thermostat config for future ON events."""
         speed_l = str(speed).strip().lower()
         self.ac.set_fan_speed(speed_l)
-        self.cfg.fan_when_on = speed_l
         self._fan_speed = speed_l
         self._emit_ac_state()
 
@@ -441,6 +441,24 @@ class ACThermostat:
         self.cfg.sleep_start = start
         self.cfg.sleep_stop = stop
         self._emit_sleep_status()
+
+    # Thermostat parameters
+    def set_setpoint(self, celsius: float) -> None:
+        try:
+            self.cfg.setpoint_c = float(celsius)
+        except Exception:
+            return
+        self._emit_config()
+
+    def set_hysteresis(self, deadband_c: float) -> None:
+        try:
+            db = float(deadband_c)
+            if db <= 0:
+                return
+            self.cfg.deadband_c = db
+        except Exception:
+            return
+        self._emit_config()
 
     def step(self):
         """One control step using external temperature."""
@@ -511,25 +529,16 @@ class ACThermostat:
             # OFF -> consider ON
             if temp >= on_at and self._can_turn_on():
                 logger.info("thermo: ON trigger: temp=%.2f >= %.2f", temp, on_at)
-                self.ac.set_state(
-                    power=True,
-                    mode=self.cfg.mode_when_on,
-                    fan_speed=self.cfg.fan_when_on,
-                    temperature=int(round(self.cfg.setpoint_c)) if self.cfg.write_setpoint_on_power_on else None,
-                )
+                # Turn on device and force target device temperature to 16°C (doesn't change setpoint_c)
+                self.ac.turn_on()
+                try:
+                    self.ac.set_temperature(16)
+                except Exception as e:
+                    logger.debug("thermo: failed to set device temp to 16: %s", e)
                 self._is_on = True
                 self._last_change_ts = now
                 self._emit_status()
-                # Reflect configured choices to UI
-                self._mode = self.cfg.mode_when_on
-                self._fan_speed = self.cfg.fan_when_on
-                self._emit_ac_state()
-                logger.debug(
-                    "thermo: state changed -> ON; mode=%s fan=%s setpoint_write=%s",
-                    self.cfg.mode_when_on,
-                    self.cfg.fan_when_on,
-                    bool(self.cfg.write_setpoint_on_power_on),
-                )
+                logger.debug("thermo: state changed -> ON; temp_set=16")
             else:
                 reasons = []
                 if temp < on_at:
