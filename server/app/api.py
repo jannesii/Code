@@ -95,9 +95,10 @@ def get_ac_status():
     ac_thermo = getattr(current_app, 'ac_thermostat', None)  # type: ignore
     if ac_thermo is None:
         logger.warning("API /ac/status requested but thermostat not initialized")
-        return jsonify({"is_on": None}), 503
+        return jsonify({"is_on": None, "thermostat_enabled": None}), 503
     try:
-        return jsonify({"is_on": bool(ac_thermo.is_on)})
+        enabled = getattr(ac_thermo, '_enabled', True)
+        return jsonify({"is_on": bool(ac_thermo.is_on), "thermostat_enabled": bool(enabled)})
     except Exception as e:
         logger.exception("Error reading AC status: %s", e)
-        return jsonify({"is_on": None}), 500
+        return jsonify({"is_on": None, "thermostat_enabled": None}), 500

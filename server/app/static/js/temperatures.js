@@ -136,6 +136,11 @@ function initSIO(){
     if (!data) return;
     updateACIndicator(data.is_on);
   });
+  socket.on('thermostat_status', data => {
+    console.log('📡 Received thermostat_status:', data);
+    if (!data) return;
+    updateThermoIndicator(!!data.enabled);
+  });
 }
 
 async function fetchACStatus(){
@@ -144,13 +149,16 @@ async function fetchACStatus(){
     if(!resp.ok){
       console.warn('AC status fetch failed:', resp.status);
       updateACIndicator(null);
+      updateThermoIndicator(null);
       return;
     }
     const data = await resp.json();
     updateACIndicator(data && 'is_on' in data ? data.is_on : null);
+    updateThermoIndicator(data && 'thermostat_enabled' in data ? data.thermostat_enabled : null);
   }catch(err){
     console.error('AC status error:', err);
     updateACIndicator(null);
+    updateThermoIndicator(null);
   }
 }
 
@@ -170,10 +178,49 @@ function updateACIndicator(isOn){
   }
 }
 
+function updateThermoIndicator(enabled){
+  const pill = document.getElementById('thermoStatusPill');
+  const btn  = document.getElementById('btnThermoToggle');
+  if(pill){
+    pill.classList.remove('ac-on','ac-off','ac-unknown');
+    if(enabled === true){
+      pill.classList.add('ac-on');
+      pill.textContent = 'Thermostat ON';
+    } else if(enabled === false){
+      pill.classList.add('ac-off');
+      pill.textContent = 'Thermostat OFF';
+    } else {
+      pill.classList.add('ac-unknown');
+      pill.textContent = 'Thermostat —';
+    }
+  }
+  if(btn){
+    btn.textContent = (enabled === true) ? 'Disable Thermostat' : 'Enable Thermostat';
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const locations = Array.isArray(window.LOCATIONS) ? window.LOCATIONS : [];
   // LOCATIONS is a list of dicts: {location, temp, hum}
   renderItems(locations);
   initSIO();
   fetchACStatus();
+
+  // Wire control buttons
+  const btnAc = document.getElementById('btnAcPowerToggle');
+  const btnTh = document.getElementById('btnThermoToggle');
+  if(btnAc){
+    btnAc.addEventListener('click', () => {
+      const pill = document.getElementById('acStatusPill');
+      const isOn = pill && pill.classList.contains('ac-on');
+      socket.emit('ac_control', { action: isOn ? 'power_off' : 'power_on' });
+    });
+  }
+  if(btnTh){
+    btnTh.addEventListener('click', () => {
+      const pill = document.getElementById('thermoStatusPill');
+      const enabled = pill && pill.classList.contains('ac-on');
+      socket.emit('ac_control', { action: enabled ? 'thermostat_disable' : 'thermostat_enable' });
+    });
+  }
 });

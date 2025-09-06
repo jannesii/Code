@@ -230,6 +230,7 @@ class ACThermostat:
         self._temps = deque(maxlen=max(1, cfg.smooth_window))
         ac_status = self.ac.get_status()
         self._is_on: bool = bool(ac_status.get("switch", False)) if ac_status else bool(cfg.initial_power)
+        self._enabled: bool = True
         self._last_change_ts: float = 0.0
         logger.info(
             "thermo: init setpoint=%.2f deadband=%.2f min_on=%ss min_off=%ss poll=%ss smooth=%d mode_on=%s fan_on=%s write_setpoint=%s initial_power=%s max_stale=%s location=%s sleep_start=%s sleep_stop=%s",
@@ -367,6 +368,31 @@ class ACThermostat:
         except Exception as e:
             logger.debug("thermo: notify failed: %s", e)
 
+    def _emit_thermostat_status(self) -> None:
+        try:
+            if self.notify:
+                self.notify('thermostat_status', {"enabled": bool(self._enabled)})
+        except Exception as e:
+            logger.debug("thermo: notify thermo failed: %s", e)
+
+    def enable(self) -> None:
+        self._enabled = True
+        self._emit_thermostat_status()
+
+    def disable(self) -> None:
+        self._enabled = False
+        self._emit_thermostat_status()
+
+    def set_power(self, on: bool) -> None:
+        if on:
+            self.ac.turn_on()
+            self._is_on = True
+        else:
+            self.ac.turn_off()
+            self._is_on = False
+        self._last_change_ts = self._now()
+        self._emit_status()
+
     def step(self):
         """One control step using external temperature."""
         # Refresh actual device state at the very beginning and inform listeners if changed
@@ -380,6 +406,11 @@ class ACThermostat:
                     self._emit_status()
         except Exception as e:
             logger.debug("thermo: get_status failed at step start: %s", e)
+
+        # If thermostat is disabled, skip any control actions
+        if not self._enabled:
+            time.sleep(self.cfg.poll_interval_s)
+            return
 
         # Sleep mode: don't allow turning ON; if currently ON, try to turn OFF respecting min_on
         if self._is_sleep_time():

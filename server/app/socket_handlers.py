@@ -1,5 +1,5 @@
 import logging
-from flask import request, flash
+from flask import request, flash, current_app
 from flask_socketio import SocketIO
 from flask_login import current_user
 
@@ -29,6 +29,7 @@ class SocketEventHandler:
         socketio.on_event('esp32_temphum', self.handle_esp32_temphum)
         socketio.on_event('status',     self.handle_status)
         socketio.on_event('printerAction', self.handle_printer_action)
+        socketio.on_event('ac_control',   self.handle_ac_control)
 
     def handle_connect(self, auth):
         # Use Flask-Login session cookie for auth instead of API key
@@ -147,3 +148,39 @@ class SocketEventHandler:
 
         self.socketio.emit('printerAction', data)
         self.logger.info("Handled printer action: %s", action)
+
+    def handle_ac_control(self, data):
+        if data is None or not isinstance(data, dict):
+            self.socketio.emit('error', {'message': 'Invalid AC control payload'})
+            self.logger.warning("Bad ac_control payload: %s", data)
+            return
+        action = (data.get('action') or '').strip()
+        self.logger.info("Received ac_control: %s", action)
+        ac_thermo = getattr(current_app, 'ac_thermostat', None)  # type: ignore
+        if ac_thermo is None:
+            self.socketio.emit('error', {'message': 'AC thermostat not initialized'})
+            self.logger.error("ac_control: thermostat missing")
+            return
+        try:
+            if action == 'power_on':
+                ac_thermo.set_power(True)
+                return
+            if action == 'power_off':
+                ac_thermo.set_power(False)
+                return
+            if action == 'thermostat_enable':
+                ac_thermo.enable()
+                return
+            if action == 'thermostat_disable':
+                ac_thermo.disable()
+                return
+            if action == 'status':
+                # Re-emit current statuses to requester(s)
+                self.socketio.emit('ac_status', { 'is_on': bool(ac_thermo.is_on) })
+                self.socketio.emit('thermostat_status', { 'enabled': getattr(ac_thermo, '_enabled', True) })
+                return
+            self.socketio.emit('error', {'message': f'Invalid AC control action: {action}'})
+            self.logger.warning("Bad ac_control action: %s", action)
+        except Exception as e:
+            self.logger.exception("ac_control error: %s", e)
+            self.socketio.emit('error', {'message': 'AC control error'})

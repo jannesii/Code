@@ -14,6 +14,11 @@
     <div class="ac-title">AC</div>
     <div class="ac-status">
       <span id="acStatusPill" class="ac-pill ac-unknown">Unknown</span>
+      <span id="thermoStatusPill" class="ac-pill ac-unknown">—</span>
+    </div>
+    <div class="ac-controls">
+      <button id="btnAcPowerToggle" class="btn">Toggle AC</button>
+      <button id="btnThermoToggle" class="btn">Toggle Thermostat</button>
     </div>
   </div>
   {% with messages = get_flashed_messages(with_categories=true) %}
