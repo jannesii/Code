@@ -81,4 +81,5 @@ class ThermostatConf:
     sleep_start: str | None
     sleep_stop: str | None
     target_temp: float
-    deadband: float
+    pos_hysteresis: float
+    neg_hysteresis: float

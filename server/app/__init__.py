@@ -183,6 +183,7 @@ def create_app():
         except Exception:
             pass
 
+
     # Load thermostat configuration from DB for runtime
     try:
         _conf = app.ctrl.get_thermostat_conf()  # type: ignore
@@ -194,15 +195,23 @@ def create_app():
         # Final safety defaults
         ac_config = ThermostatConfig(
             setpoint_c=24.5,
-            deadband_c=1.0,
+            pos_hysteresis=0.5,
+            neg_hysteresis=0.5,
             sleep_enabled=True,
             sleep_start="22:00",
             sleep_stop="10:00",
         )
+        # Ensure thermostat config exists in DB (seed defaults if missing)
+        try:
+            logging.warning("Seeding default thermostat configuration in DB")
+            app.ctrl.ensure_thermostat_conf_seeded_from(ac_config)  # type: ignore
+        except Exception:
+            pass
     else:
         ac_config = ThermostatConfig(
             setpoint_c=float(_conf.target_temp),
-            deadband_c=float(_conf.deadband),
+            pos_hysteresis=float(_conf.pos_hysteresis),
+            neg_hysteresis=float(_conf.neg_hysteresis),
             sleep_enabled=bool(_conf.sleep_active),
             sleep_start=_conf.sleep_start,
             sleep_stop=_conf.sleep_stop,

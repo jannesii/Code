@@ -292,16 +292,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const sp = document.getElementById('setpointC');
   const hy = document.getElementById('hysteresis');
+  const hyPos = document.getElementById('hysteresisPos');
+  const hyNeg = document.getElementById('hysteresisNeg');
   const btnThermoSave = document.getElementById('btnThermoSave');
-  if (btnThermoSave && sp && hy){
+  if (btnThermoSave && sp){
     btnThermoSave.addEventListener('click', () => {
       const setpoint = parseFloat(sp.value);
-      const hyst = parseFloat(hy.value);
       if (!Number.isNaN(setpoint)){
         socket.emit('ac_control', { action: 'set_setpoint', value: setpoint });
       }
-      if (!Number.isNaN(hyst)){
-        socket.emit('ac_control', { action: 'set_hysteresis', value: hyst });
+      const hasSplit = hyPos && hyNeg;
+      if (hasSplit){
+        const pos = parseFloat(hyPos.value);
+        const neg = parseFloat(hyNeg.value);
+        if (!Number.isNaN(pos) && !Number.isNaN(neg)){
+          socket.emit('ac_control', { action: 'set_hysteresis_split', pos, neg });
+        }
+      } else if (hy) {
+        const hyst = parseFloat(hy.value);
+        if (!Number.isNaN(hyst)){
+          socket.emit('ac_control', { action: 'set_hysteresis', value: hyst });
+        }
       }
     });
   }
@@ -352,12 +363,19 @@ function asTimeValue(s){
 function setThermoConfigUI(data){
   const sp = document.getElementById('setpointC');
   const hy = document.getElementById('hysteresis');
+  const hyPos = document.getElementById('hysteresisPos');
+  const hyNeg = document.getElementById('hysteresisNeg');
   if ('setpoint_c' in data && sp){
     const v = parseFloat(data.setpoint_c);
     if (!Number.isNaN(v)) sp.value = v.toFixed(1);
   }
-  if ('deadband_c' in data && hy){
-    const v = parseFloat(data.deadband_c);
-    if (!Number.isNaN(v)) hy.value = v.toFixed(1);
+  // Prefer split hysteresis if provided
+  if (hyPos && 'pos_hysteresis' in data){
+    const v = parseFloat(data.pos_hysteresis);
+    if (!Number.isNaN(v)) hyPos.value = v.toFixed(1);
+  }
+  if (hyNeg && 'neg_hysteresis' in data){
+    const v = parseFloat(data.neg_hysteresis);
+    if (!Number.isNaN(v)) hyNeg.value = v.toFixed(1);
   }
 }

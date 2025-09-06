@@ -122,7 +122,8 @@ def get_ac_status():
             "sleep_start": getattr(ac_thermo.cfg, 'sleep_start', None),
             "sleep_stop": getattr(ac_thermo.cfg, 'sleep_stop', None),
             "setpoint_c": float(getattr(ac_thermo.cfg, 'setpoint_c', 0.0)),
-            "deadband_c": float(getattr(ac_thermo.cfg, 'deadband_c', 0.0)),
+            "pos_hysteresis": float(getattr(ac_thermo.cfg, 'pos_hysteresis', 0.0)),
+            "neg_hysteresis": float(getattr(ac_thermo.cfg, 'neg_hysteresis', 0.0)),
         })
     except Exception as e:
         logger.exception("Error reading AC status: %s", e)

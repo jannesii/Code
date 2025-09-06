@@ -204,7 +204,17 @@ class SocketEventHandler:
                 except Exception:
                     self.socketio.emit('error', {'message': 'Invalid hysteresis'})
                     return
+                # Backward-compatible single value: split evenly
                 ac_thermo.set_hysteresis(val)
+                return
+            if action == 'set_hysteresis_split':
+                try:
+                    pos = float(data.get('pos'))
+                    neg = float(data.get('neg'))
+                except Exception:
+                    self.socketio.emit('error', {'message': 'Invalid hysteresis values'})
+                    return
+                ac_thermo.set_hysteresis_split(pos, neg)
                 return
             if action == 'status':
                 # Re-emit current statuses to requester(s)
@@ -228,7 +238,8 @@ class SocketEventHandler:
                 # Emit thermostat configuration
                 self.socketio.emit('thermo_config', {
                     'setpoint_c': float(getattr(ac_thermo.cfg, 'setpoint_c', 0.0)),
-                    'deadband_c': float(getattr(ac_thermo.cfg, 'deadband_c', 0.0)),
+                    'pos_hysteresis': float(getattr(ac_thermo.cfg, 'pos_hysteresis', 0.0)),
+                    'neg_hysteresis': float(getattr(ac_thermo.cfg, 'neg_hysteresis', 0.0)),
                 })
                 return
             if action == 'set_sleep_enabled':

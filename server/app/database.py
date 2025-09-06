@@ -72,7 +72,8 @@ class DatabaseManager:
                 'sleep_start TEXT, '
                 'sleep_stop TEXT, '
                 'target_temp REAL NOT NULL, '
-                'deadband REAL NOT NULL'
+                'pos_hysteresis REAL NOT NULL, '
+                'neg_hysteresis REAL NOT NULL'
             ),
             'gcode_commands': (
                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '

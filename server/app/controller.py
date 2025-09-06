@@ -504,7 +504,7 @@ class Controller:
     def get_thermostat_conf(self) -> ThermostatConf | None:
         row = self.db.fetchone(
             """
-            SELECT id, sleep_active, sleep_start, sleep_stop, target_temp, deadband
+            SELECT id, sleep_active, sleep_start, sleep_stop, target_temp, pos_hysteresis, neg_hysteresis
               FROM thermostat_conf
              WHERE id = 1
             """
@@ -517,7 +517,8 @@ class Controller:
             sleep_start=row['sleep_start'],
             sleep_stop=row['sleep_stop'],
             target_temp=float(row['target_temp']),
-            deadband=float(row['deadband']),
+            pos_hysteresis=float(row['pos_hysteresis']),
+            neg_hysteresis=float(row['neg_hysteresis']),
         )
 
     def save_thermostat_conf(
@@ -527,25 +528,28 @@ class Controller:
         sleep_start: str | None,
         sleep_stop: str | None,
         target_temp: float,
-        deadband: float,
+        pos_hysteresis: float,
+        neg_hysteresis: float,
     ) -> ThermostatConf:
         self.db.execute_query(
             """
-            INSERT INTO thermostat_conf (id, sleep_active, sleep_start, sleep_stop, target_temp, deadband)
-            VALUES (1, ?, ?, ?, ?, ?)
+            INSERT INTO thermostat_conf (id, sleep_active, sleep_start, sleep_stop, target_temp, pos_hysteresis, neg_hysteresis)
+            VALUES (1, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 sleep_active = excluded.sleep_active,
                 sleep_start = excluded.sleep_start,
                 sleep_stop = excluded.sleep_stop,
                 target_temp = excluded.target_temp,
-                deadband = excluded.deadband
+                pos_hysteresis = excluded.pos_hysteresis,
+                neg_hysteresis = excluded.neg_hysteresis
             """,
             (
                 1 if sleep_active else 0,
                 sleep_start,
                 sleep_stop,
                 float(target_temp),
-                float(deadband),
+                float(pos_hysteresis),
+                float(neg_hysteresis),
             ),
         )
         conf = self.get_thermostat_conf()
@@ -557,7 +561,7 @@ class Controller:
     def ensure_thermostat_conf_seeded_from(self, cfg: object | None = None) -> ThermostatConf:
         """
         Seed the thermostat configuration row from a given config-like object
-        that provides attributes: setpoint_c, deadband_c, sleep_enabled,
+        that provides attributes: setpoint_c, pos_hysteresis, neg_hysteresis, sleep_enabled,
         sleep_start, sleep_stop. If a row already exists, it is returned as-is.
         """
         existing = self.get_thermostat_conf()
@@ -569,7 +573,9 @@ class Controller:
                 return default
             return getattr(cfg, name, default)
         setpoint_c = float(_getattr('setpoint_c', 24.5))
-        deadband_c = float(_getattr('deadband_c', 1.0))
+        # If old single deadband exists, split evenly; else default 0.5/0.5
+        pos_h = float(_getattr('pos_hysteresis', 0.5))
+        neg_h = float(_getattr('neg_hysteresis', 0.5))
         sleep_enabled = bool(_getattr('sleep_enabled', True))
         sleep_start = _getattr('sleep_start', None)
         sleep_stop = _getattr('sleep_stop', None)
@@ -578,5 +584,6 @@ class Controller:
             sleep_start=sleep_start,
             sleep_stop=sleep_stop,
             target_temp=setpoint_c,
-            deadband=deadband_c,
+            pos_hysteresis=pos_h,
+            neg_hysteresis=neg_h,
         )

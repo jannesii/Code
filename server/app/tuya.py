@@ -197,7 +197,8 @@ class TuyaACController:
 class ThermostatConfig:
     # Values managed via DB (no defaults here)
     setpoint_c: float                  # target temperature
-    deadband_c: float                  # total hysteresis width (e.g., 1.0°C)
+    pos_hysteresis: float              # °C above setpoint to turn ON (cooling)
+    neg_hysteresis: float              # °C below setpoint to turn OFF (cooling)
     sleep_enabled: bool                # master toggle for sleep mode
     # Sleep window in local time (HH:MM 24h). If both set and enabled, sleep is active.
     sleep_start: Optional[str]
@@ -237,7 +238,7 @@ class ACThermostat:
         logger.info(
             "thermo: init setpoint=%.2f deadband=%.2f min_on=%ss min_off=%ss poll=%ss smooth=%d max_stale=%s location=%s sleep_start=%s sleep_stop=%s",
             cfg.setpoint_c,
-            cfg.deadband_c,
+            cfg.pos_hysteresis + cfg.neg_hysteresis,
             cfg.min_on_s,
             cfg.min_off_s,
             cfg.poll_interval_s,
@@ -355,9 +356,8 @@ class ACThermostat:
         return smoothed
 
     def _thresholds(self):
-        half = self.cfg.deadband_c / 2.0
-        on_at = self.cfg.setpoint_c + half   # for cooling: turn ON above this
-        off_at = self.cfg.setpoint_c - half  # for cooling: turn OFF below this
+        on_at = self.cfg.setpoint_c + float(self.cfg.pos_hysteresis)
+        off_at = self.cfg.setpoint_c - float(self.cfg.neg_hysteresis)
         return on_at, off_at
 
     def _emit_status(self) -> None:
@@ -391,7 +391,8 @@ class ACThermostat:
             if self.notify:
                 self.notify('thermo_config', {
                     "setpoint_c": float(self.cfg.setpoint_c),
-                    "deadband_c": float(self.cfg.deadband_c),
+                    "pos_hysteresis": float(self.cfg.pos_hysteresis),
+                    "neg_hysteresis": float(self.cfg.neg_hysteresis),
                 })
         except Exception as e:
             logger.debug("thermo: notify config failed: %s", e)
@@ -444,7 +445,8 @@ class ACThermostat:
                 sleep_start=self.cfg.sleep_start,
                 sleep_stop=self.cfg.sleep_stop,
                 target_temp=self.cfg.setpoint_c,
-                deadband=self.cfg.deadband_c,
+                pos_hysteresis=self.cfg.pos_hysteresis,
+                neg_hysteresis=self.cfg.neg_hysteresis,
             )
         except Exception as e:
             logger.debug("thermo: save sleep_enabled failed: %s", e)
@@ -460,7 +462,8 @@ class ACThermostat:
                 sleep_start=self.cfg.sleep_start,
                 sleep_stop=self.cfg.sleep_stop,
                 target_temp=self.cfg.setpoint_c,
-                deadband=self.cfg.deadband_c,
+                pos_hysteresis=self.cfg.pos_hysteresis,
+                neg_hysteresis=self.cfg.neg_hysteresis,
             )
         except Exception as e:
             logger.debug("thermo: save sleep_times failed: %s", e)
@@ -479,18 +482,21 @@ class ACThermostat:
                 sleep_start=self.cfg.sleep_start,
                 sleep_stop=self.cfg.sleep_stop,
                 target_temp=self.cfg.setpoint_c,
-                deadband=self.cfg.deadband_c,
+                pos_hysteresis=self.cfg.pos_hysteresis,
+                neg_hysteresis=self.cfg.neg_hysteresis,
             )
         except Exception as e:
             logger.debug("thermo: save setpoint failed: %s", e)
         self._emit_config()
 
-    def set_hysteresis(self, deadband_c: float) -> None:
+    def set_hysteresis_split(self, pos_h: float, neg_h: float) -> None:
         try:
-            db = float(deadband_c)
-            if db <= 0:
+            p = float(pos_h)
+            n = float(neg_h)
+            if p < 0 or n < 0:
                 return
-            self.cfg.deadband_c = db
+            self.cfg.pos_hysteresis = p
+            self.cfg.neg_hysteresis = n
         except Exception:
             return
         # Persist to DB
@@ -500,10 +506,11 @@ class ACThermostat:
                 sleep_start=self.cfg.sleep_start,
                 sleep_stop=self.cfg.sleep_stop,
                 target_temp=self.cfg.setpoint_c,
-                deadband=self.cfg.deadband_c,
+                pos_hysteresis=self.cfg.pos_hysteresis,
+                neg_hysteresis=self.cfg.neg_hysteresis,
             )
         except Exception as e:
-            logger.debug("thermo: save hysteresis failed: %s", e)
+            logger.debug("thermo: save hysteresis split failed: %s", e)
         self._emit_config()
 
     def step(self):
@@ -565,7 +572,7 @@ class ACThermostat:
         logger.debug(
             "thermo: setpoint=%.2f deadband=%.2f on_at=%.2f off_at=%.2f",
             self.cfg.setpoint_c,
-            self.cfg.deadband_c,
+            self.cfg.pos_hysteresis + self.cfg.neg_hysteresis,
             on_at,
             off_at,
         )
