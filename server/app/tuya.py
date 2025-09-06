@@ -34,8 +34,8 @@ class TuyaACController:
     """
 
     # Enumerations and ranges from your provided specs
-    FAN_SPEEDS = {"low", "mid", "high", "auto"}
-    MODES = {"cold", "hot", "wet", "wind"}
+    FAN_SPEEDS = {"low", "high"}
+    MODES = {"cold", "wet", "wind"}
     TEMP_MIN = 16
     TEMP_MAX = 31
 
@@ -206,7 +206,8 @@ class ThermostatConfig:
     write_setpoint_on_power_on: bool = False  # optionally align device temp_set
     initial_power: bool = False        # assumed initial state (we don't read device state)
     max_stale_s: Optional[int] = 120   # if not None, ignore temps older than this
-    # Sleep window in local time (HH:MM 24h). If both set, sleep mode is active.
+    sleep_enabled: bool = True        # master toggle for sleep mode
+    # Sleep window in local time (HH:MM 24h). If both set and enabled, sleep is active.
     sleep_start: Optional[str] = "22:00"
     sleep_stop: Optional[str] = "10:00"
 
@@ -287,6 +288,8 @@ class ACThermostat:
         return lt.tm_hour * 60 + lt.tm_min
 
     def _is_sleep_time(self) -> bool:
+        if not getattr(self.cfg, 'sleep_enabled', True):
+            return False
         start_m = self._parse_hhmm_to_minutes(self.cfg.sleep_start)
         stop_m = self._parse_hhmm_to_minutes(self.cfg.sleep_stop)
         if start_m is None or stop_m is None:
@@ -378,6 +381,17 @@ class ACThermostat:
         except Exception as e:
             logger.debug("thermo: notify thermo failed: %s", e)
 
+    def _emit_sleep_status(self) -> None:
+        try:
+            if self.notify:
+                self.notify('sleep_status', {
+                    "sleep_enabled": bool(getattr(self.cfg, 'sleep_enabled', True)),
+                    "sleep_start": self.cfg.sleep_start,
+                    "sleep_stop": self.cfg.sleep_stop,
+                })
+        except Exception as e:
+            logger.debug("thermo: notify sleep failed: %s", e)
+
     def _emit_ac_state(self) -> None:
         try:
             if self.notify:
@@ -418,6 +432,15 @@ class ACThermostat:
             self._is_on = False
         self._last_change_ts = self._now()
         self._emit_status()
+
+    def set_sleep_enabled(self, enabled: bool) -> None:
+        self.cfg.sleep_enabled = bool(enabled)
+        self._emit_sleep_status()
+
+    def set_sleep_times(self, start: Optional[str], stop: Optional[str]) -> None:
+        self.cfg.sleep_start = start
+        self.cfg.sleep_stop = stop
+        self._emit_sleep_status()
 
     def step(self):
         """One control step using external temperature."""

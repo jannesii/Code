@@ -203,6 +203,21 @@ class SocketEventHandler:
                     mode = None
                     fan = None
                 self.socketio.emit('ac_state', { 'mode': mode, 'fan_speed': fan })
+                # Emit current sleep configuration as well
+                self.socketio.emit('sleep_status', {
+                    'sleep_enabled': bool(getattr(ac_thermo.cfg, 'sleep_enabled', True)),
+                    'sleep_start': ac_thermo.cfg.sleep_start,
+                    'sleep_stop': ac_thermo.cfg.sleep_stop,
+                })
+                return
+            if action == 'set_sleep_enabled':
+                en = bool(data.get('value'))
+                ac_thermo.set_sleep_enabled(en)
+                return
+            if action == 'set_sleep_times':
+                start = (data.get('start') or '').strip() or None
+                stop  = (data.get('stop') or '').strip() or None
+                ac_thermo.set_sleep_times(start, stop)
                 return
             self.socketio.emit('error', {'message': f'Invalid AC control action: {action}'})
             self.logger.warning("Bad ac_control action: %s", action)

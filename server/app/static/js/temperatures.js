@@ -147,6 +147,11 @@ function initSIO(){
     if (!data) return;
     updateThermoIndicator(!!data.enabled);
   });
+  socket.on('sleep_status', data => {
+    console.log('📡 Received sleep_status:', data);
+    if (!data) return;
+    setSleepUI(data);
+  });
 }
 
 async function fetchACStatus(){
@@ -163,6 +168,7 @@ async function fetchACStatus(){
     updateThermoIndicator(data && 'thermostat_enabled' in data ? data.thermostat_enabled : null);
     if (data && data.mode) setSelectValue('acMode', data.mode);
     if (data && data.fan_speed) setSelectValue('acFan', data.fan_speed);
+    setSleepUI(data);
   }catch(err){
     console.error('AC status error:', err);
     updateACIndicator(null);
@@ -253,6 +259,23 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  const sleepEnabled = document.getElementById('sleepEnabled');
+  const sleepStart   = document.getElementById('sleepStart');
+  const sleepStop    = document.getElementById('sleepStop');
+  const btnSleepSave = document.getElementById('btnSleepSave');
+  if (sleepEnabled){
+    sleepEnabled.addEventListener('change', () => {
+      socket.emit('ac_control', { action: 'set_sleep_enabled', value: !!sleepEnabled.checked });
+    });
+  }
+  if (btnSleepSave && sleepStart && sleepStop){
+    btnSleepSave.addEventListener('click', () => {
+      const start = (sleepStart.value || '').trim();
+      const stop  = (sleepStop.value || '').trim();
+      socket.emit('ac_control', { action: 'set_sleep_times', start, stop });
+    });
+  }
 });
 
 function setSelectValue(id, value){
@@ -262,4 +285,28 @@ function setSelectValue(id, value){
   for (const opt of el.options){
     if (opt.value === val){ el.value = val; return; }
   }
+}
+
+function setSleepUI(data){
+  if (!data) return;
+  const sleepEnabled = document.getElementById('sleepEnabled');
+  const sleepStart   = document.getElementById('sleepStart');
+  const sleepStop    = document.getElementById('sleepStop');
+  if ('sleep_enabled' in data && sleepEnabled){
+    sleepEnabled.checked = !!data.sleep_enabled;
+  }
+  if (data.sleep_start && sleepStart){ sleepStart.value = asTimeValue(data.sleep_start); }
+  if (data.sleep_stop  && sleepStop ){ sleepStop.value  = asTimeValue(data.sleep_stop); }
+}
+
+function asTimeValue(s){
+  // Accept HH:MM, optional seconds; normalize to HH:MM
+  if (!s) return '';
+  try{
+    const m = String(s).match(/^(\d{1,2}):(\d{2})/);
+    if (!m) return '';
+    const hh = String(m[1]).padStart(2,'0');
+    const mm = String(m[2]).padStart(2,'0');
+    return `${hh}:${mm}`;
+  }catch{ return ''; }
 }

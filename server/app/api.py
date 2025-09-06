@@ -95,7 +95,15 @@ def get_ac_status():
     ac_thermo = getattr(current_app, 'ac_thermostat', None)  # type: ignore
     if ac_thermo is None:
         logger.warning("API /ac/status requested but thermostat not initialized")
-        return jsonify({"is_on": None, "thermostat_enabled": None, "mode": None, "fan_speed": None}), 503
+        return jsonify({
+            "is_on": None,
+            "thermostat_enabled": None,
+            "mode": None,
+            "fan_speed": None,
+            "sleep_enabled": None,
+            "sleep_start": None,
+            "sleep_stop": None,
+        }), 503
     try:
         enabled = getattr(ac_thermo, '_enabled', True)
         try:
@@ -110,7 +118,18 @@ def get_ac_status():
             "thermostat_enabled": bool(enabled),
             "mode": mode,
             "fan_speed": fan,
+            "sleep_enabled": bool(getattr(ac_thermo.cfg, 'sleep_enabled', True)),
+            "sleep_start": getattr(ac_thermo.cfg, 'sleep_start', None),
+            "sleep_stop": getattr(ac_thermo.cfg, 'sleep_stop', None),
         })
     except Exception as e:
         logger.exception("Error reading AC status: %s", e)
-        return jsonify({"is_on": None, "thermostat_enabled": None, "mode": None, "fan_speed": None}), 500
+        return jsonify({
+            "is_on": None,
+            "thermostat_enabled": None,
+            "mode": None,
+            "fan_speed": None,
+            "sleep_enabled": None,
+            "sleep_start": None,
+            "sleep_stop": None,
+        }), 500
