@@ -10,55 +10,9 @@
 
 {% block content %}
 <div class="container">
-  <div id="acPanel" class="ac-panel">
-    <div class="ac-title">AC</div>
-    <div class="ac-status">
-      <span id="acStatusPill" class="ac-pill ac-unknown">Unknown</span>
-      <span id="thermoStatusPill" class="ac-pill ac-unknown">—</span>
-    </div>
-    <div class="ac-controls">
-      <div class="ctrl-group">
-        <label for="acMode">Mode</label>
-        <select id="acMode">
-          <option value="cold">Cold</option>
-          <option value="wet">Dry</option>
-          <option value="wind">Fan</option>
-        </select>
-      </div>
-      <div class="ctrl-group">
-        <label for="acFan">Fan</label>
-        <select id="acFan">
-          <option value="low">Low</option>
-          <option value="high">High</option>
-        </select>
-      </div>
-      <div class="ctrl-group">
-        <label for="setpointC">Setpoint</label>
-        <input id="setpointC" type="number" step="0.1" min="5" max="35" />
-      </div>
-      <div class="ctrl-group">
-        <label for="hysteresis">Hysteresis</label>
-        <input id="hysteresis" type="number" step="0.1" min="0.1" max="10" />
-        <button id="btnThermoSave" class="btn">Save</button>
-      </div>
-      <div class="ctrl-group">
-        <label for="sleepEnabled">Sleep</label>
-        <input id="sleepEnabled" type="checkbox" />
-      </div>
-      <div class="ctrl-group">
-        <label for="sleepStart">Start</label>
-        <input id="sleepStart" type="time" />
-        <label for="sleepStop">Stop</label>
-        <input id="sleepStop" type="time" />
-        <button id="btnSleepSave" class="btn">Save</button>
-      </div>
-      <button id="btnAcPowerToggle" class="btn">Toggle AC</button>
-      <button id="btnThermoToggle" class="btn">Toggle Thermostat</button>
-    </div>
-  </div>
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-    <div class="flash-container" style="max-width:800px; margin:20px auto;">
+    <div class="flash-container" style="max-width:800px; margin:0 auto 16px;">
       {% for category, msg in messages %}
       <div class="flash {{ category }}">{{ msg }}</div>
       {% endfor %}
@@ -66,8 +20,95 @@
     {% endif %}
   {% endwith %}
 
-  <h2 class="section-title">Lämpötila ja kosteus</h2>
-  <div id="locationsGrid" class="locations-grid"></div>
+  <div class="page-grid">
+    <section class="card ac-card">
+      <div class="card-header">
+        <h3>AC Control</h3>
+        <div class="status-row">
+          <span id="acStatusPill" class="ac-pill ac-unknown">Unknown</span>
+          <span id="thermoStatusPill" class="ac-pill ac-unknown">Thermostat —</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="controls-grid">
+          <div class="field">
+            <label for="acMode">Mode</label>
+            <select id="acMode">
+              <option value="cold">Cold</option>
+              <option value="wet">Dry</option>
+              <option value="wind">Fan</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="acFan">Fan</label>
+            <select id="acFan">
+              <option value="low">Low</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Power</label>
+            <button id="btnAcPowerToggle" class="btn w-100">Toggle AC</button>
+          </div>
+          <div class="field">
+            <label>Thermostat</label>
+            <button id="btnThermoToggle" class="btn w-100">Toggle Thermostat</button>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="subsection">
+          <div class="subheader">
+            <h4>Sleep Schedule</h4>
+          </div>
+          <div class="controls-grid small">
+            <div class="field checkbox">
+              <input id="sleepEnabled" type="checkbox" />
+              <label for="sleepEnabled">Enable Sleep</label>
+            </div>
+            <div class="field">
+              <label for="sleepStart">Start</label>
+              <input id="sleepStart" type="time" />
+            </div>
+            <div class="field">
+              <label for="sleepStop">Stop</label>
+              <input id="sleepStop" type="time" />
+            </div>
+            <div class="field align-end">
+              <button id="btnSleepSave" class="btn w-100">Save</button>
+            </div>
+          </div>
+        </div>
+
+        <details class="subsection">
+          <summary class="subheader as-summary">Thermostat Settings</summary>
+          <div class="controls-grid small">
+            <div class="field">
+              <label for="setpointC">Setpoint (°C)</label>
+              <input id="setpointC" type="number" step="0.1" min="5" max="35" />
+            </div>
+            <div class="field">
+              <label for="hysteresis">Hysteresis (°C)</label>
+              <input id="hysteresis" type="number" step="0.1" min="0.1" max="10" />
+            </div>
+            <div class="field align-end">
+              <button id="btnThermoSave" class="btn w-100">Save</button>
+            </div>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section class="card readings-card">
+      <div class="card-header">
+        <h3>Lämpötila ja kosteus</h3>
+      </div>
+      <div class="card-body">
+        <div id="locationsGrid" class="locations-grid"></div>
+      </div>
+    </section>
+  </div>
 </div>
 {% include 'chart_modal.html' %}
 {% endblock %}
