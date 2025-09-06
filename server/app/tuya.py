@@ -195,17 +195,19 @@ class TuyaACController:
 # ----------------------------
 @dataclass
 class ThermostatConfig:
-    setpoint_c: float = 24.5           # target temperature
-    deadband_c: float = 1.0            # total hysteresis width (e.g., 1.0°C)
+    # Values managed via DB (no defaults here)
+    setpoint_c: float                  # target temperature
+    deadband_c: float                  # total hysteresis width (e.g., 1.0°C)
+    sleep_enabled: bool                # master toggle for sleep mode
+    # Sleep window in local time (HH:MM 24h). If both set and enabled, sleep is active.
+    sleep_start: Optional[str]
+    sleep_stop: Optional[str]
+    # Local control loop settings with safe defaults
     min_on_s: int = 240                # minimum ON runtime (compressor protection)
     min_off_s: int = 240               # minimum OFF downtime
     poll_interval_s: int = 15          # control loop period
     smooth_window: int = 5             # moving average window; 1 disables smoothing
     max_stale_s: Optional[int] = 120   # if not None, ignore temps older than this
-    sleep_enabled: bool = True        # master toggle for sleep mode
-    # Sleep window in local time (HH:MM 24h). If both set and enabled, sleep is active.
-    sleep_start: Optional[str] = "22:00"
-    sleep_stop: Optional[str] = "10:00"
 
 # ----------------------------
 # Thermostat loop (no device temp reads)
@@ -435,11 +437,33 @@ class ACThermostat:
 
     def set_sleep_enabled(self, enabled: bool) -> None:
         self.cfg.sleep_enabled = bool(enabled)
+        # Persist to DB
+        try:
+            self.ctrl.save_thermostat_conf(
+                sleep_active=self.cfg.sleep_enabled,
+                sleep_start=self.cfg.sleep_start,
+                sleep_stop=self.cfg.sleep_stop,
+                target_temp=self.cfg.setpoint_c,
+                deadband=self.cfg.deadband_c,
+            )
+        except Exception as e:
+            logger.debug("thermo: save sleep_enabled failed: %s", e)
         self._emit_sleep_status()
 
     def set_sleep_times(self, start: Optional[str], stop: Optional[str]) -> None:
         self.cfg.sleep_start = start
         self.cfg.sleep_stop = stop
+        # Persist to DB
+        try:
+            self.ctrl.save_thermostat_conf(
+                sleep_active=self.cfg.sleep_enabled,
+                sleep_start=self.cfg.sleep_start,
+                sleep_stop=self.cfg.sleep_stop,
+                target_temp=self.cfg.setpoint_c,
+                deadband=self.cfg.deadband_c,
+            )
+        except Exception as e:
+            logger.debug("thermo: save sleep_times failed: %s", e)
         self._emit_sleep_status()
 
     # Thermostat parameters
@@ -448,6 +472,17 @@ class ACThermostat:
             self.cfg.setpoint_c = float(celsius)
         except Exception:
             return
+        # Persist to DB
+        try:
+            self.ctrl.save_thermostat_conf(
+                sleep_active=self.cfg.sleep_enabled,
+                sleep_start=self.cfg.sleep_start,
+                sleep_stop=self.cfg.sleep_stop,
+                target_temp=self.cfg.setpoint_c,
+                deadband=self.cfg.deadband_c,
+            )
+        except Exception as e:
+            logger.debug("thermo: save setpoint failed: %s", e)
         self._emit_config()
 
     def set_hysteresis(self, deadband_c: float) -> None:
@@ -458,6 +493,17 @@ class ACThermostat:
             self.cfg.deadband_c = db
         except Exception:
             return
+        # Persist to DB
+        try:
+            self.ctrl.save_thermostat_conf(
+                sleep_active=self.cfg.sleep_enabled,
+                sleep_start=self.cfg.sleep_start,
+                sleep_stop=self.cfg.sleep_stop,
+                target_temp=self.cfg.setpoint_c,
+                deadband=self.cfg.deadband_c,
+            )
+        except Exception as e:
+            logger.debug("thermo: save hysteresis failed: %s", e)
         self._emit_config()
 
     def step(self):

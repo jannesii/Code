@@ -7,7 +7,7 @@ from flask_login import current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 
-from models import User, TemperatureHumidity, ESP32TemperatureHumidity, Status, ImageData, TimelapseConf
+from models import User, TemperatureHumidity, ESP32TemperatureHumidity, Status, ImageData, TimelapseConf, ThermostatConf
 from .database import DatabaseManager
 import pytz
 import sqlite3
@@ -499,3 +499,84 @@ class Controller:
             (limit,)
         )
         return [dict(row) for row in rows]
+
+    # --- Thermostat configuration operations ---
+    def get_thermostat_conf(self) -> ThermostatConf | None:
+        row = self.db.fetchone(
+            """
+            SELECT id, sleep_active, sleep_start, sleep_stop, target_temp, deadband
+              FROM thermostat_conf
+             WHERE id = 1
+            """
+        )
+        if row is None:
+            return None
+        return ThermostatConf(
+            id=row['id'],
+            sleep_active=bool(row['sleep_active']),
+            sleep_start=row['sleep_start'],
+            sleep_stop=row['sleep_stop'],
+            target_temp=float(row['target_temp']),
+            deadband=float(row['deadband']),
+        )
+
+    def save_thermostat_conf(
+        self,
+        *,
+        sleep_active: bool,
+        sleep_start: str | None,
+        sleep_stop: str | None,
+        target_temp: float,
+        deadband: float,
+    ) -> ThermostatConf:
+        self.db.execute_query(
+            """
+            INSERT INTO thermostat_conf (id, sleep_active, sleep_start, sleep_stop, target_temp, deadband)
+            VALUES (1, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                sleep_active = excluded.sleep_active,
+                sleep_start = excluded.sleep_start,
+                sleep_stop = excluded.sleep_stop,
+                target_temp = excluded.target_temp,
+                deadband = excluded.deadband
+            """,
+            (
+                1 if sleep_active else 0,
+                sleep_start,
+                sleep_stop,
+                float(target_temp),
+                float(deadband),
+            ),
+        )
+        conf = self.get_thermostat_conf()
+        if conf is None:
+            # This should never happen after UPSERT
+            raise RuntimeError("Failed to save thermostat configuration")
+        return conf
+
+    def ensure_thermostat_conf_seeded_from(self, cfg: object | None = None) -> ThermostatConf:
+        """
+        Seed the thermostat configuration row from a given config-like object
+        that provides attributes: setpoint_c, deadband_c, sleep_enabled,
+        sleep_start, sleep_stop. If a row already exists, it is returned as-is.
+        """
+        existing = self.get_thermostat_conf()
+        if existing is not None:
+            return existing
+        # Extract with safe fallbacks
+        def _getattr(name: str, default):
+            if cfg is None:
+                return default
+            return getattr(cfg, name, default)
+        setpoint_c = float(_getattr('setpoint_c', 24.5))
+        deadband_c = float(_getattr('deadband_c', 1.0))
+        sleep_enabled = bool(_getattr('sleep_enabled', True))
+        sleep_start = _getattr('sleep_start', None)
+        sleep_stop = _getattr('sleep_stop', None)
+        return self.save_thermostat_conf(
+            sleep_active=sleep_enabled,
+            sleep_start=sleep_start,
+            sleep_stop=sleep_stop,
+            target_temp=setpoint_c,
+            deadband=deadband_c,
+        )

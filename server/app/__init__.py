@@ -174,7 +174,6 @@ def create_app():
     api.connect(USERNAME, PASSWORD, COUNTRY_CODE, SCHEMA)
 
     ac_controller = TuyaACController(device_id=DEVICE_ID, api=api)
-    ac_config = ThermostatConfig()
     # Read thermostat location for shared temp source (defaults to previous value)
     THERMOSTAT_LOCATION = os.getenv("THERMOSTAT_LOCATION", "Tietokonepöytä")
     # Simple notifier that emits socket events from the thermostat loop
@@ -183,6 +182,31 @@ def create_app():
             socketio.emit(event, payload)
         except Exception:
             pass
+
+    # Load thermostat configuration from DB for runtime
+    try:
+        _conf = app.ctrl.get_thermostat_conf()  # type: ignore
+    except Exception as e:
+        _conf = None
+        logger.warning("Failed to load thermostat configuration from DB: %s", e)
+
+    if _conf is None:
+        # Final safety defaults
+        ac_config = ThermostatConfig(
+            setpoint_c=24.5,
+            deadband_c=1.0,
+            sleep_enabled=True,
+            sleep_start="22:00",
+            sleep_stop="10:00",
+        )
+    else:
+        ac_config = ThermostatConfig(
+            setpoint_c=float(_conf.target_temp),
+            deadband_c=float(_conf.deadband),
+            sleep_enabled=bool(_conf.sleep_active),
+            sleep_start=_conf.sleep_start,
+            sleep_stop=_conf.sleep_stop,
+        )
 
     ac_thermostat = ACThermostat(
         ac=ac_controller,

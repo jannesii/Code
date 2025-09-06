@@ -87,15 +87,19 @@
         </div>
         <details class="subsection">
           <summary class="subheader as-summary">Thermostat Settings</summary>
-          <div class="controls-grid smaller">
+          <div class="controls-grid small">
             <div class="col-label"><label for="setpointC">Target (°C)</label></div>
-            <div class="col-label"><label for="hysteresis">DB (°C)</label></div>
+            <div class="col-label"><label for="hysteresis_neg">-Hysteresis (°C)</label></div>
+            <div class="col-label"><label for="hysteresis_pos">+Hysteresis (°C)</label></div>
             <div class="col-label">Save</div>
             <div class="field">
               <input class="field-input" id="setpointC" type="number" step="0.1" min="5" max="35" />
             </div>
             <div class="field">
-              <input class="field-input" id="hysteresis" type="number" step="0.1" min="0.1" max="10" />
+              <input class="field-input" id="hysteresis_neg" type="number" step="0.1" min="0.1" max="10" />
+            </div>
+            <div class="field">
+              <input class="field-input" id="hysteresis_pos" type="number" step="0.1" min="0.1" max="10" />
             </div>
             <div class="field">
               <button id="btnThermoSave" class="btn btn-icon" title="Save" aria-label="Save">

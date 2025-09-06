@@ -72,3 +72,13 @@ class TimelapseConf:
     image_delay: int
     temphum_delay: int
     status_delay: int
+
+
+@dataclass
+class ThermostatConf:
+    id: int
+    sleep_active: bool
+    sleep_start: str | None
+    sleep_stop: str | None
+    target_temp: float
+    deadband: float

@@ -66,6 +66,14 @@ class DatabaseManager:
                 'temphum_delay INTEGER NOT NULL,'
                 'status_delay INTEGER NOT NULL'
             ),
+            'thermostat_conf': (
+                'id INTEGER PRIMARY KEY CHECK (id = 1), '
+                'sleep_active BOOLEAN NOT NULL, '
+                'sleep_start TEXT, '
+                'sleep_stop TEXT, '
+                'target_temp REAL NOT NULL, '
+                'deadband REAL NOT NULL'
+            ),
             'gcode_commands': (
                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
                 'timestamp TEXT NOT NULL, '
