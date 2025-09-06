@@ -10,6 +10,12 @@
 
 {% block content %}
 <div class="container">
+  <div id="acPanel" class="ac-panel">
+    <div class="ac-title">AC</div>
+    <div class="ac-status">
+      <span id="acStatusPill" class="ac-pill ac-unknown">Unknown</span>
+    </div>
+  </div>
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <div class="flash-container" style="max-width:800px; margin:20px auto;">
@@ -35,4 +41,3 @@
 <script src="{{ url_for('static', filename='js/temperatures.js') }}"></script>
 <script src="{{ url_for('static', filename='js/flash.js') }}"></script>
 {% endblock %}
-

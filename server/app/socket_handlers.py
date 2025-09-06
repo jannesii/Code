@@ -71,7 +71,7 @@ class SocketEventHandler:
                 'error', {'message': 'Invalid location/temperature/humidity data'})
             self.logger.warning("Bad esp32 temphum payload: %s", data)
             return
-        saved = self.ctrl.record_esp32_temphum(location, temp, hum)
+        saved = self.ctrl.record_esp32_temphum(location, temp-1, hum)
         self.socketio.emit('esp32_temphum', {
             'location': saved.location,
             'temperature': saved.temperature,

@@ -7,6 +7,7 @@ import pytz
 from flask import Blueprint, request, jsonify, current_app, send_from_directory
 from flask_login import login_required, current_user
 from .controller import Controller
+from typing import Any, Dict
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 logger = logging.getLogger(__name__)
@@ -85,3 +86,18 @@ def serve_tmp_file():
     # In production, you may want to sanitize `path`!
     temp_dir = tempfile.gettempdir()
     return send_from_directory(temp_dir, 'preview.jpg')
+
+
+@api_bp.route('/ac/status')
+@login_required
+def get_ac_status():
+    """Return current AC on/off status from the running thermostat."""
+    ac_thermo = getattr(current_app, 'ac_thermostat', None)  # type: ignore
+    if ac_thermo is None:
+        logger.warning("API /ac/status requested but thermostat not initialized")
+        return jsonify({"is_on": None}), 503
+    try:
+        return jsonify({"is_on": bool(ac_thermo.is_on)})
+    except Exception as e:
+        logger.exception("Error reading AC status: %s", e)
+        return jsonify({"is_on": None}), 500

@@ -2,12 +2,13 @@ import logging
 from collections import deque
 from dataclasses import dataclass
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Callable
 from datetime import datetime, timezone
 from tuya_iot import TuyaOpenAPI
 from .controller import Controller
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 class TuyaACController:
     """
@@ -194,7 +195,7 @@ class TuyaACController:
 # ----------------------------
 @dataclass
 class ThermostatConfig:
-    setpoint_c: float = 24.0           # target temperature
+    setpoint_c: float = 24.5           # target temperature
     deadband_c: float = 1.0            # total hysteresis width (e.g., 1.0°C)
     min_on_s: int = 240                # minimum ON runtime (compressor protection)
     min_off_s: int = 240               # minimum OFF downtime
@@ -205,21 +206,33 @@ class ThermostatConfig:
     write_setpoint_on_power_on: bool = False  # optionally align device temp_set
     initial_power: bool = False        # assumed initial state (we don't read device state)
     max_stale_s: Optional[int] = 120   # if not None, ignore temps older than this
+    # Sleep window in local time (HH:MM 24h). If both set, sleep mode is active.
+    sleep_start: Optional[str] = "22:00"
+    sleep_stop: Optional[str] = "10:00"
 
 # ----------------------------
 # Thermostat loop (no device temp reads)
 # ----------------------------
 class ACThermostat:
-    def __init__(self, ac: TuyaACController, cfg: ThermostatConfig, ctrl: Controller, location: str):
+    def __init__(
+        self,
+        ac: TuyaACController,
+        cfg: ThermostatConfig,
+        ctrl: Controller,
+        location: str,
+        notify: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+    ):
         self.ac = ac
         self.cfg = cfg
         self.ctrl = ctrl
         self.location = location
+        self.notify = notify
         self._temps = deque(maxlen=max(1, cfg.smooth_window))
-        self._is_on: bool = bool(cfg.initial_power)
+        ac_status = self.ac.get_status()
+        self._is_on: bool = bool(ac_status.get("switch", False)) if ac_status else bool(cfg.initial_power)
         self._last_change_ts: float = 0.0
         logger.info(
-            "thermo: init setpoint=%.2f deadband=%.2f min_on=%ss min_off=%ss poll=%ss smooth=%d mode_on=%s fan_on=%s write_setpoint=%s initial_power=%s max_stale=%s location=%s",
+            "thermo: init setpoint=%.2f deadband=%.2f min_on=%ss min_off=%ss poll=%ss smooth=%d mode_on=%s fan_on=%s write_setpoint=%s initial_power=%s max_stale=%s location=%s sleep_start=%s sleep_stop=%s",
             cfg.setpoint_c,
             cfg.deadband_c,
             cfg.min_on_s,
@@ -232,6 +245,8 @@ class ACThermostat:
             bool(cfg.initial_power),
             str(cfg.max_stale_s),
             self.location,
+            cfg.sleep_start,
+            cfg.sleep_stop,
         )
 
     def _now(self) -> float:
@@ -247,6 +262,50 @@ class ACThermostat:
         logger.debug("thermo: _can_turn_off=%s", ok)
         return ok
 
+    def _parse_hhmm_to_minutes(self, s: Optional[str]) -> Optional[int]:
+        if not s:
+            return None
+        s = s.strip()
+        try:
+            parts = s.split(":", 1)
+            if len(parts) != 2:
+                return None
+            h = int(parts[0])
+            m = int(parts[1])
+            if not (0 <= h < 24 and 0 <= m < 60):
+                return None
+            return h * 60 + m
+        except Exception:
+            return None
+
+    def _now_minutes_local(self) -> int:
+        lt = time.localtime()
+        return lt.tm_hour * 60 + lt.tm_min
+
+    def _is_sleep_time(self) -> bool:
+        start_m = self._parse_hhmm_to_minutes(self.cfg.sleep_start)
+        stop_m = self._parse_hhmm_to_minutes(self.cfg.sleep_stop)
+        if start_m is None or stop_m is None:
+            return False
+        now_m = self._now_minutes_local()
+        if start_m == stop_m:
+            logger.debug("thermo: sleep window start==stop; ignoring sleep")
+            return False
+        if start_m < stop_m:
+            in_sleep = start_m <= now_m < stop_m
+        else:
+            # wraps past midnight
+            in_sleep = (now_m >= start_m) or (now_m < stop_m)
+        logger.debug(
+            "thermo: sleep_check now=%02d:%02d start=%s stop=%s -> %s",
+            now_m // 60,
+            now_m % 60,
+            self.cfg.sleep_start,
+            self.cfg.sleep_stop,
+            in_sleep,
+        )
+        return in_sleep
+
     def _read_external_temp(self) -> Optional[float]:
         """Read latest temperature for the configured location from Controller/DB and apply smoothing."""
         rec = self.ctrl.get_last_esp32_temphum_for_location(self.location)
@@ -255,7 +314,6 @@ class ACThermostat:
             return None
         t = rec.temperature
         ts = rec.timestamp  # ISO string stored by controller
-        logger.info("thermo: read_external_temp=t=%s updated_at=%s", t, ts)
         if t is None:
             logger.debug("thermo: DB reading missing temperature")
             return None
@@ -301,8 +359,45 @@ class ACThermostat:
         off_at = self.cfg.setpoint_c - half  # for cooling: turn OFF below this
         return on_at, off_at
 
+    def _emit_status(self) -> None:
+        """Notify listeners about current AC on/off state."""
+        try:
+            if self.notify:
+                self.notify('ac_status', {"is_on": bool(self._is_on)})
+        except Exception as e:
+            logger.debug("thermo: notify failed: %s", e)
+
     def step(self):
         """One control step using external temperature."""
+        # Refresh actual device state at the very beginning and inform listeners if changed
+        try:
+            status = self.ac.get_status()
+            if isinstance(status, dict) and 'switch' in status:
+                new_is_on = bool(status.get('switch', False))
+                if new_is_on != self._is_on:
+                    logger.info("thermo: device state changed externally -> %s", "ON" if new_is_on else "OFF")
+                    self._is_on = new_is_on
+                    self._emit_status()
+        except Exception as e:
+            logger.debug("thermo: get_status failed at step start: %s", e)
+
+        # Sleep mode: don't allow turning ON; if currently ON, try to turn OFF respecting min_on
+        if self._is_sleep_time():
+            if self._is_on:
+                if self._can_turn_off():
+                    logger.info("thermo: sleep active — turning OFF")
+                    self.ac.turn_off()
+                    self._is_on = False
+                    self._last_change_ts = self._now()
+                    self._emit_status()
+                else:
+                    wait = self.cfg.min_on_s - (self._now() - self._last_change_ts)
+                    logger.debug("thermo: sleep active — waiting min-on %.0fs before OFF", max(0, wait))
+            else:
+                logger.debug("thermo: sleep active — staying OFF")
+            logger.debug("thermo: sleeping %ss (sleep mode)", self.cfg.poll_interval_s)
+            time.sleep(self.cfg.poll_interval_s)
+            return
         temp = self._read_external_temp()
         if temp is None:
             logger.warning("thermo: no valid temp (missing or stale); skipping")
@@ -331,6 +426,7 @@ class ACThermostat:
                 )
                 self._is_on = True
                 self._last_change_ts = now
+                self._emit_status()
                 logger.debug(
                     "thermo: state changed -> ON; mode=%s fan=%s setpoint_write=%s",
                     self.cfg.mode_when_on,
@@ -353,6 +449,7 @@ class ACThermostat:
                 self.ac.turn_off()
                 self._is_on = False
                 self._last_change_ts = now
+                self._emit_status()
                 logger.debug("thermo: state changed -> OFF")
             else:
                 reasons = []
@@ -375,3 +472,7 @@ class ACThermostat:
             except Exception as e:
                 logger.exception("thermo: error during control loop: %s", e)
                 time.sleep(self.cfg.poll_interval_s)
+
+    @property
+    def is_on(self) -> bool:
+        return bool(self._is_on)

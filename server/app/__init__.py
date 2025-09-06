@@ -177,12 +177,22 @@ def create_app():
     ac_config = ThermostatConfig()
     # Read thermostat location for shared temp source (defaults to previous value)
     THERMOSTAT_LOCATION = os.getenv("THERMOSTAT_LOCATION", "Tietokonepöytä")
+    # Simple notifier that emits socket events from the thermostat loop
+    def _notify(event: str, payload: dict):
+        try:
+            socketio.emit(event, payload)
+        except Exception:
+            pass
+
     ac_thermostat = ACThermostat(
         ac=ac_controller,
         cfg=ac_config,
         ctrl=app.ctrl,  # type: ignore
         location=THERMOSTAT_LOCATION,
+        notify=_notify,
     )
+    # Expose thermostat on the app for API access
+    app.ac_thermostat = ac_thermostat  # type: ignore
     ac_thread = threading.Thread(target=ac_thermostat.run_forever, daemon=True)
     ac_thread.start()
     logger.info("Tuya AC controller started for device %s", DEVICE_ID)

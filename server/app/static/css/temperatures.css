@@ -4,6 +4,40 @@
   padding: 20px;
 }
 
+.ac-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #1e1e1e;
+  border: 1px solid #333;
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.ac-title {
+  color: #bbb;
+  font-weight: 600;
+}
+
+.ac-status {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ac-pill {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  border: 1px solid #333;
+}
+
+.ac-on    { background: #12381f; color: #78ffa1; border-color: #226b3d; }
+.ac-off   { background: #3a1616; color: #ff8e8e; border-color: #6b2222; }
+.ac-unknown { background: #2a2a2a; color: #bbb; border-color: #444; }
+
 .section-title{
   margin: 10px 0 14px;
   color: #bbb;

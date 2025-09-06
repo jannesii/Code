@@ -131,6 +131,43 @@ function initSIO(){
     console.log('📡 Received esp32_temphum:', data);
     updateTile(data);
   });
+  socket.on('ac_status', data => {
+    console.log('📡 Received ac_status:', data);
+    if (!data) return;
+    updateACIndicator(data.is_on);
+  });
+}
+
+async function fetchACStatus(){
+  try{
+    const resp = await fetch('/api/ac/status');
+    if(!resp.ok){
+      console.warn('AC status fetch failed:', resp.status);
+      updateACIndicator(null);
+      return;
+    }
+    const data = await resp.json();
+    updateACIndicator(data && 'is_on' in data ? data.is_on : null);
+  }catch(err){
+    console.error('AC status error:', err);
+    updateACIndicator(null);
+  }
+}
+
+function updateACIndicator(isOn){
+  const pill = document.getElementById('acStatusPill');
+  if(!pill) return;
+  pill.classList.remove('ac-on','ac-off','ac-unknown');
+  if(isOn === true){
+    pill.classList.add('ac-on');
+    pill.textContent = 'ON';
+  } else if(isOn === false){
+    pill.classList.add('ac-off');
+    pill.textContent = 'OFF';
+  } else {
+    pill.classList.add('ac-unknown');
+    pill.textContent = 'Unknown';
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -138,4 +175,5 @@ document.addEventListener('DOMContentLoaded', () => {
   // LOCATIONS is a list of dicts: {location, temp, hum}
   renderItems(locations);
   initSIO();
+  fetchACStatus();
 });
