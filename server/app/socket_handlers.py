@@ -174,10 +174,35 @@ class SocketEventHandler:
             if action == 'thermostat_disable':
                 ac_thermo.disable()
                 return
+            if action == 'set_mode':
+                val = (data.get('value') or '').strip().lower()
+                # User reports 'hot' unsupported
+                if val not in {'cold', 'wet', 'wind'}:
+                    self.socketio.emit('error', {'message': f'Unsupported mode: {val}'})
+                    return
+                ac_thermo.set_mode(val)
+                return
+            if action == 'set_fan_speed':
+                val = (data.get('value') or '').strip().lower()
+                # User reports 'mid' and 'auto' unsupported
+                if val not in {'low', 'high'}:
+                    self.socketio.emit('error', {'message': f'Unsupported fan speed: {val}'})
+                    return
+                ac_thermo.set_fan_speed(val)
+                return
             if action == 'status':
                 # Re-emit current statuses to requester(s)
                 self.socketio.emit('ac_status', { 'is_on': bool(ac_thermo.is_on) })
                 self.socketio.emit('thermostat_status', { 'enabled': getattr(ac_thermo, '_enabled', True) })
+                # Also emit current mode/fan
+                try:
+                    st = ac_thermo.ac.get_status()
+                    mode = st.get('mode') if isinstance(st, dict) else None
+                    fan  = st.get('fan_speed_enum') if isinstance(st, dict) else None
+                except Exception:
+                    mode = None
+                    fan = None
+                self.socketio.emit('ac_state', { 'mode': mode, 'fan_speed': fan })
                 return
             self.socketio.emit('error', {'message': f'Invalid AC control action: {action}'})
             self.logger.warning("Bad ac_control action: %s", action)

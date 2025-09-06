@@ -136,6 +136,12 @@ function initSIO(){
     if (!data) return;
     updateACIndicator(data.is_on);
   });
+  socket.on('ac_state', data => {
+    console.log('📡 Received ac_state:', data);
+    if (!data) return;
+    if (data.mode) setSelectValue('acMode', data.mode);
+    if (data.fan_speed) setSelectValue('acFan', data.fan_speed);
+  });
   socket.on('thermostat_status', data => {
     console.log('📡 Received thermostat_status:', data);
     if (!data) return;
@@ -155,6 +161,8 @@ async function fetchACStatus(){
     const data = await resp.json();
     updateACIndicator(data && 'is_on' in data ? data.is_on : null);
     updateThermoIndicator(data && 'thermostat_enabled' in data ? data.thermostat_enabled : null);
+    if (data && data.mode) setSelectValue('acMode', data.mode);
+    if (data && data.fan_speed) setSelectValue('acFan', data.fan_speed);
   }catch(err){
     console.error('AC status error:', err);
     updateACIndicator(null);
@@ -223,4 +231,35 @@ document.addEventListener('DOMContentLoaded', () => {
       socket.emit('ac_control', { action: enabled ? 'thermostat_disable' : 'thermostat_enable' });
     });
   }
+
+  // Wire selects
+  const selMode = document.getElementById('acMode');
+  const selFan  = document.getElementById('acFan');
+  if (selMode){
+    selMode.addEventListener('change', () => {
+      const val = selMode.value;
+      // Only allow cold/wet/wind
+      if(['cold','wet','wind'].includes(val)){
+        socket.emit('ac_control', { action: 'set_mode', value: val });
+      }
+    });
+  }
+  if (selFan){
+    selFan.addEventListener('change', () => {
+      const val = selFan.value;
+      // Only allow low/high
+      if(['low','high'].includes(val)){
+        socket.emit('ac_control', { action: 'set_fan_speed', value: val });
+      }
+    });
+  }
 });
+
+function setSelectValue(id, value){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const val = String(value || '').toLowerCase();
+  for (const opt of el.options){
+    if (opt.value === val){ el.value = val; return; }
+  }
+}

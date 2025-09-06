@@ -8,7 +8,7 @@ from tuya_iot import TuyaOpenAPI
 from .controller import Controller
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 class TuyaACController:
     """
@@ -230,6 +230,9 @@ class ACThermostat:
         self._temps = deque(maxlen=max(1, cfg.smooth_window))
         ac_status = self.ac.get_status()
         self._is_on: bool = bool(ac_status.get("switch", False)) if ac_status else bool(cfg.initial_power)
+        # Track last-known mode/fan to inform UI
+        self._mode: Optional[str] = ac_status.get("mode") if isinstance(ac_status, dict) else None
+        self._fan_speed: Optional[str] = ac_status.get("fan_speed_enum") if isinstance(ac_status, dict) else None
         self._enabled: bool = True
         self._last_change_ts: float = 0.0
         logger.info(
@@ -375,6 +378,29 @@ class ACThermostat:
         except Exception as e:
             logger.debug("thermo: notify thermo failed: %s", e)
 
+    def _emit_ac_state(self) -> None:
+        try:
+            if self.notify:
+                self.notify('ac_state', {"mode": self._mode, "fan_speed": self._fan_speed})
+        except Exception as e:
+            logger.debug("thermo: notify ac_state failed: %s", e)
+
+    def set_mode(self, mode: str) -> None:
+        """Set AC mode immediately and update thermostat config for future ON events."""
+        mode_l = str(mode).strip().lower()
+        self.ac.set_mode(mode_l)
+        self.cfg.mode_when_on = mode_l
+        self._mode = mode_l
+        self._emit_ac_state()
+
+    def set_fan_speed(self, speed: str) -> None:
+        """Set AC fan speed immediately and update thermostat config for future ON events."""
+        speed_l = str(speed).strip().lower()
+        self.ac.set_fan_speed(speed_l)
+        self.cfg.fan_when_on = speed_l
+        self._fan_speed = speed_l
+        self._emit_ac_state()
+
     def enable(self) -> None:
         self._enabled = True
         self._emit_thermostat_status()
@@ -404,6 +430,19 @@ class ACThermostat:
                     logger.info("thermo: device state changed externally -> %s", "ON" if new_is_on else "OFF")
                     self._is_on = new_is_on
                     self._emit_status()
+            # Also track mode/fan changes
+            if isinstance(status, dict):
+                changed = False
+                m = status.get('mode')
+                f = status.get('fan_speed_enum')
+                if m is not None and m != self._mode:
+                    self._mode = m
+                    changed = True
+                if f is not None and f != self._fan_speed:
+                    self._fan_speed = f
+                    changed = True
+                if changed:
+                    self._emit_ac_state()
         except Exception as e:
             logger.debug("thermo: get_status failed at step start: %s", e)
 
@@ -458,6 +497,10 @@ class ACThermostat:
                 self._is_on = True
                 self._last_change_ts = now
                 self._emit_status()
+                # Reflect configured choices to UI
+                self._mode = self.cfg.mode_when_on
+                self._fan_speed = self.cfg.fan_when_on
+                self._emit_ac_state()
                 logger.debug(
                     "thermo: state changed -> ON; mode=%s fan=%s setpoint_write=%s",
                     self.cfg.mode_when_on,
