@@ -184,17 +184,21 @@ async function fetchACStatus(){
 
 function updateACIndicator(isOn){
   const pill = document.getElementById('acStatusPill');
+  const btn  = document.getElementById('btnAcPowerToggle');
   if(!pill) return;
   pill.classList.remove('ac-on','ac-off','ac-unknown');
   if(isOn === true){
     pill.classList.add('ac-on');
     pill.textContent = 'ON';
+    if (btn) btn.textContent = 'Turn AC Off';
   } else if(isOn === false){
     pill.classList.add('ac-off');
     pill.textContent = 'OFF';
+    if (btn) btn.textContent = 'Turn AC On';
   } else {
     pill.classList.add('ac-unknown');
     pill.textContent = 'Unknown';
+    if (btn) btn.textContent = 'Toggle AC';
   }
 }
 
@@ -267,18 +271,21 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const sleepEnabled = document.getElementById('sleepEnabled');
+  const sleepPill    = document.getElementById('sleepStatusPill');
+  const btnSleepToggle = document.getElementById('btnSleepToggle');
   const sleepStart   = document.getElementById('sleepStart');
   const sleepStop    = document.getElementById('sleepStop');
   const btnSleepSave = document.getElementById('btnSleepSave');
-  if (sleepEnabled){
-    sleepEnabled.addEventListener('change', () => {
-      socket.emit('ac_control', { action: 'set_sleep_enabled', value: !!sleepEnabled.checked });
+  if (btnSleepToggle){
+    btnSleepToggle.addEventListener('click', () => {
+      const enabled = sleepPill && sleepPill.classList.contains('ac-on');
+      socket.emit('ac_control', { action: 'set_sleep_enabled', value: !enabled });
     });
   }
   if (btnSleepSave && sleepStart && sleepStop){
     btnSleepSave.addEventListener('click', () => {
-      const start = (sleepStart.value || '').trim();
-      const stop  = (sleepStop.value || '').trim();
+      const start = asTimeValue((sleepStart.value || '').trim());
+      const stop  = asTimeValue((sleepStop.value || '').trim());
       socket.emit('ac_control', { action: 'set_sleep_times', start, stop });
     });
   }
@@ -312,10 +319,19 @@ function setSelectValue(id, value){
 function setSleepUI(data){
   if (!data) return;
   const sleepEnabled = document.getElementById('sleepEnabled');
+  const pill = document.getElementById('sleepStatusPill');
+  const btn  = document.getElementById('btnSleepToggle');
   const sleepStart   = document.getElementById('sleepStart');
   const sleepStop    = document.getElementById('sleepStop');
-  if ('sleep_enabled' in data && sleepEnabled){
-    sleepEnabled.checked = !!data.sleep_enabled;
+  if ('sleep_enabled' in data){
+    const en = !!data.sleep_enabled;
+    if (pill){
+      pill.classList.remove('ac-on','ac-off','ac-unknown');
+      if (en){ pill.classList.add('ac-on'); pill.textContent = 'Sleep ON'; }
+      else    { pill.classList.add('ac-off'); pill.textContent = 'Sleep OFF'; }
+    }
+    if (btn){ btn.textContent = en ? 'Disable Sleep' : 'Enable Sleep'; }
+    if (sleepEnabled){ sleepEnabled.checked = en; }
   }
   if (data.sleep_start && sleepStart){ sleepStart.value = asTimeValue(data.sleep_start); }
   if (data.sleep_stop  && sleepStop ){ sleepStop.value  = asTimeValue(data.sleep_stop); }

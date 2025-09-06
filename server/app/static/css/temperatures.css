@@ -28,7 +28,20 @@
 .controls-grid{
   display:grid; gap:12px; grid-template-columns: repeat(2, minmax(160px,1fr));
 }
-.controls-grid.small{ grid-template-columns: repeat(4, minmax(120px,1fr)); }
+.controls-grid.small {
+  display: grid;
+  grid-template-columns: repeat(4, auto); /* 4 columns, sized by their content */
+  justify-content: start;                  /* don't distribute leftover space */
+  justify-items: start;                    /* optional: items don’t stretch */
+  gap: 12px;                                  /* optional */
+}
+.controls-grid.smaller {
+  display: grid;
+  grid-template-columns: repeat(3, auto); /* 4 columns, sized by their content */
+  justify-content: start;                  /* don't distribute leftover space */
+  justify-items: start;                    /* optional: items don’t stretch */
+  gap: 12px;                                  /* optional */
+}
 .field{ display:flex; flex-direction:column; gap:6px; }
 .field.checkbox{ flex-direction:row; align-items:center; gap:8px; }
 .field.align-end{ display:flex; justify-content:flex-end; align-items:flex-end; }
@@ -48,6 +61,17 @@
   border-radius: 8px; padding:8px 10px; cursor:pointer;
 }
 .btn:hover{ background:#333; }
+.btn-icon{ width:36px; height:36px; padding:0; display:flex; align-items:center; justify-content:center; }
+.toggle-row{ display:flex; align-items:center; gap:8px; }
+.input-row{ display:flex; align-items:center; gap:8px; }
+.field input[type="time"], .input-row input[type="number"]{ height:36px; }
+.field-input { height: 36px; }
+.btn-icon{ width:36px; height:36px; padding:0; display:flex; align-items:center; justify-content:center; }
+.toggle-row{ display:flex; align-items:center; gap:8px; }
+.col-label {
+  color: #bbb;
+  font-size: 0.80rem;
+}
 
 .ac-panel {
   display: flex;
@@ -183,4 +207,22 @@ transform: scale(1.05);
   .tile:hover {
     transform: none;
   }
+}
+
+/* Subsections rows: left-to-right label + controls */
+.controls-stack{ display:flex; flex-direction:column; gap:10px; align-items:flex-start; }
+.controls-stack .line{ display:flex; flex-direction:row; gap:10px; align-items:center; width:100%; }
+.controls-stack .line label{ min-width:120px; color:#bbb; }
+.controls-stack .input-row{ display:flex; align-items:center; gap:8px; }
+.controls-stack .line input[type="time"],
+.controls-stack .line input[type="number"]{ height:36px; }
+.controls-stack .input-row input[type="time"],
+.controls-stack .input-row input[type="number"],
+.controls-stack .btn-icon{ height:36px; }
+
+
+/* On small screens, stack label above control for readability */
+@media (max-width: 800px){
+  .controls-stack .line{ flex-direction:column; align-items:flex-start; }
+  .controls-stack .line label{ min-width:0; }
 }
