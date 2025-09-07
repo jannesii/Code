@@ -4,11 +4,12 @@ import time
 from typing import Any, Dict, List, Optional, Callable
 from datetime import datetime, timezone
 from tuya_iot import TuyaOpenAPI
+import pytz
 from .controller import Controller
 from models import ThermostatConf
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 class TuyaACController:
     """
@@ -216,33 +217,25 @@ class ACThermostat:
         self._fan_speed: Optional[str] = ac_status.get("fan_speed_enum") if isinstance(ac_status, dict) else None
         self._enabled: bool = bool(getattr(cfg, 'thermo_active', True))
         self._last_change_ts: float = 0.0
-        """ logger.info(
-            "thermo: init setpoint=%.2f deadband=%.2f min_on=%ss min_off=%ss poll=%ss smooth=%d max_stale=%s location=%s sleep_start=%s sleep_stop=%s",
-            cfg.target_temp,
-            cfg.pos_hysteresis + cfg.neg_hysteresis,
-            cfg.min_on_s,
-            cfg.min_off_s,
-            cfg.poll_interval_s,
-            cfg.smooth_window,
-            str(cfg.max_stale_s),
-            self.location,
-            cfg.sleep_start,
-            cfg.sleep_stop,
-        ) """
+        logger.info(f"thermo: init {cfg} is_on={self._is_on} mode={self._mode} fan={self._fan_speed}")
         # Track persisted start ISO for the current phase
         self._phase_started_at_iso: str | None = getattr(cfg, 'phase_started_at', None)
         logger.debug(f"thermo: init current_phase={getattr(cfg, 'current_phase', None)} phase_started_at={self._phase_started_at_iso}")
         # Ensure current phase timestamp is sane for accurate deltas across restarts
+        self.tz = pytz.timezone('Europe/Helsinki')
         def _parse_iso_to_epoch(s: Optional[str]) -> Optional[float]:
             if not s:
                 return None
             try:
-                x = str(s)
+                x = str(s).strip()
+                # Handle 'Z' while avoiding double offsets like '+00:00Z'
                 if x.endswith('Z'):
-                    x = x[:-1] + '+00:00'
+                    x = x[:-1]
+                # datetime.fromisoformat can't parse 'Z', but can parse '+00:00'.
+                # If no explicit offset remains, assume UTC.
                 dt = datetime.fromisoformat(x)
                 if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=timezone.utc)
+                    dt = dt.replace(tzinfo=self.tz)
                 return dt.timestamp()
             except Exception as e:
                 logger.exception(f"thermo: failed to parse ISO timestamp {s}: {e}")
@@ -253,11 +246,12 @@ class ACThermostat:
         if self._is_on:
             # If persisted phase mismatches or missing ts, reset start to now
             if getattr(cfg, 'current_phase', None) != 'on' or started_epoch is None:
-                self._phase_started_at_iso = datetime.fromtimestamp(now_epoch, tz=timezone.utc).isoformat() + 'Z'
+                # Persist UTC in RFC3339 format with trailing 'Z'
+                self._phase_started_at_iso = datetime.fromtimestamp(now_epoch, tz=self.tz).isoformat().replace('+00:00', 'Z')
                 self._persist_conf()
         else:
             if getattr(cfg, 'current_phase', None) != 'off' or started_epoch is None:
-                self._phase_started_at_iso = datetime.fromtimestamp(now_epoch, tz=timezone.utc).isoformat() + 'Z'
+                self._phase_started_at_iso = datetime.fromtimestamp(now_epoch, tz=self.tz).isoformat().replace('+00:00', 'Z')
                 
                 self._persist_conf()
         
@@ -268,7 +262,6 @@ class ACThermostat:
             self._last_change_ts = min(now_epoch, float(started_epoch))
         else:
             self._last_change_ts = now_epoch
-
         # Log the computed phase age for visibility across restarts
         phase_lbl = 'ON' if self._is_on else 'OFF'
         age_min = self._compute_phase_duration(self._phase_started_at_iso) or 0
@@ -319,11 +312,12 @@ class ACThermostat:
         if not start_iso:
             return None
         try:
-            s = start_iso
-            x = s[:-1] + '+00:00' if s.endswith('Z') else s
-            dt = datetime.fromisoformat(x)
+            s = str(start_iso).strip()
+            if s.endswith('Z'):
+                s = s[:-1]
+            dt = datetime.fromisoformat(s)
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
+                dt = dt.replace(tzinfo=self.tz)
             phase_s = max(0.0, time.time() - dt.timestamp())
             if output_format == "minutes":
                 return int(phase_s) // 60 if phase_s >= 60 else None
@@ -336,8 +330,8 @@ class ACThermostat:
         """Record OFF→ON transition, accumulate OFF seconds, persist. Returns OFF minutes."""
         minutes: int | None = self._compute_phase_duration(self._phase_started_at_iso)
         
-        # set persisted phase start
-        self._phase_started_at_iso = datetime.now(timezone.utc).isoformat() + 'Z'
+        # set persisted phase start (UTC 'Z')
+        self._phase_started_at_iso = datetime.now(self.tz).isoformat().replace('+00:00', 'Z')
         self._persist_conf()
         return minutes
 
@@ -428,11 +422,11 @@ class ACThermostat:
             if s:
                 try:
                     if s.endswith('Z'):
-                        s = s[:-1] + '+00:00'
+                        s = s[:-1]
                     dt = datetime.fromisoformat(s)
                     # If tz missing, treat as UTC to avoid local/UTC mismatch
                     if dt.tzinfo is None:
-                        dt = dt.replace(tzinfo=timezone.utc)
+                        dt = dt.replace(tzinfo=self.tz)
                     ts_epoch = dt.timestamp()
                 except Exception:
                     try:
