@@ -192,10 +192,29 @@ def create_app():
             ping_timeout=20,
             logger=True,
         )
-    def exit_signal():
-        app.ctrl.log_message("Server shutting down", "system")  # type: ignore
-        socketio.emit('server_shutdown')
-        socketio.stop()
+    def _shutdown_tasks():
+        """Run best-effort shutdown side effects outside hub mainloop.
+
+        Avoid doing blocking work directly in the eventlet hub signal context.
+        """
+        try:
+            app.ctrl.log_message("Server shutting down", "system")  # type: ignore
+        except Exception as e:
+            logging.getLogger(__name__).warning("Shutdown log_message failed: %s", e)
+        try:
+            socketio.emit('server_shutdown')
+        except Exception as e:
+            logging.getLogger(__name__).warning("Shutdown emit failed: %s", e)
+
+    def exit_signal(signum, frame):
+        # Offload to a greenlet so we don't call blocking functions from the hub mainloop
+        try:
+            logging.getLogger(__name__).info("Caught exit signal %s", signum)
+            eventlet.spawn_n(_shutdown_tasks)
+        except Exception:
+            # As a last resort, swallow errors to not interfere with Gunicorn shutdown
+            pass
+        # Let Gunicorn control worker shutdown; avoid calling socketio.stop() here
     signal.signal(signal.SIGTERM, exit_signal)
     signal.signal(signal.SIGINT, exit_signal)
     app.socketio = socketio  # type: ignore

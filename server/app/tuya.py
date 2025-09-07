@@ -247,11 +247,11 @@ class ACThermostat:
             # If persisted phase mismatches or missing ts, reset start to now
             if getattr(cfg, 'current_phase', None) != 'on' or started_epoch is None:
                 # Persist UTC in RFC3339 format with trailing 'Z'
-                self._phase_started_at_iso = datetime.fromtimestamp(now_epoch, tz=self.tz).isoformat().replace('+00:00', 'Z')
+                self._phase_started_at_iso = datetime.fromtimestamp(now_epoch, tz=self.tz).isoformat()
                 self._persist_conf()
         else:
             if getattr(cfg, 'current_phase', None) != 'off' or started_epoch is None:
-                self._phase_started_at_iso = datetime.fromtimestamp(now_epoch, tz=self.tz).isoformat().replace('+00:00', 'Z')
+                self._phase_started_at_iso = datetime.fromtimestamp(now_epoch, tz=self.tz).isoformat()
                 
                 self._persist_conf()
         
@@ -331,7 +331,7 @@ class ACThermostat:
         minutes: int | None = self._compute_phase_duration(self._phase_started_at_iso)
         
         # set persisted phase start (UTC 'Z')
-        self._phase_started_at_iso = datetime.now(self.tz).isoformat().replace('+00:00', 'Z')
+        self._phase_started_at_iso = datetime.now(self.tz).isoformat()
         self._persist_conf()
         return minutes
 
@@ -648,7 +648,7 @@ class ACThermostat:
             if temp >= on_at and self._can_turn_on():
                 # Turn on device and force target device temperature to 16°C (doesn't change target_temp)
                 time_delta = self.turn_on()
-                logger.info(f"thermo: ON trigger: temp={temp:.2f} <= {off_at:.2f}; turned on after {time_delta}")
+                logger.info(f"thermo: ON trigger: temp={temp:.2f} <= {off_at:.2f}; turned on after {time_delta} min")
                 if time_delta:
                     self.ctrl.log_message((f"AC ON, delta={time_delta} min, on_at={on_at}, off_at={off_at}"), log_type="ac")
                 try:
@@ -671,7 +671,7 @@ class ACThermostat:
             # ON -> consider OFF
             if temp <= off_at and self._can_turn_off():
                 time_delta = self.turn_off()
-                logger.info(f"thermo: OFF trigger: temp={temp:.2f} <= {off_at:.2f}; turned off after {time_delta}")
+                logger.info(f"thermo: OFF trigger: temp={temp:.2f} <= {off_at:.2f}; turned off after {time_delta} min")
                 if time_delta:
                     self.ctrl.log_message((f"AC OFF, delta={time_delta} min, on_at={on_at}, off_at={off_at}"), log_type="ac")
 
