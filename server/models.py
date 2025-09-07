@@ -83,3 +83,4 @@ class ThermostatConf:
     target_temp: float
     pos_hysteresis: float
     neg_hysteresis: float
+    thermo_active: bool

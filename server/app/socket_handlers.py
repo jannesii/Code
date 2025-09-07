@@ -297,7 +297,10 @@ class SocketEventHandler:
             if action == 'status':
                 # Re-emit current statuses to requester(s)
                 self.emit_to_views('ac_status', { 'is_on': bool(ac_thermo.is_on) })
-                self.emit_to_views('thermostat_status', { 'enabled': getattr(ac_thermo, '_enabled', True) })
+                self.emit_to_views('thermostat_status', {
+                    'enabled': getattr(ac_thermo, '_enabled', True),
+                    'thermo_active': getattr(ac_thermo, '_enabled', True),
+                })
                 # Also emit current mode/fan
                 try:
                     st = ac_thermo.ac.get_status()

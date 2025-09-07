@@ -98,6 +98,7 @@ def get_ac_status():
         return jsonify({
             "is_on": None,
             "thermostat_enabled": None,
+            "thermo_active": None,
             "mode": None,
             "fan_speed": None,
             "sleep_enabled": None,
@@ -116,6 +117,7 @@ def get_ac_status():
         return jsonify({
             "is_on": bool(ac_thermo.is_on),
             "thermostat_enabled": bool(enabled),
+            "thermo_active": bool(enabled),
             "mode": mode,
             "fan_speed": fan,
             "sleep_enabled": bool(getattr(ac_thermo.cfg, 'sleep_enabled', True)),
@@ -130,6 +132,7 @@ def get_ac_status():
         return jsonify({
             "is_on": None,
             "thermostat_enabled": None,
+            "thermo_active": None,
             "mode": None,
             "fan_speed": None,
             "sleep_enabled": None,

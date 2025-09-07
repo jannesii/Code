@@ -208,6 +208,7 @@ def create_app():
             sleep_enabled=True,
             sleep_start="22:00",
             sleep_stop="10:00",
+            thermo_active=True,
         )
         # Ensure thermostat config exists in DB (seed defaults if missing)
         try:
@@ -223,6 +224,7 @@ def create_app():
             sleep_enabled=bool(_conf.sleep_active),
             sleep_start=_conf.sleep_start,
             sleep_stop=_conf.sleep_stop,
+            thermo_active=bool(getattr(_conf, 'thermo_active', True)),
         )
 
     ac_thermostat = ACThermostat(

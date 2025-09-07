@@ -504,7 +504,7 @@ class Controller:
     def get_thermostat_conf(self) -> ThermostatConf | None:
         row = self.db.fetchone(
             """
-            SELECT id, sleep_active, sleep_start, sleep_stop, target_temp, pos_hysteresis, neg_hysteresis
+            SELECT id, sleep_active, sleep_start, sleep_stop, target_temp, pos_hysteresis, neg_hysteresis, thermo_active
               FROM thermostat_conf
              WHERE id = 1
             """
@@ -519,6 +519,7 @@ class Controller:
             target_temp=float(row['target_temp']),
             pos_hysteresis=float(row['pos_hysteresis']),
             neg_hysteresis=float(row['neg_hysteresis']),
+            thermo_active=bool(row['thermo_active']) if 'thermo_active' in row.keys() else True,
         )
 
     def save_thermostat_conf(
@@ -530,18 +531,20 @@ class Controller:
         target_temp: float,
         pos_hysteresis: float,
         neg_hysteresis: float,
+        thermo_active: bool,
     ) -> ThermostatConf:
         self.db.execute_query(
             """
-            INSERT INTO thermostat_conf (id, sleep_active, sleep_start, sleep_stop, target_temp, pos_hysteresis, neg_hysteresis)
-            VALUES (1, ?, ?, ?, ?, ?, ?)
+            INSERT INTO thermostat_conf (id, sleep_active, sleep_start, sleep_stop, target_temp, pos_hysteresis, neg_hysteresis, thermo_active)
+            VALUES (1, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 sleep_active = excluded.sleep_active,
                 sleep_start = excluded.sleep_start,
                 sleep_stop = excluded.sleep_stop,
                 target_temp = excluded.target_temp,
                 pos_hysteresis = excluded.pos_hysteresis,
-                neg_hysteresis = excluded.neg_hysteresis
+                neg_hysteresis = excluded.neg_hysteresis,
+                thermo_active = excluded.thermo_active
             """,
             (
                 1 if sleep_active else 0,
@@ -550,6 +553,7 @@ class Controller:
                 float(target_temp),
                 float(pos_hysteresis),
                 float(neg_hysteresis),
+                1 if thermo_active else 0,
             ),
         )
         conf = self.get_thermostat_conf()
@@ -577,6 +581,7 @@ class Controller:
         pos_h = float(_getattr('pos_hysteresis', 0.5))
         neg_h = float(_getattr('neg_hysteresis', 0.5))
         sleep_enabled = bool(_getattr('sleep_enabled', True))
+        thermo_active = bool(_getattr('thermo_active', True))
         sleep_start = _getattr('sleep_start', None)
         sleep_stop = _getattr('sleep_stop', None)
         return self.save_thermostat_conf(
@@ -586,4 +591,5 @@ class Controller:
             target_temp=setpoint_c,
             pos_hysteresis=pos_h,
             neg_hysteresis=neg_h,
+            thermo_active=thermo_active,
         )

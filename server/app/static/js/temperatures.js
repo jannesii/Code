@@ -145,7 +145,10 @@ function initSIO(){
   socket.on('thermostat_status', data => {
     console.log('📡 Received thermostat_status:', data);
     if (!data) return;
-    updateThermoIndicator(!!data.enabled);
+    const enabled = (data && 'thermo_active' in data)
+      ? !!data.thermo_active
+      : !!data.enabled;
+    updateThermoIndicator(enabled);
   });
   socket.on('sleep_status', data => {
     console.log('📡 Received sleep_status:', data);
@@ -170,7 +173,11 @@ async function fetchACStatus(){
     }
     const data = await resp.json();
     updateACIndicator(data && 'is_on' in data ? data.is_on : null);
-    updateThermoIndicator(data && 'thermostat_enabled' in data ? data.thermostat_enabled : null);
+    // Prefer new DB-backed thermo_active, fallback to legacy thermostat_enabled
+    const thermoEn = (data && 'thermo_active' in data)
+      ? data.thermo_active
+      : (data && 'thermostat_enabled' in data ? data.thermostat_enabled : null);
+    updateThermoIndicator(thermoEn);
     if (data && data.mode) setSelectValue('acMode', data.mode);
     if (data && data.fan_speed) setSelectValue('acFan', data.fan_speed);
     setSleepUI(data);

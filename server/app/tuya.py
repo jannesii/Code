@@ -203,6 +203,8 @@ class ThermostatConfig:
     # Sleep window in local time (HH:MM 24h). If both set and enabled, sleep is active.
     sleep_start: Optional[str]
     sleep_stop: Optional[str]
+    # Persisted enable/disable state for thermostat
+    thermo_active: bool = True
     # Local control loop settings with safe defaults
     min_on_s: int = 240                # minimum ON runtime (compressor protection)
     min_off_s: int = 240               # minimum OFF downtime
@@ -233,7 +235,7 @@ class ACThermostat:
         # Track last-known mode/fan to inform UI
         self._mode: Optional[str] = ac_status.get("mode") if isinstance(ac_status, dict) else None
         self._fan_speed: Optional[str] = ac_status.get("fan_speed_enum") if isinstance(ac_status, dict) else None
-        self._enabled: bool = True
+        self._enabled: bool = bool(getattr(cfg, 'thermo_active', True))
         self._last_change_ts: float = 0.0
         logger.info(
             "thermo: init setpoint=%.2f deadband=%.2f min_on=%ss min_off=%ss poll=%ss smooth=%d max_stale=%s location=%s sleep_start=%s sleep_stop=%s",
@@ -371,7 +373,7 @@ class ACThermostat:
     def _emit_thermostat_status(self) -> None:
         try:
             if self.notify:
-                self.notify('thermostat_status', {"enabled": bool(self._enabled)})
+                self.notify('thermostat_status', {"enabled": bool(self._enabled), "thermo_active": bool(self._enabled)})
         except Exception as e:
             logger.debug("thermo: notify thermo failed: %s", e)
 
@@ -420,10 +422,38 @@ class ACThermostat:
 
     def enable(self) -> None:
         self._enabled = True
+        self.cfg.thermo_active = True
+        # Persist to DB
+        try:
+            self.ctrl.save_thermostat_conf(
+                sleep_active=self.cfg.sleep_enabled,
+                sleep_start=self.cfg.sleep_start,
+                sleep_stop=self.cfg.sleep_stop,
+                target_temp=self.cfg.setpoint_c,
+                pos_hysteresis=self.cfg.pos_hysteresis,
+                neg_hysteresis=self.cfg.neg_hysteresis,
+                thermo_active=self._enabled,
+            )
+        except Exception as e:
+            logger.debug("thermo: save enable failed: %s", e)
         self._emit_thermostat_status()
 
     def disable(self) -> None:
         self._enabled = False
+        self.cfg.thermo_active = False
+        # Persist to DB
+        try:
+            self.ctrl.save_thermostat_conf(
+                sleep_active=self.cfg.sleep_enabled,
+                sleep_start=self.cfg.sleep_start,
+                sleep_stop=self.cfg.sleep_stop,
+                target_temp=self.cfg.setpoint_c,
+                pos_hysteresis=self.cfg.pos_hysteresis,
+                neg_hysteresis=self.cfg.neg_hysteresis,
+                thermo_active=self._enabled,
+            )
+        except Exception as e:
+            logger.debug("thermo: save disable failed: %s", e)
         self._emit_thermostat_status()
 
     def set_power(self, on: bool) -> None:
@@ -447,6 +477,7 @@ class ACThermostat:
                 target_temp=self.cfg.setpoint_c,
                 pos_hysteresis=self.cfg.pos_hysteresis,
                 neg_hysteresis=self.cfg.neg_hysteresis,
+                thermo_active=self._enabled,
             )
         except Exception as e:
             logger.debug("thermo: save sleep_enabled failed: %s", e)
@@ -464,6 +495,7 @@ class ACThermostat:
                 target_temp=self.cfg.setpoint_c,
                 pos_hysteresis=self.cfg.pos_hysteresis,
                 neg_hysteresis=self.cfg.neg_hysteresis,
+                thermo_active=self._enabled,
             )
         except Exception as e:
             logger.debug("thermo: save sleep_times failed: %s", e)
@@ -484,6 +516,7 @@ class ACThermostat:
                 target_temp=self.cfg.setpoint_c,
                 pos_hysteresis=self.cfg.pos_hysteresis,
                 neg_hysteresis=self.cfg.neg_hysteresis,
+                thermo_active=self._enabled,
             )
         except Exception as e:
             logger.debug("thermo: save setpoint failed: %s", e)
@@ -508,6 +541,7 @@ class ACThermostat:
                 target_temp=self.cfg.setpoint_c,
                 pos_hysteresis=self.cfg.pos_hysteresis,
                 neg_hysteresis=self.cfg.neg_hysteresis,
+                thermo_active=self._enabled,
             )
         except Exception as e:
             logger.debug("thermo: save hysteresis split failed: %s", e)

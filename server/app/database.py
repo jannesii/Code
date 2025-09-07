@@ -73,7 +73,8 @@ class DatabaseManager:
                 'sleep_stop TEXT, '
                 'target_temp REAL NOT NULL, '
                 'pos_hysteresis REAL NOT NULL, '
-                'neg_hysteresis REAL NOT NULL'
+                'neg_hysteresis REAL NOT NULL, '
+                'thermo_active BOOLEAN NOT NULL DEFAULT 1'
             ),
             'gcode_commands': (
                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
@@ -95,6 +96,17 @@ class DatabaseManager:
             cols = [row[1] for row in self.cursor.fetchall()]
             if 'is_root_admin' not in cols:
                 self.cursor.execute("ALTER TABLE users ADD COLUMN is_root_admin BOOLEAN NOT NULL DEFAULT 0")
+        except Exception:
+            pass
+
+        # Migrate existing thermostat_conf to include thermo_active if missing
+        try:
+            self.cursor.execute("PRAGMA table_info(thermostat_conf)")
+            cols = [row[1] for row in self.cursor.fetchall()]
+            if 'thermo_active' not in cols:
+                self.cursor.execute(
+                    "ALTER TABLE thermostat_conf ADD COLUMN thermo_active BOOLEAN NOT NULL DEFAULT 1"
+                )
         except Exception:
             pass
             
