@@ -7,7 +7,7 @@ from flask_limiter import Limiter
 from flask_wtf.csrf import CSRFProtect
 from flask_login import LoginManager
 from flask_socketio import SocketIO
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, request, current_app
 import pathlib
 import tempfile
 from datetime import timedelta
@@ -70,7 +70,49 @@ def create_app():
     # ─── Rate limiting ───
     if not _is_windows:
         limiter.init_app(app)
-        logger.info("Rate limiting enabled")
+        # Global whitelist: exempt specific IPs or CIDRs via env RATE_LIMIT_WHITELIST
+        # Examples: ["192.168.10.0/24", "127.0.0.1", "10.0.*"]
+        try:
+            from ipaddress import ip_address, ip_network
+        except Exception:
+            ip_address = ip_network = None  # type: ignore
+
+        def _rate_limit_whitelist_filter() -> bool:
+            try:
+                addr_raw = request.headers.get('X-Forwarded-For', request.remote_addr)  # respect proxies if present
+                if not addr_raw:
+                    return False
+                addr = str(addr_raw).split(',')[0].strip()
+                wl = current_app.config.get('whitelist', []) or []
+                for item in wl:
+                    s = str(item).strip()
+                    if not s:
+                        continue
+                    # Support wildcard suffix like 192.168.10.*
+                    if s.endswith('.*'):
+                        if addr.startswith(s[:-1]):
+                            return True
+                        continue
+                    # Support CIDR ranges like 192.168.10.0/24
+                    if '/' in s and ip_address and ip_network:
+                        try:
+                            if ip_address(addr) in ip_network(s, strict=False):
+                                return True
+                            continue
+                        except Exception:
+                            # fall through to exact compare
+                            pass
+                    # Exact IP match
+                    if addr == s:
+                        return True
+                return False
+            except Exception:
+                return False
+        try:
+            limiter.request_filter(_rate_limit_whitelist_filter)  # type: ignore[attr-defined]
+        except Exception:
+            pass
+        logger.info("Rate limiting enabled (whitelist size: %d)", len(app.config.get('whitelist', []) or []))
 
     # ─── CSRF protection ───
     csrf = CSRFProtect()
