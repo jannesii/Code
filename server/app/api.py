@@ -120,10 +120,10 @@ def get_ac_status():
             "thermo_active": bool(enabled),
             "mode": mode,
             "fan_speed": fan,
-            "sleep_enabled": bool(getattr(ac_thermo.cfg, 'sleep_enabled', True)),
+            "sleep_enabled": bool(getattr(ac_thermo.cfg, 'sleep_active', True)),
             "sleep_start": getattr(ac_thermo.cfg, 'sleep_start', None),
             "sleep_stop": getattr(ac_thermo.cfg, 'sleep_stop', None),
-            "setpoint_c": float(getattr(ac_thermo.cfg, 'setpoint_c', 0.0)),
+            "setpoint_c": float(getattr(ac_thermo.cfg, 'target_temp', 0.0)),
             "pos_hysteresis": float(getattr(ac_thermo.cfg, 'pos_hysteresis', 0.0)),
             "neg_hysteresis": float(getattr(ac_thermo.cfg, 'neg_hysteresis', 0.0)),
         })

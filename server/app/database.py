@@ -74,7 +74,14 @@ class DatabaseManager:
                 'target_temp REAL NOT NULL, '
                 'pos_hysteresis REAL NOT NULL, '
                 'neg_hysteresis REAL NOT NULL, '
-                'thermo_active BOOLEAN NOT NULL DEFAULT 1'
+                'thermo_active BOOLEAN NOT NULL DEFAULT 1, '
+                'total_on_s INTEGER NOT NULL DEFAULT 0, '
+                'total_off_s INTEGER NOT NULL DEFAULT 0, '
+                'min_on_s INTEGER NOT NULL DEFAULT 240, '
+                'min_off_s INTEGER NOT NULL DEFAULT 240, '
+                'poll_interval_s INTEGER NOT NULL DEFAULT 15, '
+                'smooth_window INTEGER NOT NULL DEFAULT 5, '
+                'max_stale_s INTEGER'
             ),
             'gcode_commands': (
                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
@@ -90,25 +97,6 @@ class DatabaseManager:
         }
         for name, schema in tables.items():
             self.cursor.execute(f"CREATE TABLE IF NOT EXISTS {name} ({schema})")
-        # Migrate existing users table to include is_root_admin if missing
-        try:
-            self.cursor.execute("PRAGMA table_info(users)")
-            cols = [row[1] for row in self.cursor.fetchall()]
-            if 'is_root_admin' not in cols:
-                self.cursor.execute("ALTER TABLE users ADD COLUMN is_root_admin BOOLEAN NOT NULL DEFAULT 0")
-        except Exception:
-            pass
-
-        # Migrate existing thermostat_conf to include thermo_active if missing
-        try:
-            self.cursor.execute("PRAGMA table_info(thermostat_conf)")
-            cols = [row[1] for row in self.cursor.fetchall()]
-            if 'thermo_active' not in cols:
-                self.cursor.execute(
-                    "ALTER TABLE thermostat_conf ADD COLUMN thermo_active BOOLEAN NOT NULL DEFAULT 1"
-                )
-        except Exception:
-            pass
             
         # Insert default values for status and timelapse_conf if they don't exist
         self.cursor.execute("""

@@ -312,13 +312,13 @@ class SocketEventHandler:
                 self.emit_to_views('ac_state', { 'mode': mode, 'fan_speed': fan })
                 # Emit current sleep configuration as well
                 self.emit_to_views('sleep_status', {
-                    'sleep_enabled': bool(getattr(ac_thermo.cfg, 'sleep_enabled', True)),
+                    'sleep_enabled': bool(getattr(ac_thermo.cfg, 'sleep_active', True)),
                     'sleep_start': ac_thermo.cfg.sleep_start,
                     'sleep_stop': ac_thermo.cfg.sleep_stop,
                 })
                 # Emit thermostat configuration
                 self.emit_to_views('thermo_config', {
-                    'setpoint_c': float(getattr(ac_thermo.cfg, 'setpoint_c', 0.0)),
+                    'setpoint_c': float(getattr(ac_thermo.cfg, 'target_temp', 0.0)),
                     'pos_hysteresis': float(getattr(ac_thermo.cfg, 'pos_hysteresis', 0.0)),
                     'neg_hysteresis': float(getattr(ac_thermo.cfg, 'neg_hysteresis', 0.0)),
                 })

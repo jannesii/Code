@@ -7,7 +7,7 @@ from flask_login import current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 
-from models import User, TemperatureHumidity, ESP32TemperatureHumidity, Status, ImageData, TimelapseConf, ThermostatConf
+from models import User, TemperatureHumidity, ESP32TemperatureHumidity, Status, ImageData, TimelapseConf, ThermostatConfig
 from .database import DatabaseManager
 import pytz
 import sqlite3
@@ -519,17 +519,19 @@ class Controller:
         return [dict(row) for row in rows]
 
     # --- Thermostat configuration operations ---
-    def get_thermostat_conf(self) -> ThermostatConf | None:
+    def get_thermostat_conf(self) -> ThermostatConfig | None:
         row = self.db.fetchone(
             """
-            SELECT id, sleep_active, sleep_start, sleep_stop, target_temp, pos_hysteresis, neg_hysteresis, thermo_active
+            SELECT id, sleep_active, sleep_start, sleep_stop, target_temp, pos_hysteresis, neg_hysteresis, thermo_active,
+                   total_on_s, total_off_s,
+                   min_on_s, min_off_s, poll_interval_s, smooth_window, max_stale_s
               FROM thermostat_conf
              WHERE id = 1
             """
         )
         if row is None:
             return None
-        return ThermostatConf(
+        return ThermostatConfig(
             id=row['id'],
             sleep_active=bool(row['sleep_active']),
             sleep_start=row['sleep_start'],
@@ -538,6 +540,13 @@ class Controller:
             pos_hysteresis=float(row['pos_hysteresis']),
             neg_hysteresis=float(row['neg_hysteresis']),
             thermo_active=bool(row['thermo_active']) if 'thermo_active' in row.keys() else True,
+            total_on_s=int(row['total_on_s']) if 'total_on_s' in row.keys() else 0,
+            total_off_s=int(row['total_off_s']) if 'total_off_s' in row.keys() else 0,
+            min_on_s=int(row['min_on_s']) if 'min_on_s' in row.keys() else 240,
+            min_off_s=int(row['min_off_s']) if 'min_off_s' in row.keys() else 240,
+            poll_interval_s=int(row['poll_interval_s']) if 'poll_interval_s' in row.keys() else 15,
+            smooth_window=int(row['smooth_window']) if 'smooth_window' in row.keys() else 5,
+            max_stale_s=int(row['max_stale_s']) if 'max_stale_s' in row.keys() and row['max_stale_s'] is not None else 120,
         )
 
     def save_thermostat_conf(
@@ -550,11 +559,19 @@ class Controller:
         pos_hysteresis: float,
         neg_hysteresis: float,
         thermo_active: bool,
-    ) -> ThermostatConf:
+        total_on_s: int = 0,
+        total_off_s: int = 0,
+        min_on_s: int = 240,
+        min_off_s: int = 240,
+        poll_interval_s: int = 15,
+        smooth_window: int = 5,
+        max_stale_s: int | None = 120,
+    ) -> ThermostatConfig:
         self.db.execute_query(
             """
-            INSERT INTO thermostat_conf (id, sleep_active, sleep_start, sleep_stop, target_temp, pos_hysteresis, neg_hysteresis, thermo_active)
-            VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO thermostat_conf (id, sleep_active, sleep_start, sleep_stop, target_temp, pos_hysteresis, neg_hysteresis, thermo_active,
+                                         total_on_s, total_off_s, min_on_s, min_off_s, poll_interval_s, smooth_window, max_stale_s)
+            VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 sleep_active = excluded.sleep_active,
                 sleep_start = excluded.sleep_start,
@@ -562,7 +579,14 @@ class Controller:
                 target_temp = excluded.target_temp,
                 pos_hysteresis = excluded.pos_hysteresis,
                 neg_hysteresis = excluded.neg_hysteresis,
-                thermo_active = excluded.thermo_active
+                thermo_active = excluded.thermo_active,
+                total_on_s = excluded.total_on_s,
+                total_off_s = excluded.total_off_s,
+                min_on_s = excluded.min_on_s,
+                min_off_s = excluded.min_off_s,
+                poll_interval_s = excluded.poll_interval_s,
+                smooth_window = excluded.smooth_window,
+                max_stale_s = excluded.max_stale_s
             """,
             (
                 1 if sleep_active else 0,
@@ -572,6 +596,13 @@ class Controller:
                 float(pos_hysteresis),
                 float(neg_hysteresis),
                 1 if thermo_active else 0,
+                int(total_on_s),
+                int(total_off_s),
+                int(min_on_s),
+                int(min_off_s),
+                int(poll_interval_s),
+                int(smooth_window),
+                None if max_stale_s is None else int(max_stale_s),
             ),
         )
         conf = self.get_thermostat_conf()
@@ -580,7 +611,7 @@ class Controller:
             raise RuntimeError("Failed to save thermostat configuration")
         return conf
 
-    def ensure_thermostat_conf_seeded_from(self, cfg: object | None = None) -> ThermostatConf:
+    def ensure_thermostat_conf_seeded_from(self, cfg: object | None = None) -> ThermostatConfig:
         """
         Seed the thermostat configuration row from a given config-like object
         that provides attributes: setpoint_c, pos_hysteresis, neg_hysteresis, sleep_enabled,
@@ -589,25 +620,42 @@ class Controller:
         existing = self.get_thermostat_conf()
         if existing is not None:
             return existing
-        # Extract with safe fallbacks
+        # Extract with safe fallbacks (support legacy names too)
         def _getattr(name: str, default):
             if cfg is None:
                 return default
             return getattr(cfg, name, default)
-        setpoint_c = float(_getattr('setpoint_c', 24.5))
-        # If old single deadband exists, split evenly; else default 0.5/0.5
+        target_temp = float(_getattr('target_temp', _getattr('setpoint_c', 24.5)))
         pos_h = float(_getattr('pos_hysteresis', 0.5))
         neg_h = float(_getattr('neg_hysteresis', 0.5))
-        sleep_enabled = bool(_getattr('sleep_enabled', True))
+        sleep_active = bool(_getattr('sleep_active', _getattr('sleep_enabled', True)))
         thermo_active = bool(_getattr('thermo_active', True))
         sleep_start = _getattr('sleep_start', None)
         sleep_stop = _getattr('sleep_stop', None)
+        total_on_s = int(_getattr('total_on_s', 0) or 0)
+        total_off_s = int(_getattr('total_off_s', 0) or 0)
+        min_on_s = int(_getattr('min_on_s', 240))
+        min_off_s = int(_getattr('min_off_s', 240))
+        poll_interval_s = int(_getattr('poll_interval_s', 15))
+        smooth_window = int(_getattr('smooth_window', 5))
+        max_stale_s = _getattr('max_stale_s', 120)
+        try:
+            max_stale_s = None if max_stale_s is None else int(max_stale_s)
+        except Exception:
+            max_stale_s = 120
         return self.save_thermostat_conf(
-            sleep_active=sleep_enabled,
+            sleep_active=sleep_active,
             sleep_start=sleep_start,
             sleep_stop=sleep_stop,
-            target_temp=setpoint_c,
+            target_temp=target_temp,
             pos_hysteresis=pos_h,
             neg_hysteresis=neg_h,
             thermo_active=thermo_active,
+            total_on_s=total_on_s,
+            total_off_s=total_off_s,
+            min_on_s=min_on_s,
+            min_off_s=min_off_s,
+            poll_interval_s=poll_interval_s,
+            smooth_window=smooth_window,
+            max_stale_s=max_stale_s,
         )

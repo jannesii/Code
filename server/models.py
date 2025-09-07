@@ -75,12 +75,22 @@ class TimelapseConf:
 
 
 @dataclass
-class ThermostatConf:
-    id: int
-    sleep_active: bool
-    sleep_start: str | None
-    sleep_stop: str | None
-    target_temp: float
-    pos_hysteresis: float
-    neg_hysteresis: float
-    thermo_active: bool
+class ThermostatConfig:
+    # Core persisted configuration with sensible defaults
+    id: int = 1
+    sleep_active: bool = True
+    sleep_start: str | None = None
+    sleep_stop: str | None = None
+    target_temp: float = 24.5
+    pos_hysteresis: float = 0.5
+    neg_hysteresis: float = 0.5
+    thermo_active: bool = True
+    # Accumulated running time counters
+    total_on_s: int = 0
+    total_off_s: int = 0
+    # Local control loop defaults (moved here from ThermostatConfig)
+    min_on_s: int = 240
+    min_off_s: int = 240
+    poll_interval_s: int = 15
+    smooth_window: int = 5
+    max_stale_s: int | None = 120

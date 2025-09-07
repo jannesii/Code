@@ -209,13 +209,13 @@ def create_app():
     SCHEMA = os.getenv("TUYA_SCHEMA")
     DEVICE_ID = os.getenv("TUYA_DEVICE_ID")
     
-    from .tuya import TuyaACController, ThermostatConfig, ACThermostat
+    from .tuya import ACController, ACThermostat
     from tuya_iot import TuyaOpenAPI
 
     api = TuyaOpenAPI(API_ENDPOINT, ACCESS_ID, ACCESS_KEY)
     api.connect(USERNAME, PASSWORD, COUNTRY_CODE, SCHEMA)
 
-    ac_controller = TuyaACController(device_id=DEVICE_ID, api=api)
+    ac_controller = ACController(device_id=DEVICE_ID, api=api)
     # Read thermostat location for shared temp source (defaults to previous value)
     THERMOSTAT_LOCATION = os.getenv("THERMOSTAT_LOCATION", "Tietokonepöytä")
     # Simple notifier that emits socket events from the thermostat loop
@@ -242,36 +242,16 @@ def create_app():
         logger.warning("Failed to load thermostat configuration from DB: %s", e)
 
     if _conf is None:
-        # Final safety defaults
-        ac_config = ThermostatConfig(
-            setpoint_c=24.5,
-            pos_hysteresis=0.5,
-            neg_hysteresis=0.5,
-            sleep_enabled=True,
-            sleep_start="22:00",
-            sleep_stop="10:00",
-            thermo_active=True,
-        )
         # Ensure thermostat config exists in DB (seed defaults if missing)
         try:
             logging.warning("Seeding default thermostat configuration in DB")
-            app.ctrl.ensure_thermostat_conf_seeded_from(ac_config)  # type: ignore
+            _conf = app.ctrl.ensure_thermostat_conf_seeded_from(None)  # type: ignore
         except Exception:
             pass
-    else:
-        ac_config = ThermostatConfig(
-            setpoint_c=float(_conf.target_temp),
-            pos_hysteresis=float(_conf.pos_hysteresis),
-            neg_hysteresis=float(_conf.neg_hysteresis),
-            sleep_enabled=bool(_conf.sleep_active),
-            sleep_start=_conf.sleep_start,
-            sleep_stop=_conf.sleep_stop,
-            thermo_active=bool(getattr(_conf, 'thermo_active', True)),
-        )
 
     ac_thermostat = ACThermostat(
         ac=ac_controller,
-        cfg=ac_config,
+        cfg=_conf,  # type: ignore
         ctrl=app.ctrl,  # type: ignore
         location=THERMOSTAT_LOCATION,
         notify=_notify,

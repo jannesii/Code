@@ -1,16 +1,16 @@
 import logging
 from collections import deque
-from dataclasses import dataclass
 import time
 from typing import Any, Dict, List, Optional, Callable
 from datetime import datetime, timezone
 from tuya_iot import TuyaOpenAPI
 from .controller import Controller
+from models import ThermostatConfig
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-class TuyaACController:
+class ACController:
     """
     Controller for a Tuya/Smart Life AC using Tuya Cloud OpenAPI.
 
@@ -190,27 +190,6 @@ class TuyaACController:
                 f"Invalid temp_set {celsius}. Range: {self.TEMP_MIN}..{self.TEMP_MAX} °C"
             )
 
-# ----------------------------
-# Thermostat configuration
-# ----------------------------
-@dataclass
-class ThermostatConfig:
-    # Values managed via DB (no defaults here)
-    setpoint_c: float                  # target temperature
-    pos_hysteresis: float              # °C above setpoint to turn ON (cooling)
-    neg_hysteresis: float              # °C below setpoint to turn OFF (cooling)
-    sleep_enabled: bool                # master toggle for sleep mode
-    # Sleep window in local time (HH:MM 24h). If both set and enabled, sleep is active.
-    sleep_start: Optional[str]
-    sleep_stop: Optional[str]
-    # Persisted enable/disable state for thermostat
-    thermo_active: bool = True
-    # Local control loop settings with safe defaults
-    min_on_s: int = 240                # minimum ON runtime (compressor protection)
-    min_off_s: int = 240               # minimum OFF downtime
-    poll_interval_s: int = 15          # control loop period
-    smooth_window: int = 5             # moving average window; 1 disables smoothing
-    max_stale_s: Optional[int] = 120   # if not None, ignore temps older than this
 
 # ----------------------------
 # Thermostat loop (no device temp reads)
@@ -218,7 +197,7 @@ class ThermostatConfig:
 class ACThermostat:
     def __init__(
         self,
-        ac: TuyaACController,
+        ac: ACController,
         cfg: ThermostatConfig,
         ctrl: Controller,
         location: str,
@@ -239,7 +218,7 @@ class ACThermostat:
         self._last_change_ts: float = 0.0
         logger.info(
             "thermo: init setpoint=%.2f deadband=%.2f min_on=%ss min_off=%ss poll=%ss smooth=%d max_stale=%s location=%s sleep_start=%s sleep_stop=%s",
-            cfg.setpoint_c,
+            cfg.target_temp,
             cfg.pos_hysteresis + cfg.neg_hysteresis,
             cfg.min_on_s,
             cfg.min_off_s,
@@ -250,8 +229,17 @@ class ACThermostat:
             cfg.sleep_start,
             cfg.sleep_stop,
         )
-        self.on_counter = None
-        self.off_counter = None
+        # Accumulated on/off seconds from cfg persisted values
+        self.on_counter = int(getattr(cfg, 'total_on_s', 0) or 0)
+        self.off_counter = int(getattr(cfg, 'total_off_s', 0) or 0)
+        # Track in-memory start times for the current on/off stretch
+        self._on_started_at: float | None = None
+        self._off_started_at: float | None = None
+        now_perf = time.perf_counter()
+        if self._is_on:
+            self._on_started_at = now_perf
+        else:
+            self._off_started_at = now_perf
 
     def _now(self) -> float:
         return time.time()
@@ -266,23 +254,75 @@ class ACThermostat:
         logger.debug("thermo: _can_turn_off=%s", ok)
         return ok
     
+    def _persist_conf(self) -> None:
+        """Persist current thermostat config and counters to DB."""
+        try:
+            self.ctrl.save_thermostat_conf(
+                sleep_active=self.cfg.sleep_active,
+                sleep_start=self.cfg.sleep_start,
+                sleep_stop=self.cfg.sleep_stop,
+                target_temp=self.cfg.target_temp,
+                pos_hysteresis=self.cfg.pos_hysteresis,
+                neg_hysteresis=self.cfg.neg_hysteresis,
+                thermo_active=self._enabled,
+                total_on_s=int(self.on_counter or 0),
+                total_off_s=int(self.off_counter or 0),
+                min_on_s=int(self.cfg.min_on_s),
+                min_off_s=int(self.cfg.min_off_s),
+                poll_interval_s=int(self.cfg.poll_interval_s),
+                smooth_window=int(self.cfg.smooth_window),
+                max_stale_s=self.cfg.max_stale_s,
+            )
+        except Exception as e:
+            logger.debug("thermo: persist conf failed: %s", e)
+
+    def _record_transition_to_on(self) -> int | None:
+        """Record OFF→ON transition, accumulate OFF seconds, persist. Returns OFF minutes."""
+        nowp = time.perf_counter()
+        minutes: int | None = None
+        if self._off_started_at is not None:
+            off_s = nowp - self._off_started_at
+            self.off_counter = int(self.off_counter) + int(off_s)
+            minutes = int(off_s) // 60 if off_s >= 60 else None
+        self._on_started_at = nowp
+        self._off_started_at = None
+        self._persist_conf()
+        return minutes
+
+    def _record_transition_to_off(self) -> int | None:
+        """Record ON→OFF transition, accumulate ON seconds, persist. Returns ON minutes."""
+        nowp = time.perf_counter()
+        minutes: int | None = None
+        if self._on_started_at is not None:
+            on_s = nowp - self._on_started_at
+            self.on_counter = int(self.on_counter) + int(on_s)
+            minutes = int(on_s) // 60 if on_s >= 60 else None
+        self._off_started_at = nowp
+        self._on_started_at = None
+        self._persist_conf()
+        return minutes
+
+    def _record_external_state(self, new_on: bool) -> None:
+        """Update counters on external device state changes without issuing commands."""
+        if new_on == self._is_on:
+            return
+        if new_on:
+            self._record_transition_to_on()
+        else:
+            self._record_transition_to_off()
+        self._is_on = new_on
+        self._last_change_ts = self._now()
+        self._emit_status()
+
     def turn_on(self) -> int | None:
         self.ac.turn_on()
-        self.on_counter = time.perf_counter()
-        if self.off_counter is not None:
-            off_time = time.perf_counter() - self.off_counter
-            minutes = int(off_time) // 60 if off_time >= 60 else None
-            return minutes
-        return None
+        minutes = self._record_transition_to_on()
+        return minutes
 
     def turn_off(self) -> int | None:
         self.ac.turn_off()
-        self.off_counter = time.perf_counter()
-        if self.on_counter is not None:
-            on_time = time.perf_counter() - self.on_counter
-            minutes = int(on_time) // 60 if on_time >= 60 else None
-            return minutes
-        return None
+        minutes = self._record_transition_to_off()
+        return minutes
 
     def _parse_hhmm_to_minutes(self, s: Optional[str]) -> Optional[int]:
         if not s:
@@ -305,7 +345,7 @@ class ACThermostat:
         return lt.tm_hour * 60 + lt.tm_min
 
     def _is_sleep_time(self) -> bool:
-        if not getattr(self.cfg, 'sleep_enabled', True):
+        if not getattr(self.cfg, 'sleep_active', True):
             return False
         start_m = self._parse_hhmm_to_minutes(self.cfg.sleep_start)
         stop_m = self._parse_hhmm_to_minutes(self.cfg.sleep_stop)
@@ -378,8 +418,8 @@ class ACThermostat:
         return smoothed
 
     def _thresholds(self):
-        on_at = self.cfg.setpoint_c + float(self.cfg.pos_hysteresis)
-        off_at = self.cfg.setpoint_c - float(self.cfg.neg_hysteresis)
+        on_at = self.cfg.target_temp + float(self.cfg.pos_hysteresis)
+        off_at = self.cfg.target_temp - float(self.cfg.neg_hysteresis)
         return on_at, off_at
 
     def _emit_status(self) -> None:
@@ -401,7 +441,7 @@ class ACThermostat:
         try:
             if self.notify:
                 self.notify('sleep_status', {
-                    "sleep_enabled": bool(getattr(self.cfg, 'sleep_enabled', True)),
+                    "sleep_enabled": bool(getattr(self.cfg, 'sleep_active', True)),
                     "sleep_start": self.cfg.sleep_start,
                     "sleep_stop": self.cfg.sleep_stop,
                 })
@@ -412,7 +452,7 @@ class ACThermostat:
         try:
             if self.notify:
                 self.notify('thermo_config', {
-                    "setpoint_c": float(self.cfg.setpoint_c),
+                    "setpoint_c": float(self.cfg.target_temp),
                     "pos_hysteresis": float(self.cfg.pos_hysteresis),
                     "neg_hysteresis": float(self.cfg.neg_hysteresis),
                 })
@@ -443,37 +483,13 @@ class ACThermostat:
     def enable(self) -> None:
         self._enabled = True
         self.cfg.thermo_active = True
-        # Persist to DB
-        try:
-            self.ctrl.save_thermostat_conf(
-                sleep_active=self.cfg.sleep_enabled,
-                sleep_start=self.cfg.sleep_start,
-                sleep_stop=self.cfg.sleep_stop,
-                target_temp=self.cfg.setpoint_c,
-                pos_hysteresis=self.cfg.pos_hysteresis,
-                neg_hysteresis=self.cfg.neg_hysteresis,
-                thermo_active=self._enabled,
-            )
-        except Exception as e:
-            logger.debug("thermo: save enable failed: %s", e)
+        self._persist_conf()
         self._emit_thermostat_status()
 
     def disable(self) -> None:
         self._enabled = False
         self.cfg.thermo_active = False
-        # Persist to DB
-        try:
-            self.ctrl.save_thermostat_conf(
-                sleep_active=self.cfg.sleep_enabled,
-                sleep_start=self.cfg.sleep_start,
-                sleep_stop=self.cfg.sleep_stop,
-                target_temp=self.cfg.setpoint_c,
-                pos_hysteresis=self.cfg.pos_hysteresis,
-                neg_hysteresis=self.cfg.neg_hysteresis,
-                thermo_active=self._enabled,
-            )
-        except Exception as e:
-            logger.debug("thermo: save disable failed: %s", e)
+        self._persist_conf()
         self._emit_thermostat_status()
 
     def set_power(self, on: bool) -> None:
@@ -487,59 +503,23 @@ class ACThermostat:
         self._emit_status()
 
     def set_sleep_enabled(self, enabled: bool) -> None:
-        self.cfg.sleep_enabled = bool(enabled)
-        # Persist to DB
-        try:
-            self.ctrl.save_thermostat_conf(
-                sleep_active=self.cfg.sleep_enabled,
-                sleep_start=self.cfg.sleep_start,
-                sleep_stop=self.cfg.sleep_stop,
-                target_temp=self.cfg.setpoint_c,
-                pos_hysteresis=self.cfg.pos_hysteresis,
-                neg_hysteresis=self.cfg.neg_hysteresis,
-                thermo_active=self._enabled,
-            )
-        except Exception as e:
-            logger.debug("thermo: save sleep_enabled failed: %s", e)
+        self.cfg.sleep_active = bool(enabled)
+        self._persist_conf()
         self._emit_sleep_status()
 
     def set_sleep_times(self, start: Optional[str], stop: Optional[str]) -> None:
         self.cfg.sleep_start = start
         self.cfg.sleep_stop = stop
-        # Persist to DB
-        try:
-            self.ctrl.save_thermostat_conf(
-                sleep_active=self.cfg.sleep_enabled,
-                sleep_start=self.cfg.sleep_start,
-                sleep_stop=self.cfg.sleep_stop,
-                target_temp=self.cfg.setpoint_c,
-                pos_hysteresis=self.cfg.pos_hysteresis,
-                neg_hysteresis=self.cfg.neg_hysteresis,
-                thermo_active=self._enabled,
-            )
-        except Exception as e:
-            logger.debug("thermo: save sleep_times failed: %s", e)
+        self._persist_conf()
         self._emit_sleep_status()
 
     # Thermostat parameters
     def set_setpoint(self, celsius: float) -> None:
         try:
-            self.cfg.setpoint_c = float(celsius)
+            self.cfg.target_temp = float(celsius)
         except Exception:
             return
-        # Persist to DB
-        try:
-            self.ctrl.save_thermostat_conf(
-                sleep_active=self.cfg.sleep_enabled,
-                sleep_start=self.cfg.sleep_start,
-                sleep_stop=self.cfg.sleep_stop,
-                target_temp=self.cfg.setpoint_c,
-                pos_hysteresis=self.cfg.pos_hysteresis,
-                neg_hysteresis=self.cfg.neg_hysteresis,
-                thermo_active=self._enabled,
-            )
-        except Exception as e:
-            logger.debug("thermo: save setpoint failed: %s", e)
+        self._persist_conf()
         self._emit_config()
 
     def set_hysteresis_split(self, pos_h: float, neg_h: float) -> None:
@@ -552,20 +532,19 @@ class ACThermostat:
             self.cfg.neg_hysteresis = n
         except Exception:
             return
-        # Persist to DB
-        try:
-            self.ctrl.save_thermostat_conf(
-                sleep_active=self.cfg.sleep_enabled,
-                sleep_start=self.cfg.sleep_start,
-                sleep_stop=self.cfg.sleep_stop,
-                target_temp=self.cfg.setpoint_c,
-                pos_hysteresis=self.cfg.pos_hysteresis,
-                neg_hysteresis=self.cfg.neg_hysteresis,
-                thermo_active=self._enabled,
-            )
-        except Exception as e:
-            logger.debug("thermo: save hysteresis split failed: %s", e)
+        self._persist_conf()
         self._emit_config()
+
+    # Backward-compatible single-value setter
+    def set_hysteresis(self, deadband: float) -> None:
+        try:
+            d = float(deadband)
+            if d < 0:
+                return
+        except Exception:
+            return
+        split = d / 2.0
+        self.set_hysteresis_split(split, split)
 
     def step(self):
         """One control step using external temperature."""
@@ -576,8 +555,7 @@ class ACThermostat:
                 new_is_on = bool(status.get('switch', False))
                 if new_is_on != self._is_on:
                     logger.info("thermo: device state changed externally -> %s", "ON" if new_is_on else "OFF")
-                    self._is_on = new_is_on
-                    self._emit_status()
+                    self._record_external_state(new_is_on)
             # Also track mode/fan changes
             if isinstance(status, dict):
                 changed = False
@@ -625,7 +603,7 @@ class ACThermostat:
         on_at, off_at = self._thresholds()
         logger.debug(
             "thermo: setpoint=%.2f deadband=%.2f on_at=%.2f off_at=%.2f",
-            self.cfg.setpoint_c,
+            self.cfg.target_temp,
             self.cfg.pos_hysteresis + self.cfg.neg_hysteresis,
             on_at,
             off_at,
@@ -635,7 +613,7 @@ class ACThermostat:
         if not self._is_on:
             # OFF -> consider ON
             if temp >= on_at and self._can_turn_on():
-                # Turn on device and force target device temperature to 16°C (doesn't change setpoint_c)
+                # Turn on device and force target device temperature to 16°C (doesn't change target_temp)
                 time_delta = self.turn_on()
                 logger.info(f"thermo: ON trigger: temp={temp:.2f} <= {off_at:.2f}; turned on after {time_delta}")
                 if time_delta:
