@@ -13,14 +13,16 @@
     <div class="logs-toolbar">
         <button class="filter-btn active" data-filter="all">Kaikki</button>
         <button class="filter-btn" data-filter="info">Info</button>
+        <button class="filter-btn" data-filter="ac">AC</button>
         <button class="filter-btn" data-filter="warning">Varoitus</button>
+        <button class="filter-btn" data-filter="auth">Auth</button>
         <button class="filter-btn" data-filter="error">Virhe</button>
     </div>
     <div class="logs-grid">
         <div class="logs-header">
-            <span>Aika</span>
-            <span>Tyyppi</span>
-            <span>Viesti</span>
+            <span class="header-time">Aika</span>
+            <span class="header-type">Tyyppi</span>
+            <span class="header-message">Viesti</span>
         </div>
         {% if logs|length == 0 %}
           <div class="log-empty">Ei lokitietoja.</div>

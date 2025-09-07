@@ -500,7 +500,7 @@ class Controller:
 
     def log_message(self, message: str, log_type: str = 'info') -> None:
         """
-        Logs a message with the given type ('info', 'warning', 'error').
+        Logs a message with the given type ('info', 'warning', 'error', 'auth', 'ac').
         """
         now = datetime.now(self.finland_tz).isoformat()
         self.db.execute_query(

@@ -126,7 +126,7 @@ def create_app():
         raise RuntimeError("DB_PATH is missing – add to environment.")
     app.ctrl = Controller(db_path)  # type: ignore
     logger.info("Controller init: %s", db_path)
-
+    
     # ─── Seed admin user (Root-Admin) ───
     try:
         if not _is_windows:

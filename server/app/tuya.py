@@ -250,6 +250,8 @@ class ACThermostat:
             cfg.sleep_start,
             cfg.sleep_stop,
         )
+        self.on_counter = None
+        self.off_counter = None
 
     def _now(self) -> float:
         return time.time()
@@ -263,6 +265,24 @@ class ACThermostat:
         ok = (self._now() - self._last_change_ts) >= self.cfg.min_on_s
         logger.debug("thermo: _can_turn_off=%s", ok)
         return ok
+    
+    def turn_on(self) -> int | None:
+        self.ac.turn_on()
+        self.on_counter = time.perf_counter()
+        if self.off_counter is not None:
+            off_time = time.perf_counter() - self.off_counter
+            minutes = int(off_time) // 60 if off_time >= 60 else None
+            return minutes
+        return None
+
+    def turn_off(self) -> int | None:
+        self.ac.turn_off()
+        self.off_counter = time.perf_counter()
+        if self.on_counter is not None:
+            on_time = time.perf_counter() - self.on_counter
+            minutes = int(on_time) // 60 if on_time >= 60 else None
+            return minutes
+        return None
 
     def _parse_hhmm_to_minutes(self, s: Optional[str]) -> Optional[int]:
         if not s:
@@ -458,10 +478,10 @@ class ACThermostat:
 
     def set_power(self, on: bool) -> None:
         if on:
-            self.ac.turn_on()
+            self.turn_on()
             self._is_on = True
         else:
-            self.ac.turn_off()
+            self.turn_off()
             self._is_on = False
         self._last_change_ts = self._now()
         self._emit_status()
@@ -584,7 +604,7 @@ class ACThermostat:
             if self._is_on:
                 if self._can_turn_off():
                     logger.info("thermo: sleep active — turning OFF")
-                    self.ac.turn_off()
+                    self.turn_off()
                     self._is_on = False
                     self._last_change_ts = self._now()
                     self._emit_status()
@@ -615,9 +635,11 @@ class ACThermostat:
         if not self._is_on:
             # OFF -> consider ON
             if temp >= on_at and self._can_turn_on():
-                logger.info("thermo: ON trigger: temp=%.2f >= %.2f", temp, on_at)
                 # Turn on device and force target device temperature to 16°C (doesn't change setpoint_c)
-                self.ac.turn_on()
+                time_delta = self.turn_on()
+                logger.info(f"thermo: ON trigger: temp={temp:.2f} <= {off_at:.2f}; turned on after {time_delta}")
+                if time_delta:
+                    self.ctrl.log_message((f"AC ON, delta={time_delta} min, on_at={on_at}, off_at={off_at}"), log_type="ac")
                 try:
                     self.ac.set_temperature(16)
                 except Exception as e:
@@ -638,8 +660,11 @@ class ACThermostat:
         else:
             # ON -> consider OFF
             if temp <= off_at and self._can_turn_off():
-                logger.info("thermo: OFF trigger: temp=%.2f <= %.2f", temp, off_at)
-                self.ac.turn_off()
+                time_delta = self.turn_off()
+                logger.info(f"thermo: OFF trigger: temp={temp:.2f} <= {off_at:.2f}; turned off after {time_delta}")
+                if time_delta:
+                    self.ctrl.log_message((f"AC OFF, delta={time_delta} min, on_at={on_at}, off_at={off_at}"), log_type="ac")
+
                 self._is_on = False
                 self._last_change_ts = now
                 self._emit_status()

@@ -48,10 +48,18 @@
   padding: 8px 0;
   font-size: 1em;
 }
+
 .log-row:nth-child(even) { background: #1a1a1a; }
 .log-row.info { border-left: 6px solid #007bff; }
 .log-row.warning { border-left: 6px solid #ffc107; }
 .log-row.error { border-left: 6px solid #c01221; }
+.log-row.auth { border-left: 6px solid #ffc107; }
+.log-row.ac { border-left: 6px solid #07ff28; }
+
+.log-timestamp { margin-left: 10px}
+.log-message { margin-right: 10px}
+.header-time { margin-left: 10px}
+
 .badge {
   display: inline-block;
   padding: 2px 8px;
@@ -59,10 +67,14 @@
   font-size: 0.85em;
   font-weight: 700;
   text-transform: uppercase;
+  min-width: 60px;
+  text-align: center;
 }
 .badge.info { background: #004a99; }
 .badge.warning { background: #7a5a00; color: #fff; }
 .badge.error { background: #6b0a14; }
+.badge.auth { background: #7a5a00; color: #fff; }
+.badge.ac { background: #07ff28; color: #444141; }
 .log-type { cursor: pointer; }
 .log-message { word-break: break-word; }
 .log-empty { padding: 12px; color: #bbb; text-align: center; }
