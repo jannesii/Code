@@ -203,6 +203,7 @@ def create_app():
             logging.getLogger(__name__).warning("Shutdown log_message failed: %s", e)
         try:
             socketio.emit('server_shutdown')
+            socketio.stop()
         except Exception as e:
             logging.getLogger(__name__).warning("Shutdown emit failed: %s", e)
 

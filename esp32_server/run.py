@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 import os
 import re
 from dataclasses import dataclass
@@ -19,7 +20,11 @@ from socketio.exceptions import BadNamespaceError
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(level=LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("esp32_server")
-#logging.getLogger("socketio.client").setLevel(logging.WARNING)
+logging.getLogger("socketio.client").setLevel(logging.WARNING)
+
+# Throttle login refreshes to avoid hammering backend on outages
+_LAST_LOGIN_REFRESH_TS: float = 0.0
+_LOGIN_REFRESH_COOLDOWN_S: float = 90.0
 
 # ---------------------------
 # Datatypes
@@ -48,7 +53,12 @@ def connect() -> None:
     """Optional: place background loops or one-time connect logic here."""
     pass
 
-sio = socketio.Client(logger=True, reconnection=True)
+sio = socketio.Client(
+    logger=True,
+    # Avoid infinite background reconnect loops with stale cookies.
+    # We'll handle reconnects explicitly to allow session refresh.
+    reconnection=False,
+)
 sio.on('connect',    on_connect)
 sio.on('disconnect', on_disconnect)
 sio.on('error',      on_error)
@@ -102,6 +112,51 @@ def _cookies_header(session: requests.Session) -> dict[str, str]:
     cookie_str = "; ".join(f"{k}={v}" for k, v in session.cookies.get_dict().items())
     return {"Cookie": cookie_str} if cookie_str else {}
 
+def _connect_with_login_refresh(cfg: BackendConfig, session: requests.Session) -> None:
+    """
+    Try to connect with current cookies; on failure, refresh login and retry once.
+    Raises on repeated failure.
+    """
+    try:
+        sio.connect(
+            cfg.server,
+            headers=_cookies_header(session),
+            transports=["websocket", "polling"],
+            wait=True,   # block until connected or timeout
+            auth={"role": "esp32"}
+        )
+        return
+    except Exception as e:
+        logger.warning("Socket.IO connect failed (%s). Considering login refresh...", e)
+        # Refresh session (throttled) and retry once
+        global _LAST_LOGIN_REFRESH_TS
+        now = time.time()
+        do_refresh = (now - _LAST_LOGIN_REFRESH_TS) > _LOGIN_REFRESH_COOLDOWN_S
+        if not do_refresh:
+            raise
+        session2, token = _authenticate_session(cfg)
+        _LAST_LOGIN_REFRESH_TS = now
+        # Update app config if available
+        try:
+            current_app.config["REST_SESSION"] = session2
+            current_app.config["CSRF_TOKEN"] = token
+        except Exception:
+            pass
+        # Hard reset client state
+        try:
+            sio.disconnect()
+        except Exception:
+            pass
+        # Retry connect with fresh cookies
+        sio.connect(
+            cfg.server,
+            headers=_cookies_header(session2),
+            transports=["websocket", "polling"],
+            wait=True,
+            auth={"role": "esp32"}
+        )
+
+
 def _ensure_sio_connected(cfg: BackendConfig, session: requests.Session) -> None:
     """
     Make sure the global `sio` client is connected to the desired namespace.
@@ -116,13 +171,7 @@ def _ensure_sio_connected(cfg: BackendConfig, session: requests.Session) -> None
         pass
 
     # (Re)connect synchronously and only to the desired namespace
-    sio.connect(
-        cfg.server,
-        headers=_cookies_header(session),
-        transports=["websocket", "polling"],
-        wait=True,   # block until connected
-        auth={"role": "esp32"}
-    )
+    _connect_with_login_refresh(cfg, session)
 
 # ---------------------------
 # Flask App Factory
