@@ -134,7 +134,8 @@ class StatusReporter:
         self.sio.connect(
             self.server,
             headers={"Cookie": cookies},
-            transports=["websocket", "polling"]
+            transports=["websocket", "polling"],
+            auth={"role": "client"}
         )
         threading.Thread(target=self._status_loop, daemon=True).start()
         threading.Thread(target=self._temphum_loop, daemon=True).start()

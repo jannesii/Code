@@ -21,9 +21,6 @@ logging.basicConfig(level=LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s:
 logger = logging.getLogger("esp32_server")
 #logging.getLogger("socketio.client").setLevel(logging.WARNING)
 
-# Socket.IO namespace (set to e.g. "/esp32" if your backend uses a custom ns)
-SIO_NAMESPACE = os.getenv("SIO_NAMESPACE", "/")
-
 # ---------------------------
 # Datatypes
 # ---------------------------
@@ -35,10 +32,10 @@ class BackendConfig:
     password: str
 
 def on_connect() -> None:
-    logger.info("connected to server namespace %s", SIO_NAMESPACE)
+    pass
 
 def on_disconnect() -> None:
-    logger.info("disconnected from server namespace %s", SIO_NAMESPACE)
+    pass
 
 def on_error(data: dict) -> None:
     logger.error("server error: %s", data)
@@ -52,10 +49,10 @@ def connect() -> None:
     pass
 
 sio = socketio.Client(logger=True, reconnection=True)
-sio.on('connect',    on_connect,    namespace=SIO_NAMESPACE)
-sio.on('disconnect', on_disconnect, namespace=SIO_NAMESPACE)
-sio.on('error',      on_error,      namespace=SIO_NAMESPACE)
-sio.on('server_shutdown', on_server_shutdown, namespace=SIO_NAMESPACE)
+sio.on('connect',    on_connect)
+sio.on('disconnect', on_disconnect)
+sio.on('error',      on_error)
+sio.on('server_shutdown', on_server_shutdown)
 
 # ---------------------------
 # Backend (CSRF) Session Setup
@@ -105,14 +102,14 @@ def _cookies_header(session: requests.Session) -> dict[str, str]:
     cookie_str = "; ".join(f"{k}={v}" for k, v in session.cookies.get_dict().items())
     return {"Cookie": cookie_str} if cookie_str else {}
 
-def _ensure_sio_connected(cfg: BackendConfig, session: requests.Session, namespace: str = SIO_NAMESPACE) -> None:
+def _ensure_sio_connected(cfg: BackendConfig, session: requests.Session) -> None:
     """
     Make sure the global `sio` client is connected to the desired namespace.
     Reconnects with session cookies if needed.
     """
     # Already connected to this namespace?
     try:
-        if sio.connected and sio.get_sid(namespace=namespace):
+        if sio.connected:
             return
     except Exception:
         # Fall through to reconnect
@@ -123,10 +120,9 @@ def _ensure_sio_connected(cfg: BackendConfig, session: requests.Session, namespa
         cfg.server,
         headers=_cookies_header(session),
         transports=["websocket", "polling"],
-        namespaces=[namespace],
         wait=True,   # block until connected
+        auth={"role": "esp32"}
     )
-    logger.info("Socket.IO connected to %s (namespace %s)", cfg.server, namespace)
 
 # ---------------------------
 # Flask App Factory
@@ -162,18 +158,18 @@ def create_app() -> Flask:
         logger.info("Got reading: %s", data)
 
         try:
-            _ensure_sio_connected(current_app.config["BACKEND_CONFIG"], session, namespace=SIO_NAMESPACE)
-            sio.emit('esp32_temphum', data, namespace=SIO_NAMESPACE)
+            _ensure_sio_connected(current_app.config["BACKEND_CONFIG"], session)
+            sio.emit('esp32_temphum', data)
         except BadNamespaceError:
             # One forced reconnect attempt
-            logger.warning("Namespace %s not connected; reconnecting once...", SIO_NAMESPACE)
+            logger.warning("Namespace not connected; reconnecting once...")
             try:
                 sio.disconnect()
             except Exception:
                 pass
             try:
-                _ensure_sio_connected(current_app.config["BACKEND_CONFIG"], session, namespace=SIO_NAMESPACE)
-                sio.emit('esp32_temphum', data, namespace=SIO_NAMESPACE)
+                _ensure_sio_connected(current_app.config["BACKEND_CONFIG"], session)
+                sio.emit('esp32_temphum', data)
             except Exception as e:
                 logger.error("Emit failed after reconnect: %s", e)
                 return jsonify({"ok": False, "error": "socket_disconnected"}), 503

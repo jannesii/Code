@@ -207,8 +207,14 @@ def timelapse_conf():
                 return render_template('timelapse_conf.html', **vals)
             else:
                 ctrl.update_timelapse_conf(**vals)
-                current_app.socketio.emit(
-                    'timelapse_conf', vals)  # type: ignore
+                # Emit only to connected timelapse clients (not to views)
+                try:
+                    from .socket_handlers import SocketEventHandler
+                    handler = SocketEventHandler(current_app.socketio, ctrl)  # type: ignore
+                    handler.emit_to_clients('timelapse_conf', vals)
+                except Exception:
+                    # Fallback to broadcast if handler unavailable
+                    current_app.socketio.emit('timelapse_conf', vals)  # type: ignore
                 flash("Timelapsen konfiguraatio päivitetty onnistuneesti.", "success")
                 logger.info("Timelapse updated %s by %s",
                             vals, current_user.get_id())

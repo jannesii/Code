@@ -178,10 +178,18 @@ def create_app():
     THERMOSTAT_LOCATION = os.getenv("THERMOSTAT_LOCATION", "Tietokonepöytä")
     # Simple notifier that emits socket events from the thermostat loop
     def _notify(event: str, payload: dict):
+        """Notify only browser views via the SocketEventHandler helper."""
         try:
-            socketio.emit(event, payload)
+            # Import here to avoid circulars at module import time
+            from .socket_handlers import SocketEventHandler
+            handler = SocketEventHandler(socketio, app.ctrl)  # type: ignore
+            handler.emit_to_views(event, payload)
         except Exception:
-            pass
+            # Fallback: best-effort broadcast if handler unavailable
+            try:
+                socketio.emit(event, payload)
+            except Exception:
+                pass
 
 
     # Load thermostat configuration from DB for runtime

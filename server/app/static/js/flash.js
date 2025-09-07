@@ -46,10 +46,10 @@ function showFlash (category = 'info', message = '') {
    Backend should emit something like:
    socketio.emit('flash', {'category': 'success', 'message': 'Print paused'})
 */
-window.socket = window.socket || io('/', { transports: ['websocket'] });  // make one if it doesn’t exist
-window.addEventListener('beforeunload', () => socket.disconnect());
+window.socket = window.socket || io('/', { transports: ['websocket'], auth: { role: 'view' } });  // make one if it doesn’t exist
+window.addEventListener('beforeunload', () => window.socket && window.socket.disconnect());
 
-socket.on('flash', ({ category, message }) => {
+window.socket.on('flash', ({ category, message }) => {
   console.log('💬 flash:', category, message);
   showFlash(category, message);
 });

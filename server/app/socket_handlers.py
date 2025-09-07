@@ -1,9 +1,11 @@
 import logging
 from flask import request, flash, current_app
 from flask_socketio import SocketIO
+from typing import Set, Any
 from flask_login import current_user
 
 from .controller import Controller
+from .tuya import ACThermostat
 
 
 class SocketEventHandler:
@@ -21,6 +23,10 @@ class SocketEventHandler:
         self.socketio = socketio
         self.ctrl = ctrl
         self.logger = logging.getLogger(__name__)
+        # Track currently connected sids by role
+        self.view_sids: Set[str] = set()
+        self.client_sids: Set[str] = set()
+        self.esp32_sids: Set[str] = set()
         self._initialized = True
         socketio.on_event('connect',    self.handle_connect)
         socketio.on_event('disconnect', self.handle_disconnect)
@@ -36,19 +42,90 @@ class SocketEventHandler:
         if not current_user.is_authenticated:
             self.logger.warning("Socket connect refused: unauthenticated user")
             return False
-        self.logger.info("Client connected: %s", request.sid) # type: ignore
+        sid = request.sid  # type: ignore
+        # Classify this connection
+        role = None
+        try:
+            if isinstance(auth, dict):
+                role = (auth.get('role') or auth.get('type') or auth.get('client'))
+        except Exception:
+            pass
+        # Heuristic: consider browsers as view when UA looks like one
+        is_view = False
+        if role is None:
+            ua = str(request.headers.get('User-Agent', '')).lower()
+            # Very rough heuristic: browsers include 'mozilla' in UA
+            if 'mozilla' in ua:
+                is_view = True
+        # Normalize role
+        role_l = str(role).lower() if role is not None else None
+        if sid:
+            if role_l == 'view' or is_view:
+                self.view_sids.add(sid)
+                self.logger.info("View connected: %s (tracked)", sid)
+            elif role_l in {'client', 'raspi', 'pi', 'printer', 'timelapse'}:
+                self.client_sids.add(sid)
+                self.logger.info("Client connected: %s (tracked)", sid)
+            elif role_l == 'esp32':
+                self.esp32_sids.add(sid)
+                self.logger.info("ESP32 server connected: %s (tracked)", sid)
+            else:
+                self.logger.info("Client connected (unclassified): %s", sid)
+        else:
+            self.logger.info("Client connected: %s", sid)
 
     def handle_disconnect(self, *args):
         """Allow any positional args to avoid signature mismatch."""
-        self.logger.info("Client disconnected: %s", request.sid) # type: ignore
+        sid = request.sid  # type: ignore
+        removed = False
+        if sid in self.view_sids:
+            self.view_sids.discard(sid); removed = True
+            self.logger.info("View disconnected: %s (untracked)", sid)
+        if sid in self.client_sids:
+            self.client_sids.discard(sid); removed = True
+            self.logger.info("Client disconnected: %s (untracked)", sid)
+        if sid in self.esp32_sids:
+            self.esp32_sids.discard(sid); removed = True
+            self.logger.info("ESP32 server disconnected: %s (untracked)", sid)
+        if not removed:
+            self.logger.info("Client disconnected: %s", sid)
+
+    def emit_to_views(self, event: str, payload: Any = None) -> None:
+        """Emit event only to currently connected browser views (by sid)."""
+        # Iterate over a copy to avoid mutation during iteration
+        for sid in list(self.view_sids):
+            try:
+                self.socketio.emit(event, payload, to=sid)
+            except Exception:
+                # If emit fails (e.g., stale sid), drop it
+                self.view_sids.discard(sid)
+                self.logger.debug("Removed stale view sid: %s", sid)
+
+    def emit_to_clients(self, event: str, payload: Any = None) -> None:
+        """Emit event only to timelapse/pi clients (not views or esp32)."""
+        for sid in list(self.client_sids):
+            try:
+                self.socketio.emit(event, payload, to=sid)
+            except Exception:
+                self.client_sids.discard(sid)
+                self.logger.debug("Removed stale client sid: %s", sid)
+
+    def emit_to_esp32(self, event: str, payload: Any = None) -> None:
+        """Emit event only to esp32_server connections."""
+        for sid in list(self.esp32_sids):
+            try:
+                self.socketio.emit(event, payload, to=sid)
+            except Exception:
+                self.esp32_sids.discard(sid)
+                self.logger.debug("Removed stale esp32 sid: %s", sid)
 
     def flash(self, message, category):
         """Emit a flash message to the client."""
-        self.socketio.emit('flash', {'category': category, 'message': message})
+        self.emit_to_views('flash', {'category': category, 'message': message})
         self.logger.info("Flash message: %s (%s)", category, message)
 
     def handle_image(self, *args):
-        self.socketio.emit('image')
+        self.emit_to_views('image')
         self.logger.debug("Emitted 'image' event")
 
     def handle_temphum(self, data):
@@ -59,7 +136,7 @@ class SocketEventHandler:
             self.logger.warning("Bad temphum payload: %s", data)
             return
         saved = self.ctrl.record_temphum(temp, hum)
-        self.socketio.emit('temphum2v', {
+        self.emit_to_views('temphum2v', {
             'temperature': saved.temperature,
             'humidity':    saved.humidity
         })
@@ -73,7 +150,7 @@ class SocketEventHandler:
             self.logger.warning("Bad esp32 temphum payload: %s", data)
             return
         saved = self.ctrl.record_esp32_temphum(location, temp-1, hum)
-        self.socketio.emit('esp32_temphum', {
+        self.emit_to_views('esp32_temphum', {
             'location': saved.location,
             'temperature': saved.temperature,
             'humidity':    saved.humidity
@@ -87,7 +164,7 @@ class SocketEventHandler:
             self.logger.warning("Bad status payload: %s", data)
             return
         # saved = self.ctrl.update_status(data)
-        self.socketio.emit('status2v', data)
+        self.emit_to_views('status2v', data)
         self.logger.debug("Broadcasted status: %s", data)
         
     def handle_client_response(self, result, action):
@@ -146,7 +223,8 @@ class SocketEventHandler:
                 self.logger.exception("Error recording G-code: %s", e)
                 return
 
-        self.socketio.emit('printerAction', data)
+        # Send printer action only to registered clients (Pi/Raspi)
+        self.emit_to_clients('printerAction', data)
         self.logger.info("Handled printer action: %s", action)
 
     def handle_ac_control(self, data):
@@ -156,7 +234,7 @@ class SocketEventHandler:
             return
         action = (data.get('action') or '').strip()
         self.logger.info("Received ac_control: %s", action)
-        ac_thermo = getattr(current_app, 'ac_thermostat', None)  # type: ignore
+        ac_thermo: ACThermostat | None = getattr(current_app, 'ac_thermostat', None)  # type: ignore
         if ac_thermo is None:
             self.socketio.emit('error', {'message': 'AC thermostat not initialized'})
             self.logger.error("ac_control: thermostat missing")
@@ -218,8 +296,8 @@ class SocketEventHandler:
                 return
             if action == 'status':
                 # Re-emit current statuses to requester(s)
-                self.socketio.emit('ac_status', { 'is_on': bool(ac_thermo.is_on) })
-                self.socketio.emit('thermostat_status', { 'enabled': getattr(ac_thermo, '_enabled', True) })
+                self.emit_to_views('ac_status', { 'is_on': bool(ac_thermo.is_on) })
+                self.emit_to_views('thermostat_status', { 'enabled': getattr(ac_thermo, '_enabled', True) })
                 # Also emit current mode/fan
                 try:
                     st = ac_thermo.ac.get_status()
@@ -228,15 +306,15 @@ class SocketEventHandler:
                 except Exception:
                     mode = None
                     fan = None
-                self.socketio.emit('ac_state', { 'mode': mode, 'fan_speed': fan })
+                self.emit_to_views('ac_state', { 'mode': mode, 'fan_speed': fan })
                 # Emit current sleep configuration as well
-                self.socketio.emit('sleep_status', {
+                self.emit_to_views('sleep_status', {
                     'sleep_enabled': bool(getattr(ac_thermo.cfg, 'sleep_enabled', True)),
                     'sleep_start': ac_thermo.cfg.sleep_start,
                     'sleep_stop': ac_thermo.cfg.sleep_stop,
                 })
                 # Emit thermostat configuration
-                self.socketio.emit('thermo_config', {
+                self.emit_to_views('thermo_config', {
                     'setpoint_c': float(getattr(ac_thermo.cfg, 'setpoint_c', 0.0)),
                     'pos_hysteresis': float(getattr(ac_thermo.cfg, 'pos_hysteresis', 0.0)),
                     'neg_hysteresis': float(getattr(ac_thermo.cfg, 'neg_hysteresis', 0.0)),

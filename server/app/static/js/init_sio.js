@@ -1,22 +1,24 @@
 // — Socket.IO setup using cookie auth —
 console.log('🛠️ Initializing Socket.IO with session cookie');
-const socket = io('/', {
-    transports: ['websocket']
+// Expose a single shared socket instance on window
+window.socket = io('/', {
+    transports: ['websocket'],
+    auth: { role: 'view' }
 });
 
 window.addEventListener('beforeunload', () => {
-    socket.disconnect();
+    window.socket && window.socket.disconnect();
 });    
 
-socket.on('connect_error', err => {
+window.socket.on('connect_error', err => {
     console.error('Connection error:', err);
 });
 
-socket.on('connect', () => {
+window.socket.on('connect', () => {
     console.log('✅ Yhdistetty palvelimeen');
 })
 
-socket.on('server_shutdown', () => {
+window.socket.on('server_shutdown', () => {
     console.log('🔒 Server is shutting down...');
-    socket.disconnect();
+    window.socket && window.socket.disconnect();
 });
