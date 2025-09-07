@@ -193,6 +193,7 @@ def create_app():
             logger=True,
         )
     def exit_signal():
+        app.ctrl.log_message("Server shutting down", "system")  # type: ignore
         socketio.emit('server_shutdown')
         socketio.stop()
     signal.signal(signal.SIGTERM, exit_signal)
@@ -209,13 +210,13 @@ def create_app():
     SCHEMA = os.getenv("TUYA_SCHEMA")
     DEVICE_ID = os.getenv("TUYA_DEVICE_ID")
     
-    from .tuya import ACController, ACThermostat
+    from .tuya import TuyaACController, ACThermostat
     from tuya_iot import TuyaOpenAPI
 
     api = TuyaOpenAPI(API_ENDPOINT, ACCESS_ID, ACCESS_KEY)
     api.connect(USERNAME, PASSWORD, COUNTRY_CODE, SCHEMA)
 
-    ac_controller = ACController(device_id=DEVICE_ID, api=api)
+    ac_controller = TuyaACController(device_id=DEVICE_ID, api=api)
     # Read thermostat location for shared temp source (defaults to previous value)
     THERMOSTAT_LOCATION = os.getenv("THERMOSTAT_LOCATION", "Tietokonepöytä")
     # Simple notifier that emits socket events from the thermostat loop

@@ -75,7 +75,7 @@ class TimelapseConf:
 
 
 @dataclass
-class ThermostatConfig:
+class ThermostatConf:
     # Core persisted configuration with sensible defaults
     id: int = 1
     sleep_active: bool = True
@@ -85,9 +85,9 @@ class ThermostatConfig:
     pos_hysteresis: float = 0.5
     neg_hysteresis: float = 0.5
     thermo_active: bool = True
-    # Accumulated running time counters
-    total_on_s: int = 0
-    total_off_s: int = 0
+    # Current phase tracking for accurate counters across restarts
+    current_phase: str | None = None  # 'on' or 'off'
+    phase_started_at: str | None = None  # ISO timestamp when current phase began
     # Local control loop defaults (moved here from ThermostatConfig)
     min_on_s: int = 240
     min_off_s: int = 240

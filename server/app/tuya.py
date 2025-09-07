@@ -5,12 +5,12 @@ from typing import Any, Dict, List, Optional, Callable
 from datetime import datetime, timezone
 from tuya_iot import TuyaOpenAPI
 from .controller import Controller
-from models import ThermostatConfig
+from models import ThermostatConf
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
-class ACController:
+class TuyaACController:
     """
     Controller for a Tuya/Smart Life AC using Tuya Cloud OpenAPI.
 
@@ -197,8 +197,8 @@ class ACController:
 class ACThermostat:
     def __init__(
         self,
-        ac: ACController,
-        cfg: ThermostatConfig,
+        ac: TuyaACController,
+        cfg: ThermostatConf,
         ctrl: Controller,
         location: str,
         notify: Optional[Callable[[str, Dict[str, Any]], None]] = None,
@@ -216,7 +216,7 @@ class ACThermostat:
         self._fan_speed: Optional[str] = ac_status.get("fan_speed_enum") if isinstance(ac_status, dict) else None
         self._enabled: bool = bool(getattr(cfg, 'thermo_active', True))
         self._last_change_ts: float = 0.0
-        logger.info(
+        """ logger.info(
             "thermo: init setpoint=%.2f deadband=%.2f min_on=%ss min_off=%ss poll=%ss smooth=%d max_stale=%s location=%s sleep_start=%s sleep_stop=%s",
             cfg.target_temp,
             cfg.pos_hysteresis + cfg.neg_hysteresis,
@@ -228,18 +228,56 @@ class ACThermostat:
             self.location,
             cfg.sleep_start,
             cfg.sleep_stop,
-        )
-        # Accumulated on/off seconds from cfg persisted values
-        self.on_counter = int(getattr(cfg, 'total_on_s', 0) or 0)
-        self.off_counter = int(getattr(cfg, 'total_off_s', 0) or 0)
-        # Track in-memory start times for the current on/off stretch
-        self._on_started_at: float | None = None
-        self._off_started_at: float | None = None
-        now_perf = time.perf_counter()
+        ) """
+        # Track persisted start ISO for the current phase
+        self._phase_started_at_iso: str | None = getattr(cfg, 'phase_started_at', None)
+        logger.debug(f"thermo: init current_phase={getattr(cfg, 'current_phase', None)} phase_started_at={self._phase_started_at_iso}")
+        # Ensure current phase timestamp is sane for accurate deltas across restarts
+        def _parse_iso_to_epoch(s: Optional[str]) -> Optional[float]:
+            if not s:
+                return None
+            try:
+                x = str(s)
+                if x.endswith('Z'):
+                    x = x[:-1] + '+00:00'
+                dt = datetime.fromisoformat(x)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                return dt.timestamp()
+            except Exception as e:
+                logger.exception(f"thermo: failed to parse ISO timestamp {s}: {e}")
+                return None
+        started_epoch = _parse_iso_to_epoch(self._phase_started_at_iso)
+        logger.debug(f"thermo: parsed phase_started_at={self._phase_started_at_iso} -> {started_epoch}")
+        now_epoch = time.time()
         if self._is_on:
-            self._on_started_at = now_perf
+            # If persisted phase mismatches or missing ts, reset start to now
+            if getattr(cfg, 'current_phase', None) != 'on' or started_epoch is None:
+                self._phase_started_at_iso = datetime.fromtimestamp(now_epoch, tz=timezone.utc).isoformat() + 'Z'
+                self._persist_conf()
         else:
-            self._off_started_at = now_perf
+            if getattr(cfg, 'current_phase', None) != 'off' or started_epoch is None:
+                self._phase_started_at_iso = datetime.fromtimestamp(now_epoch, tz=timezone.utc).isoformat() + 'Z'
+                
+                self._persist_conf()
+        
+        # Initialize last-change timestamp from the current phase start
+        # so min_on/min_off are respected across restarts.
+        started_epoch = _parse_iso_to_epoch(self._phase_started_at_iso)
+        if started_epoch is not None:
+            self._last_change_ts = min(now_epoch, float(started_epoch))
+        else:
+            self._last_change_ts = now_epoch
+
+        # Log the computed phase age for visibility across restarts
+        phase_lbl = 'ON' if self._is_on else 'OFF'
+        age_min = self._compute_phase_duration(self._phase_started_at_iso) or 0
+        logger.info(
+            "thermo: current phase=%s age=%d min since %s",
+            phase_lbl,
+            age_min,
+            self._phase_started_at_iso,
+        )
 
     def _now(self) -> float:
         return time.time()
@@ -255,7 +293,7 @@ class ACThermostat:
         return ok
     
     def _persist_conf(self) -> None:
-        """Persist current thermostat config and counters to DB."""
+        """Persist current thermostat config to DB."""
         try:
             self.ctrl.save_thermostat_conf(
                 sleep_active=self.cfg.sleep_active,
@@ -265,40 +303,41 @@ class ACThermostat:
                 pos_hysteresis=self.cfg.pos_hysteresis,
                 neg_hysteresis=self.cfg.neg_hysteresis,
                 thermo_active=self._enabled,
-                total_on_s=int(self.on_counter or 0),
-                total_off_s=int(self.off_counter or 0),
                 min_on_s=int(self.cfg.min_on_s),
                 min_off_s=int(self.cfg.min_off_s),
                 poll_interval_s=int(self.cfg.poll_interval_s),
                 smooth_window=int(self.cfg.smooth_window),
                 max_stale_s=self.cfg.max_stale_s,
+                current_phase=('on' if self._is_on else 'off'),
+                phase_started_at=self._phase_started_at_iso,
             )
         except Exception as e:
             logger.debug("thermo: persist conf failed: %s", e)
 
-    def _record_transition_to_on(self) -> int | None:
-        """Record OFF→ON transition, accumulate OFF seconds, persist. Returns OFF minutes."""
-        nowp = time.perf_counter()
-        minutes: int | None = None
-        if self._off_started_at is not None:
-            off_s = nowp - self._off_started_at
-            self.off_counter = int(self.off_counter) + int(off_s)
-            minutes = int(off_s) // 60 if off_s >= 60 else None
-        self._on_started_at = nowp
-        self._off_started_at = None
-        self._persist_conf()
-        return minutes
+    def _compute_phase_duration(self, start_iso: Optional[str], output_format: str = "minutes") -> Optional[int]:
+        """Compute phase duration in minutes from ISO timestamp."""
+        if not start_iso:
+            return None
+        try:
+            s = start_iso
+            x = s[:-1] + '+00:00' if s.endswith('Z') else s
+            dt = datetime.fromisoformat(x)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            phase_s = max(0.0, time.time() - dt.timestamp())
+            if output_format == "minutes":
+                return int(phase_s) // 60 if phase_s >= 60 else None
+            return int(phase_s)
+        except Exception as e:
+            logger.exception("thermo: compute_phase_duration failed for %s: %s", start_iso, e)
+            return None
 
-    def _record_transition_to_off(self) -> int | None:
-        """Record ON→OFF transition, accumulate ON seconds, persist. Returns ON minutes."""
-        nowp = time.perf_counter()
-        minutes: int | None = None
-        if self._on_started_at is not None:
-            on_s = nowp - self._on_started_at
-            self.on_counter = int(self.on_counter) + int(on_s)
-            minutes = int(on_s) // 60 if on_s >= 60 else None
-        self._off_started_at = nowp
-        self._on_started_at = None
+    def _record_transition(self) -> int | None:
+        """Record OFF→ON transition, accumulate OFF seconds, persist. Returns OFF minutes."""
+        minutes: int | None = self._compute_phase_duration(self._phase_started_at_iso)
+        
+        # set persisted phase start
+        self._phase_started_at_iso = datetime.now(timezone.utc).isoformat() + 'Z'
         self._persist_conf()
         return minutes
 
@@ -306,22 +345,23 @@ class ACThermostat:
         """Update counters on external device state changes without issuing commands."""
         if new_on == self._is_on:
             return
-        if new_on:
-            self._record_transition_to_on()
-        else:
-            self._record_transition_to_off()
+
+
         self._is_on = new_on
+        self._record_transition()
         self._last_change_ts = self._now()
         self._emit_status()
 
     def turn_on(self) -> int | None:
         self.ac.turn_on()
-        minutes = self._record_transition_to_on()
+        self._is_on = True
+        minutes = self._record_transition()
         return minutes
 
     def turn_off(self) -> int | None:
         self.ac.turn_off()
-        minutes = self._record_transition_to_off()
+        self._is_on = False
+        minutes = self._record_transition()
         return minutes
 
     def _parse_hhmm_to_minutes(self, s: Optional[str]) -> Optional[int]:
@@ -583,7 +623,6 @@ class ACThermostat:
                 if self._can_turn_off():
                     logger.info("thermo: sleep active — turning OFF")
                     self.turn_off()
-                    self._is_on = False
                     self._last_change_ts = self._now()
                     self._emit_status()
                 else:
@@ -622,7 +661,6 @@ class ACThermostat:
                     self.ac.set_temperature(16)
                 except Exception as e:
                     logger.debug("thermo: failed to set device temp to 16: %s", e)
-                self._is_on = True
                 self._last_change_ts = now
                 self._emit_status()
                 logger.debug("thermo: state changed -> ON; temp_set=16")
@@ -643,7 +681,6 @@ class ACThermostat:
                 if time_delta:
                     self.ctrl.log_message((f"AC OFF, delta={time_delta} min, on_at={on_at}, off_at={off_at}"), log_type="ac")
 
-                self._is_on = False
                 self._last_change_ts = now
                 self._emit_status()
                 logger.debug("thermo: state changed -> OFF")
