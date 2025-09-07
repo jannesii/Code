@@ -157,7 +157,39 @@ class DatabaseManager:
         for name, trigger_sql in triggers.items():
             self.cursor.executescript(trigger_sql)
 
-        
+        # --- Indexes for performance-critical queries ---
+        # Speed up latest-per-location lookups used by Controller.get_unique_locations()
+        # Pattern: WHERE location = ? ORDER BY timestamp DESC, id DESC LIMIT 1
+        # This composite index allows an efficient seek to the newest row per location.
+        try:
+            self.cursor.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_esp32_temphum_loc_ts_id
+                ON esp32_temphum (location, timestamp DESC, id DESC)
+                """
+            )
+        except Exception:
+            # Best-effort: ignore if SQLite version doesn't support DESC in index columns
+            try:
+                self.cursor.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_esp32_temphum_loc_ts_id ON esp32_temphum (location, timestamp, id)"
+                )
+            except Exception:
+                pass
+
+        # Optional: help date-based reads per location
+        # Pattern: WHERE date(timestamp) = ? AND location = ?
+        # Expression indexes are supported by SQLite; if not, ignore.
+        try:
+            self.cursor.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_esp32_temphum_date_loc
+                ON esp32_temphum (date(timestamp), location)
+                """
+            )
+        except Exception:
+            pass
+
         self.conn.commit()
 
     def execute_query(

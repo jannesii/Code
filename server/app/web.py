@@ -4,6 +4,7 @@ from operator import ne
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash
 from flask_login import login_required, current_user
 from dataclasses import asdict
+import time
 from .utils import (
     check_vals, get_ctrl, require_admin_or_redirect, combine_local_date_time,
     can_edit_user, can_delete_user, flash_error, flash_success,
@@ -39,11 +40,16 @@ def get_3d_page():
     )
 
 
-@web_bp.route('/temperatures', methods=['GET', 'POST'])
+@web_bp.route('/temperatures', methods=['GET'])
 @login_required
 def get_temperatures_page():
+    start_time = time.perf_counter()
     ctrl: Controller = get_ctrl()
+    after_ctrl_time = time.perf_counter()
+    logger.info("get_ctrl() took %.4f seconds", after_ctrl_time - start_time)
     locations = ctrl.get_unique_locations()
+    after_locations_time = time.perf_counter()
+    logger.info("get_unique_locations() took %.4f seconds", after_locations_time - after_ctrl_time)
     logger.info("Rendering temperatures page for %s", current_user.get_id())
     return render_template('temperatures.html', locations=locations)
 

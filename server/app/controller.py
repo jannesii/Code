@@ -372,20 +372,38 @@ class Controller:
         Return the latest (most recent) reading per unique location,
         as a list of dicts with keys: location, temp, hum.
         """
-        rows = self.db.fetchall(
-            """
-            SELECT e.id, e.location, e.timestamp, e.temperature, e.humidity
-            FROM esp32_temphum AS e
-            WHERE e.id = (
-                SELECT e2.id
-                    FROM esp32_temphum AS e2
-                    WHERE e2.location = e.location
-                ORDER BY e2.timestamp DESC, e2.id DESC
-                    LIMIT 1
+        try:
+            # Fast path: use a window function to rank rows per location
+            rows = self.db.fetchall(
+                """
+                SELECT id, location, timestamp, temperature, humidity
+                FROM (
+                  SELECT e.*, ROW_NUMBER() OVER (
+                              PARTITION BY location
+                              ORDER BY timestamp DESC, id DESC
+                            ) AS rn
+                  FROM esp32_temphum AS e
+                )
+                WHERE rn = 1
+                ORDER BY location
+                """
             )
-            ORDER BY e.location
-            """
-        )
+        except Exception:
+            # Fallback for older SQLite versions without window functions
+            rows = self.db.fetchall(
+                """
+                SELECT e.id, e.location, e.timestamp, e.temperature, e.humidity
+                FROM esp32_temphum AS e
+                WHERE e.id = (
+                    SELECT e2.id
+                      FROM esp32_temphum AS e2
+                     WHERE e2.location = e.location
+                     ORDER BY e2.timestamp DESC, e2.id DESC
+                     LIMIT 1
+                )
+                ORDER BY e.location
+                """
+            )
 
         return [
             {
