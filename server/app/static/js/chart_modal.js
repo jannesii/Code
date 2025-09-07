@@ -23,6 +23,9 @@
   let currentLocation  = null;
   let chartTemp        = null;
   let chartHum         = null;
+  // Averaging window in minutes. Set to 0 or 1 for raw values.
+  const DEFAULT_AVG_MINUTES = 0; // change default to 10 if you always want 10‑min bins
+  let averagingMinutes = Number(window?.CHART_AVG_MINUTES ?? DEFAULT_AVG_MINUTES) || 0;
 
   // — Utils —
   function formatDateISO(d) {
@@ -40,6 +43,46 @@
   function ensureVisibleThen(fn) {
     // Allow layout to settle so canvases have size
     requestAnimationFrame(() => requestAnimationFrame(fn));
+  }
+
+  // Group points into N‑minute bins and compute averages per bin
+  function aggregateByMinutes(rows, minutes) {
+    const m = Number(minutes);
+    if (!m || m <= 1) {
+      // No aggregation: return as-is
+      const labels = rows.map(d => String(d.timestamp).slice(11, 16));
+      const temps  = rows.map(d => Number(d.temperature)).filter(Number.isFinite);
+      const hums   = rows.map(d => Number(d.humidity)).filter(Number.isFinite);
+      const rawTemps = rows.map(d => Number(d.temperature));
+      const rawHums  = rows.map(d => Number(d.humidity));
+      return { labels, temps: rawTemps, hums: rawHums };
+    }
+    const buckets = new Map(); // key: binStartMin (0..1439) → {sumT,nT,sumH,nH}
+    for (const r of rows) {
+      const ts = new Date(r.timestamp);
+      if (isNaN(ts)) continue;
+      const hodMin = ts.getHours() * 60 + ts.getMinutes();
+      const binStart = Math.floor(hodMin / m) * m; // integer minutes from midnight
+      let b = buckets.get(binStart);
+      if (!b) { b = { sumT: 0, nT: 0, sumH: 0, nH: 0 }; buckets.set(binStart, b); }
+      const t = Number(r.temperature);
+      const h = Number(r.humidity);
+      if (Number.isFinite(t)) { b.sumT += t; b.nT += 1; }
+      if (Number.isFinite(h)) { b.sumH += h; b.nH += 1; }
+    }
+    const keys = [...buckets.keys()].sort((a, b) => a - b);
+    const labels = [];
+    const temps  = [];
+    const hums   = [];
+    for (const k of keys) {
+      const hh = Math.floor(k / 60).toString().padStart(2, '0');
+      const mm = (k % 60).toString().padStart(2, '0');
+      labels.push(`${hh}:${mm}`);
+      const b = buckets.get(k);
+      temps.push(b.nT ? b.sumT / b.nT : null);
+      hums.push(b.nH ? b.sumH / b.nH : null);
+    }
+    return { labels, temps, hums };
   }
 
   function openModal()  { modal.style.display = 'flex'; }
@@ -61,13 +104,13 @@
       .then(r => r.json())
       .then(data => {
         // Expected shape: [{ temperature:Number, humidity:Number, timestamp:ISO }, ...]
-        const labels = data.map(d => String(d.timestamp).slice(11,19));
+        const { labels, temps, hums } = aggregateByMinutes(data, averagingMinutes);
 
-        const temps  = data.map(d => Number(d.temperature)).filter(Number.isFinite);
-        const hums   = data.map(d => Number(d.humidity)).filter(Number.isFinite);
-
-        const avgT = temps.length ? temps.reduce((a,b)=>a+b,0) / temps.length : NaN;
-        const avgH = hums.length  ? hums.reduce((a,b)=>a+b,0)  / hums.length  : NaN;
+        // Overall daily averages (raw from returned series after aggregation)
+        const finiteT = temps.filter(Number.isFinite);
+        const finiteH = hums.filter(Number.isFinite);
+        const avgT = finiteT.length ? finiteT.reduce((a,b)=>a+b,0) / finiteT.length : NaN;
+        const avgH = finiteH.length ? finiteH.reduce((a,b)=>a+b,0) / finiteH.length : NaN;
 
         avgTempEl.textContent = temps.length ? `Lämpötila: ${avgT.toFixed(1)}°C` : 'Lämpötila: –';
         avgHumEl.textContent  = hums.length  ? `Kosteus: ${avgH.toFixed(1)}%`    : 'Kosteus: –';
@@ -82,13 +125,25 @@
                 label: '°C',
                 data: temps,
                 fill: false,
-                pointRadius: 2,
+                pointRadius: 0,
+                pointHoverRadius: 3,
                 borderWidth: 2
               }]
             },
             options: {
               responsive: true,
               maintainAspectRatio: false,
+              spanGaps: true,
+              interaction: { mode: 'nearest', intersect: false },
+              plugins: {
+                // Built-in Chart.js decimation plugin: preserves peaks better than simple averaging
+                decimation: {
+                  enabled: true,
+                  algorithm: 'min-max', // or 'lttb'
+                  samples: 300,        // target samples to keep on screen
+                  threshold: 600       // only decimate when data length > threshold
+                }
+              },
               scales: {
                 x: { display: true, title: { display: true, text: 'Aika' } },
                 y: { beginAtZero: false }
@@ -111,13 +166,24 @@
                 label: '%',
                 data: hums,
                 fill: false,
-                pointRadius: 2,
+                pointRadius: 0,
+                pointHoverRadius: 3,
                 borderWidth: 2
               }]
             },
             options: {
               responsive: true,
               maintainAspectRatio: false,
+              spanGaps: true,
+              interaction: { mode: 'nearest', intersect: false },
+              plugins: {
+                decimation: {
+                  enabled: true,
+                  algorithm: 'min-max',
+                  samples: 300,
+                  threshold: 600
+                }
+              },
               scales: {
                 x: { display: true, title: { display: true, text: 'Aika' } },
                 y: { beginAtZero: false }
@@ -179,5 +245,12 @@
     currentLocation = name;
     if (dateOpt instanceof Date) currentDate = dateOpt;
     openAndRender(currentLocation);
+  };
+
+  // Optional: allow runtime control of averaging window
+  window.setChartAvgMinutes = function(mins) {
+    const n = parseInt(mins, 10);
+    averagingMinutes = Number.isFinite(n) && n >= 0 ? n : 0;
+    if (currentLocation) ensureVisibleThen(() => fetchAndRenderBoth(currentLocation));
   };
 })();
