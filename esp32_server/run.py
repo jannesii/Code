@@ -19,7 +19,7 @@ from socketio.exceptions import BadNamespaceError
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(level=LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("esp32_server")
-logging.getLogger("socketio.client").setLevel(logging.WARNING)
+#logging.getLogger("socketio.client").setLevel(logging.WARNING)
 
 # Socket.IO namespace (set to e.g. "/esp32" if your backend uses a custom ns)
 SIO_NAMESPACE = os.getenv("SIO_NAMESPACE", "/")
