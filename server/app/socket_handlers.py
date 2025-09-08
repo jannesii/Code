@@ -5,7 +5,7 @@ from typing import Set, Any
 from flask_login import current_user
 
 from .controller import Controller
-from .tuya import ACThermostat
+from .ac_thermostat import ACThermostat
 
 
 class SocketEventHandler:

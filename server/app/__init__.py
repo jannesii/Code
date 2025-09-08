@@ -230,13 +230,14 @@ def create_app():
     SCHEMA = os.getenv("TUYA_SCHEMA")
     DEVICE_ID = os.getenv("TUYA_DEVICE_ID")
     
-    from .tuya import TuyaACController, ACThermostat
+    from .ac_thermostat import ACThermostat
+    from .ac_controller import ACController
     from tuya_iot import TuyaOpenAPI
 
     api = TuyaOpenAPI(API_ENDPOINT, ACCESS_ID, ACCESS_KEY)
     api.connect(USERNAME, PASSWORD, COUNTRY_CODE, SCHEMA)
 
-    ac_controller = TuyaACController(device_id=DEVICE_ID, api=api)
+    ac_controller = ACController(device_id=DEVICE_ID, api=api)
     # Read thermostat location for shared temp source (defaults to previous value)
     THERMOSTAT_LOCATION = os.getenv("THERMOSTAT_LOCATION", "Tietokonepöytä")
     # Simple notifier that emits socket events from the thermostat loop
