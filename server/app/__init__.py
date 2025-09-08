@@ -304,4 +304,36 @@ def create_app():
     app.register_blueprint(web_bp)
     app.register_blueprint(api_bp)
 
+    # ─── Template asset registry (component self-contained CSS/JS) ───
+    # Allows included templates to register their own assets and have them
+    # automatically emitted in base.html without manual per-page wiring.
+    from flask import g
+
+    class _AssetRegistry:
+        def __init__(self):
+            self.styles = []  # list[str]
+            self.scripts = []  # list[str]
+
+        def style(self, href: str):
+            try:
+                if href and href not in self.styles:
+                    self.styles.append(href)
+            except Exception:
+                pass
+            return ""
+
+        def script(self, src: str):
+            try:
+                if src and src not in self.scripts:
+                    self.scripts.append(src)
+            except Exception:
+                pass
+            return ""
+
+    @app.context_processor
+    def _inject_assets():
+        if not hasattr(g, "_assets"):
+            g._assets = _AssetRegistry()
+        return {"assets": g._assets}
+
     return app, socketio

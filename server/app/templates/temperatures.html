@@ -3,7 +3,6 @@
 {% block title %}Home Temperatures{% endblock %}
 
 {% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/chart_modal.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/temperatures.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/flash.css') }}">
 {% endblock %}
@@ -134,7 +133,6 @@
 <script>
   window.LOCATIONS = {{ locations | tojson }};
 </script>
-<script src="{{ url_for('static', filename='js/chart_modal.js') }}"></script>
 <script src="{{ url_for('static', filename='js/init_sio.js') }}"></script>
 <script src="{{ url_for('static', filename='js/temperatures.js') }}"></script>
 <script src="{{ url_for('static', filename='js/flash.js') }}"></script>

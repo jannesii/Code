@@ -1,3 +1,7 @@
+<!-- Component asset registration: include CSS/JS when this module is included -->
+{{ assets.style(url_for('static', filename='css/chart_modal.css')) if assets is defined else '' }}
+{{ assets.script(url_for('static', filename='js/chart_modal.js')) if assets is defined else '' }}
+
 <!-- Dual-panel modal: shows Temperature and Humidity side by side (stacks on small screens) -->
 <div id="chartModal">
   <div class="dialog">
