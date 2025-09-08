@@ -2,11 +2,6 @@ import threading
 import eventlet
 eventlet.monkey_patch()
 from .core.controller import Controller
-from flask_limiter.util import get_remote_address
-from flask_limiter import Limiter
-from flask_wtf.csrf import CSRFProtect
-from flask_login import LoginManager
-from flask_socketio import SocketIO
 from flask import Flask, send_from_directory, request, current_app
 import pathlib
 import tempfile
@@ -16,14 +11,7 @@ import logging
 import json
 import signal
 
-# ─── Module-level limiter ───
-limiter = Limiter(
-    key_func=get_remote_address,
-    default_limits=[],
-    storage_uri="redis://localhost:6379",
-    storage_options={"socket_connect_timeout": 30},
-    strategy="moving-window",
-)
+from .extensions import limiter, csrf, login_manager, socketio
 
 
 def create_app():
@@ -32,34 +20,12 @@ def create_app():
     logger.debug("Debug logging enabled")
     _is_windows = os.name == "nt"
 
-    # ─── SECRET_KEY ───
-    secret = os.getenv("SECRET_KEY", "test")
-    if not secret:
-        raise RuntimeError("SECRET_KEY is missing – add to environment.")
-
-    raw = os.getenv("RATE_LIMIT_WHITELIST", "")
-    if raw:
-        try:
-            whitelist = json.loads(raw)
-        except json.JSONDecodeError:
-            raise RuntimeError("RATE_LIMIT_WHITELIST isn’t valid JSON list")
-    else:
-        whitelist = []
-    logger.info("Rate limit whitelist: %s", whitelist)
     # ─── Flask app & config ───
     app = Flask(__name__)
-    app.config.update(
-        SECRET_KEY=secret,
-        PERMANENT_SESSION_LIFETIME=timedelta(days=7),
-        SESSION_COOKIE_SECURE=not _is_windows,
-        SESSION_COOKIE_HTTPONLY=True,
-        SESSION_COOKIE_SAMESITE="Lax",
-        WEB_USERNAME=os.getenv("WEB_USERNAME", "admin"),
-        WEB_PASSWORD=os.getenv("WEB_PASSWORD", "admin"),
-        # ← CSRF tokens now expire after 1 hour
-        WTF_CSRF_TIME_LIMIT=None,
-        whitelist=whitelist,
-    )
+    from .config import load_settings
+    settings = load_settings(is_windows=_is_windows)
+    app.config.update(settings)
+    logger.info("Rate limit whitelist: %s", app.config.get('whitelist', []))
     
     HLS_ROOT = pathlib.Path("/srv/hls")    # parent of “printer1”
 
@@ -115,13 +81,11 @@ def create_app():
         logger.info("Rate limiting enabled (whitelist size: %d)", len(app.config.get('whitelist', []) or []))
 
     # ─── CSRF protection ───
-    csrf = CSRFProtect()
     csrf.init_app(app)
     logger.info("CSRF protection enabled (1 h token lifetime)")
 
     # ─── Domain-controller ───
-    db_path = os.getenv("DB_PATH", os.path.join(
-        tempfile.gettempdir(), "timelapse.db"))
+    db_path = app.config.get("DB_PATH")
     if not db_path:
         raise RuntimeError("DB_PATH is missing – add to environment.")
     app.ctrl = Controller(db_path)  # type: ignore
@@ -151,7 +115,6 @@ def create_app():
         logger.info("Ensured %s has is_admin=True (existing)", app.config["WEB_USERNAME"])
 
     # ─── Flask-Login ───
-    login_manager = LoginManager()
     login_manager.login_view = "auth.login"  # type: ignore
     login_manager.init_app(app)
     from .blueprints.auth.routes import load_user, AuthAnonymous, kick_if_expired
@@ -161,18 +124,11 @@ def create_app():
     logger.info("Login manager ready")
 
     # ─── Socket.IO ───
-    raw = os.getenv("ALLOWED_WS_ORIGINS", '["http://127.0.0.1:5555"]')
-    if raw:
-        try:
-            allowed_ws_origins = json.loads(raw)
-            logger.info("Allowed WebSocket origins: %s", allowed_ws_origins)
-        except json.JSONDecodeError:
-            raise RuntimeError("ALLOWED_WS_ORIGINS isn’t valid JSON list")
-    else:
-        allowed_ws_origins = []
+    allowed_ws_origins = app.config.get('ALLOWED_WS_ORIGINS', [])
+    logger.info("Allowed WebSocket origins: %s", allowed_ws_origins)
 
     if not _is_windows:
-        socketio = SocketIO(
+        socketio.init_app(
             app,
             async_mode="eventlet",
             message_queue="redis://localhost:6379",
@@ -180,17 +136,15 @@ def create_app():
             max_http_buffer_size=10 * 1024 * 1024,
             ping_interval=10,
             ping_timeout=20,
-            logger=True,
         )
     else:
-        socketio = SocketIO(
+        socketio.init_app(
             app,
             async_mode="eventlet",
             cors_allowed_origins=allowed_ws_origins,
             max_http_buffer_size=10 * 1024 * 1024,
             ping_interval=10,
             ping_timeout=20,
-            logger=True,
         )
     def _shutdown_tasks():
         """Run best-effort shutdown side effects outside hub mainloop.
@@ -221,89 +175,14 @@ def create_app():
     app.socketio = socketio  # type: ignore
     logger.info("Socket.IO ready (origins: %s)", allowed_ws_origins)
     
-    ACCESS_ID = os.getenv("TUYA_ACCESS_ID")
-    ACCESS_KEY = os.getenv("TUYA_ACCESS_KEY")
-    API_ENDPOINT = os.getenv("TUYA_API_ENDPOINT")
-    USERNAME = os.getenv("TUYA_USERNAME")
-    PASSWORD = os.getenv("TUYA_PASSWORD")
-    COUNTRY_CODE = os.getenv("TUYA_COUNTRY_CODE")
-    SCHEMA = os.getenv("TUYA_SCHEMA")
-    DEVICE_ID = os.getenv("TUYA_DEVICE_ID")
-    
-    from .services.ac.thermostat import ACThermostat
-    from .services.ac.controller import ACController
-    from tuya_iot import TuyaOpenAPI
-
-    api = TuyaOpenAPI(API_ENDPOINT, ACCESS_ID, ACCESS_KEY)
-    api.connect(USERNAME, PASSWORD, COUNTRY_CODE, SCHEMA)
-
-    ac_controller = ACController(device_id=DEVICE_ID, api=api)
-    # Read thermostat location for shared temp source (defaults to previous value)
-    THERMOSTAT_LOCATION = os.getenv("THERMOSTAT_LOCATION", "Tietokonepöytä")
-    # Simple notifier that emits socket events from the thermostat loop
-    def _notify(event: str, payload: dict):
-        """Notify only browser views via the SocketEventHandler helper."""
-        try:
-            # Import here to avoid circulars at module import time
-            from .sockets.handlers import SocketEventHandler
-            handler = SocketEventHandler(socketio, app.ctrl)  # type: ignore
-            handler.emit_to_views(event, payload)
-        except Exception:
-            # Fallback: best-effort broadcast if handler unavailable
-            try:
-                socketio.emit(event, payload)
-            except Exception:
-                pass
-
-
-    # Load thermostat configuration from DB for runtime
-    try:
-        _conf = app.ctrl.get_thermostat_conf()  # type: ignore
-    except Exception as e:
-        _conf = None
-        logger.warning("Failed to load thermostat configuration from DB: %s", e)
-
-    if _conf is None:
-        # Ensure thermostat config exists in DB (seed defaults if missing)
-        try:
-            logging.warning("Seeding default thermostat configuration in DB")
-            _conf = app.ctrl.ensure_thermostat_conf_seeded_from(None)  # type: ignore
-        except Exception:
-            pass
-
-    ac_thermostat = ACThermostat(
-        ac=ac_controller,
-        cfg=_conf,  # type: ignore
-        ctrl=app.ctrl,  # type: ignore
-        location=THERMOSTAT_LOCATION,
-        notify=_notify,
-    )
-    # Expose thermostat on the app for API access
-    app.ac_thermostat = ac_thermostat  # type: ignore
-    ac_thread = threading.Thread(target=ac_thermostat.run_forever, daemon=True)
-    ac_thread.start()
-    logger.info("Tuya AC controller started for device %s", DEVICE_ID)
-    
-    from .services.hue.controller import HueController
-    
-    hue_bridge_ip = os.getenv("HUE_BRIDGE_IP")
-    hue_username  = os.getenv("HUE_USERNAME")
-
-    hue = HueController(hue_bridge_ip, hue_username)
-    hue.start_time_based_routine(apply_immediately=False)
-
-    # ─── Socket event handlers ───
-    from .sockets.handlers import SocketEventHandler
-    SocketEventHandler(socketio, app.ctrl)  # type: ignore
+    # ─── Services (AC thermostat, Hue, Socket events) ───
+    from .services.bootstrap import init_services
+    init_services(app)
 
 
     # ─── Blueprints ───
-    from .blueprints.auth import auth_bp
-    from .blueprints.web import web_bp
-    from .blueprints.api import api_bp
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(web_bp)
-    app.register_blueprint(api_bp)
+    from .blueprints import register_blueprints
+    register_blueprints(app)
 
     # ─── Template asset registry (component self-contained CSS/JS) ───
     # Allows included templates to register their own assets and have them

@@ -9,7 +9,7 @@ from flask_login import (
     current_user, UserMixin, AnonymousUserMixin
 )
 from flask_limiter.errors import RateLimitExceeded
-from app import limiter
+from ...extensions import limiter
 from ...core.controller import Controller
 
 auth_bp = Blueprint('auth', __name__)
