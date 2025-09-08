@@ -283,6 +283,14 @@ def create_app():
     ac_thread.start()
     logger.info("Tuya AC controller started for device %s", DEVICE_ID)
     
+    from .hue_controller import HueController
+    
+    hue_bridge_ip = os.getenv("HUE_BRIDGE_IP")
+    hue_username  = os.getenv("HUE_USERNAME")
+
+    hue = HueController(hue_bridge_ip, hue_username)
+    hue.start_time_based_routine(apply_immediately=False)
+
     # ─── Socket event handlers ───
     from .socket_handlers import SocketEventHandler
     SocketEventHandler(socketio, app.ctrl)  # type: ignore
