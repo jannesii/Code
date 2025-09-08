@@ -5,7 +5,7 @@ from typing import Optional, Tuple
 from datetime import datetime
 import pytz
 
-from .controller import Controller
+from .core.controller import Controller
 
 logger = logging.getLogger(__name__)
 

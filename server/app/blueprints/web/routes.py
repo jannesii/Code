@@ -1,16 +1,16 @@
-# app/web.py
+"""Web (HTML) routes."""
 import logging
 from operator import ne
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash
 from flask_login import login_required, current_user
 from dataclasses import asdict
 import time
-from .utils import (
+from ...utils import (
     check_vals, get_ctrl, require_admin_or_redirect, combine_local_date_time,
     can_edit_user, can_delete_user, flash_error, flash_success,
     get_new_password_pair, validate_password_pair,
 )
-from .controller import Controller
+from ...core.controller import Controller
 
 
 web_bp = Blueprint('web', __name__)
@@ -210,7 +210,7 @@ def timelapse_conf():
                 ctrl.update_timelapse_conf(**vals)
                 # Emit only to connected timelapse clients (not to views)
                 try:
-                    from .socket_handlers import SocketEventHandler
+                    from ...sockets.handlers import SocketEventHandler
                     handler = SocketEventHandler(current_app.socketio, ctrl)  # type: ignore
                     handler.emit_to_clients('timelapse_conf', vals)
                 except Exception:

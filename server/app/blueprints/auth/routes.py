@@ -10,7 +10,7 @@ from flask_login import (
 )
 from flask_limiter.errors import RateLimitExceeded
 from app import limiter
-from .controller import Controller
+from ...core.controller import Controller
 
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger(__name__)

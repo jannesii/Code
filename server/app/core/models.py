@@ -95,3 +95,4 @@ class ThermostatConf:
     poll_interval_s: int = 15
     smooth_window: int = 5
     max_stale_s: int | None = 120
+

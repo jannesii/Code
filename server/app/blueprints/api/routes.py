@@ -1,4 +1,4 @@
-# app/api.py
+"""API routes."""
 import logging
 import os
 import tempfile
@@ -6,7 +6,7 @@ from datetime import datetime
 import pytz
 from flask import Blueprint, request, jsonify, current_app, send_from_directory
 from flask_login import login_required, current_user
-from .controller import Controller
+from ...core.controller import Controller
 from typing import Any, Dict
 from datetime import timedelta
 

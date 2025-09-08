@@ -184,4 +184,3 @@ class ACController:
             raise ValueError(
                 f"Invalid temp_set {celsius}. Range: {self.TEMP_MIN}..{self.TEMP_MAX} °C"
             )
-

@@ -1,4 +1,5 @@
 # controller.py
+
 import os
 import tempfile
 from typing import Optional, List, Dict, Any
@@ -7,7 +8,7 @@ from flask_login import current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 
-from models import User, TemperatureHumidity, ESP32TemperatureHumidity, Status, ImageData, TimelapseConf, ThermostatConf
+from .models import User, TemperatureHumidity, ESP32TemperatureHumidity, Status, ImageData, TimelapseConf, ThermostatConf
 from .database import DatabaseManager
 import pytz
 import sqlite3
@@ -22,15 +23,15 @@ class Controller:
 
     # --- User operations ---
     def register_user(
-        self, 
-        username: str, 
-        password: str | None = None, 
-        password_hash: str | None = None, 
-        is_admin: bool = False, 
+        self,
+        username: str,
+        password: str | None = None,
+        password_hash: str | None = None,
+        is_admin: bool = False,
         is_root_admin: bool = False,
-        is_temporary: bool = False, 
+        is_temporary: bool = False,
         expires_at: str | None = None
-        ) -> User:
+    ) -> User:
         """
         Creates the user if it doesn't exist, or returns the existing one.
         Uses INSERT OR IGNORE to avoid UNIQUE errors, then SELECT to fetch.
@@ -49,7 +50,8 @@ class Controller:
         # 2) Try to insert; if username exists, this is a no-op
         cursor = self.db.execute_query(
             "INSERT OR IGNORE INTO users (username, password_hash, is_admin, is_root_admin, is_temporary, expires_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (username, pw_hash, 1 if is_admin else 0, 1 if is_root_admin else 0, 1 if is_temporary else 0, expires_at)
+            (username, pw_hash, 1 if is_admin else 0,
+             1 if is_root_admin else 0, 1 if is_temporary else 0, expires_at)
         )
         if cursor.rowcount == 1:
             logger.info(f"User '{username}' created successfully.")
@@ -294,19 +296,21 @@ class Controller:
             )
             for row in rows
         ]
-        
+
     def record_esp32_temphum(self, location: str, temperature: float, humidity: float, ac_on: bool | None = None) -> ESP32TemperatureHumidity:
         now = datetime.now(self.finland_tz).isoformat()
         # Insert with optional AC state flag (nullable)
         self.db.execute_query(
             "INSERT INTO esp32_temphum (location, timestamp, temperature, humidity, ac_on) VALUES (?, ?, ?, ?, ?)",
-            (location, now, temperature, humidity, None if ac_on is None else (1 if ac_on else 0))
+            (location, now, temperature, humidity,
+             None if ac_on is None else (1 if ac_on else 0))
         )
         row = self.db.fetchone(
             "SELECT id, location, timestamp, temperature, humidity, ac_on FROM esp32_temphum ORDER BY id DESC LIMIT 1"
         )
         if row is None:
-            raise RuntimeError("Failed to retrieve inserted esp32_temphum record")
+            raise RuntimeError(
+                "Failed to retrieve inserted esp32_temphum record")
         return ESP32TemperatureHumidity(
             id=row['id'], location=row['location'], timestamp=row['timestamp'],
             temperature=row['temperature'], humidity=row['humidity'],
@@ -410,8 +414,6 @@ class Controller:
             ac_on=(None if row['ac_on'] is None else bool(row['ac_on']))
         )
 
-
-
     def get_unique_locations(self) -> List[Dict[str, Any]]:
         """
         Return the latest (most recent) reading per unique location,
@@ -459,8 +461,6 @@ class Controller:
             }
             for row in rows
         ]
-
-
 
     def update_status(self, status: str) -> Status:
         now = datetime.now(self.finland_tz).isoformat()
@@ -585,14 +585,21 @@ class Controller:
             target_temp=float(row['target_temp']),
             pos_hysteresis=float(row['pos_hysteresis']),
             neg_hysteresis=float(row['neg_hysteresis']),
-            thermo_active=bool(row['thermo_active']) if 'thermo_active' in row.keys() else True,
+            thermo_active=bool(row['thermo_active']
+                               ) if 'thermo_active' in row.keys() else True,
             min_on_s=int(row['min_on_s']) if 'min_on_s' in row.keys() else 240,
-            min_off_s=int(row['min_off_s']) if 'min_off_s' in row.keys() else 240,
-            poll_interval_s=int(row['poll_interval_s']) if 'poll_interval_s' in row.keys() else 15,
-            smooth_window=int(row['smooth_window']) if 'smooth_window' in row.keys() else 5,
-            max_stale_s=int(row['max_stale_s']) if 'max_stale_s' in row.keys() and row['max_stale_s'] is not None else 120,
-            current_phase=row['current_phase'] if 'current_phase' in row.keys() else None,
-            phase_started_at=row['phase_started_at'] if 'phase_started_at' in row.keys() else None,
+            min_off_s=int(row['min_off_s']
+                          ) if 'min_off_s' in row.keys() else 240,
+            poll_interval_s=int(
+                row['poll_interval_s']) if 'poll_interval_s' in row.keys() else 15,
+            smooth_window=int(row['smooth_window']
+                              ) if 'smooth_window' in row.keys() else 5,
+            max_stale_s=int(row['max_stale_s']) if 'max_stale_s' in row.keys(
+            ) and row['max_stale_s'] is not None else 120,
+            current_phase=row['current_phase'] if 'current_phase' in row.keys(
+            ) else None,
+            phase_started_at=row['phase_started_at'] if 'phase_started_at' in row.keys(
+            ) else None,
         )
 
     def save_thermostat_conf(
@@ -675,14 +682,17 @@ class Controller:
         if existing is not None:
             return existing
         # Extract with safe fallbacks (support legacy names too)
+
         def _getattr(name: str, default):
             if cfg is None:
                 return default
             return getattr(cfg, name, default)
-        target_temp = float(_getattr('target_temp', _getattr('setpoint_c', 24.5)))
+        target_temp = float(
+            _getattr('target_temp', _getattr('setpoint_c', 24.5)))
         pos_h = float(_getattr('pos_hysteresis', 0.5))
         neg_h = float(_getattr('neg_hysteresis', 0.5))
-        sleep_active = bool(_getattr('sleep_active', _getattr('sleep_enabled', True)))
+        sleep_active = bool(
+            _getattr('sleep_active', _getattr('sleep_enabled', True)))
         thermo_active = bool(_getattr('thermo_active', True))
         sleep_start = _getattr('sleep_start', None)
         sleep_stop = _getattr('sleep_stop', None)

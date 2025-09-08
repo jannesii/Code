@@ -3,7 +3,6 @@ import os
 import logging
 
 from app import create_app
-from signal_handler import SignalHandler
 
 logging.basicConfig(
     level=logging.INFO,
@@ -11,9 +10,6 @@ logging.basicConfig(
 )
 logging.getLogger("socketio.server").setLevel(logging.WARNING)
 app, socketio = create_app()
-
-if os.name != 'nt':
-    SignalHandler(socketio)
 
 if __name__ == "__main__":
     socketio.run(

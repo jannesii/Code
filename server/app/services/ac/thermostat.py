@@ -5,9 +5,9 @@ from typing import Any, Dict, List, Optional, Callable
 from datetime import datetime, timezone
 from tuya_iot import TuyaOpenAPI
 import pytz
-from .controller import Controller
-from .ac_controller import ACController
-from models import ThermostatConf
+from ...core.controller import Controller
+from .controller import ACController
+from ...core.models import ThermostatConf
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

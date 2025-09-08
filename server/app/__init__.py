@@ -1,7 +1,7 @@
 import threading
 import eventlet
 eventlet.monkey_patch()
-from .controller import Controller
+from .core.controller import Controller
 from flask_limiter.util import get_remote_address
 from flask_limiter import Limiter
 from flask_wtf.csrf import CSRFProtect
@@ -154,7 +154,7 @@ def create_app():
     login_manager = LoginManager()
     login_manager.login_view = "auth.login"  # type: ignore
     login_manager.init_app(app)
-    from .auth import load_user, AuthAnonymous, kick_if_expired
+    from .blueprints.auth.routes import load_user, AuthAnonymous, kick_if_expired
     app.before_request(kick_if_expired)
     login_manager.user_loader(load_user)
     login_manager.anonymous_user = AuthAnonymous
@@ -230,8 +230,8 @@ def create_app():
     SCHEMA = os.getenv("TUYA_SCHEMA")
     DEVICE_ID = os.getenv("TUYA_DEVICE_ID")
     
-    from .ac_thermostat import ACThermostat
-    from .ac_controller import ACController
+    from .services.ac.thermostat import ACThermostat
+    from .services.ac.controller import ACController
     from tuya_iot import TuyaOpenAPI
 
     api = TuyaOpenAPI(API_ENDPOINT, ACCESS_ID, ACCESS_KEY)
@@ -245,7 +245,7 @@ def create_app():
         """Notify only browser views via the SocketEventHandler helper."""
         try:
             # Import here to avoid circulars at module import time
-            from .socket_handlers import SocketEventHandler
+            from .sockets.handlers import SocketEventHandler
             handler = SocketEventHandler(socketio, app.ctrl)  # type: ignore
             handler.emit_to_views(event, payload)
         except Exception:
@@ -284,7 +284,7 @@ def create_app():
     ac_thread.start()
     logger.info("Tuya AC controller started for device %s", DEVICE_ID)
     
-    from .hue_controller import HueController
+    from .services.hue.controller import HueController
     
     hue_bridge_ip = os.getenv("HUE_BRIDGE_IP")
     hue_username  = os.getenv("HUE_USERNAME")
@@ -293,14 +293,14 @@ def create_app():
     hue.start_time_based_routine(apply_immediately=False)
 
     # ─── Socket event handlers ───
-    from .socket_handlers import SocketEventHandler
+    from .sockets.handlers import SocketEventHandler
     SocketEventHandler(socketio, app.ctrl)  # type: ignore
 
 
     # ─── Blueprints ───
-    from .auth import auth_bp
-    from .web import web_bp
-    from .api import api_bp
+    from .blueprints.auth import auth_bp
+    from .blueprints.web import web_bp
+    from .blueprints.api import api_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(web_bp)
     app.register_blueprint(api_bp)
