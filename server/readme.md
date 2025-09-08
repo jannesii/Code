@@ -1,73 +1,117 @@
-# Server – Flask + Socket.IO Backend & Website
+# Server – Flask + Socket.IO Backend & Website
 
-> **Live dashboard, API & WebSocket gateway for your Bambu Lab A1 timelapse system**
->
-> Runs on a Raspberry Pi (or any Linux host) and exposes a password‑protected web UI, JSON API and real‑time WebSocket stream for images, temperature/humidity and printer status.
->
-> It is designed to sit behind an Nginx reverse‑proxy and reach the public Internet through a Cloudflare Tunnel – no port forwarding required.
+Live dashboard, API and WebSocket gateway for your timelapse + home devices setup.
+Runs on Linux (Raspberry Pi or any host) and exposes a password‑protected web UI,
+JSON API and real‑time WebSocket stream for images, temperature/humidity, printer
+status, and AC thermostat state.
 
 ---
 
 ## Features
 
-| Category | Details |
-|----------|---------|
-| **Web UI** | Jinja‑templates served by Flask (`index.html`, `3d.html`, `settings/*.html`) with a minimal Bootstrap‑like style. |
-| **Auth** | Local user accounts stored in SQLite. Login handled by Flask‑Login. |
-| **Realtime** | WebSocket channel powered by Flask‑SocketIO (Eventlet). Emits `image2v`, `temphum2v`, `status2v` events to all connected browsers. |
-| **REST API** | `GET /api/temphum?date=YYYY‑MM‑DD` – full day of sensor readings.<br>`GET /api/timelapse_config` – current image / sensor intervals. |
-| **Database** | Single SQLite file `app.db` auto‑created on first run. Trigger keeps only the **10 newest images** to save disk space. |
-| **Extensible** | Controller layer cleanly separates business logic from Flask; easy to swap to PostgreSQL or add new endpoints. |
+- Web UI: Jinja templates (`index.html`, `3d.html`, `settings/*.html`).
+- Auth: Local users in SQLite with Flask‑Login (Root‑Admin is seeded on first run).
+- Realtime: Flask‑SocketIO (Eventlet) for live updates (images, sensors, printer, AC).
+- REST API: Temperature/humidity, configs, AC metrics, G‑code queue.
+- Database: SQLite auto‑migrated; controller layer isolates logic.
+- Integrations:
+  - Tuya/Smart Life AC via OpenAPI with local thermostat loop and sleep schedule.
+  - Philips Hue time‑based light routine (optional).
 
 ---
 
-## Directory layout
+## Directory Layout
 
 ```text
 server/
 ├── app/
-│   ├── __init__.py        # create_app(), Socket.IO, blueprints
-│   ├── auth.py            # Login / logout routes & user loader
-│   ├── web.py             # Protected HTML pages
-│   ├── utils.py           # Helper functions
-│   ├── api.py             # JSON endpoints
-│   ├── socket_handlers.py # WebSocket event handlers
-│   ├── controller.py      # All business logic (DB wrapper)
-│   ├── database.py        # Thread‑safe SQLite singleton
-│   ├── static/            # CSS & JS assets
-│   └── templates/         # Jinja2 templates
-├── models.py              # dataclass DTOs shared by controller
-├── run.py                 # Development entry‑point (debug server)
-├── requirements.txt       # Python deps
-└── readme.md              # ← you are here
+│   ├── __init__.py          # create_app(); config; extension init; registers blueprints
+│   ├── extensions.py        # Limiter, CSRF, LoginManager, SocketIO singletons
+│   ├── config.py            # Centralized environment settings
+│   ├── security.py          # Rate limiting setup + whitelist filter
+│   ├── assets.py            # Template asset registry helper
+│   ├── blueprints/          # Flask blueprints grouped by area
+│   │   ├── __init__.py      # register_blueprints(app)
+│   │   ├── auth/            # login/logout, user loader, rate‑limit handler
+│   │   ├── web/             # protected HTML routes
+│   │   └── api/             # JSON API routes
+│   ├── sockets/
+│   │   └── handlers.py      # Socket.IO event handlers (views/clients/esp32)
+│   ├── services/
+│   │   ├── bootstrap.py     # Initializes AC thermostat, Hue routine, socket events
+│   │   ├── ac/              # Tuya AC controller and thermostat loop
+│   │   ├── hue/             # Hue controller and time‑based routine
+│   │   └── presence/        # Presence watcher
+│   ├── core/
+│   │   ├── controller.py    # Business logic + DB gateway
+│   │   ├── database.py      # Thread‑safe SQLite wrapper
+│   │   └── models.py        # Dataclass DTOs and config models
+│   ├── utils.py             # Web helpers, flashes, validation
+│   ├── static/              # CSS & JS assets
+│   └── templates/           # Jinja2 templates
+├── run.py                   # Development entry‑point (debug server)
+├── requirements.txt         # Python deps
+└── readme.md                # ← you are here
 ```
 
 ---
 
-## Quick start (development)
+## Requirements
+
+- Python 3.11+
+- Eventlet
+- Redis (for Flask‑Limiter storage and Socket.IO message queue)
+
+Install deps:
 
 ```bash
-# 1. Clone just the server folder or the whole repo
-$ git clone https://github.com/Jannnesi/Code.git && cd Code/server
-
-# 2. Python ≥3.11 recommended
-$ python -m venv .venv && source .venv/bin/activate
-$ pip install -r requirements.txt
-
-# 3. Create a minimal config.json
-$ cat > config.json <<'EOF'
-{
-  "web_username": "admin",
-  "web_password": "change‑me",
-  "secret_key": "$(openssl rand -hex 32)",
-  "database_uri": "app.db"
-}
-EOF
-
-# 4. Kick it off (development mode, port 5555)
-$ python run.py
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
 ```
-Browse to **http://localhost:5555** and log in with the credentials above.
+
+## Configuration
+
+All settings are read from environment variables (see `app/config.py`).
+
+Minimum viable dev setup:
+
+```bash
+export SECRET_KEY="$(openssl rand -hex 32)"
+export WEB_USERNAME=admin
+export WEB_PASSWORD=change-me
+export ALLOWED_WS_ORIGINS='["http://127.0.0.1:5555"]'
+# required: path to the SQLite database file
+# recommended for dev:
+export DB_PATH="/tmp/timelapse.db"
+# optional: rate-limit whitelist as JSON list
+export RATE_LIMIT_WHITELIST='["127.0.0.1","192.168.10.0/24"]'
+```
+
+Optional integrations (auto‑skipped if unset):
+
+- Tuya AC (cloud): `TUYA_ACCESS_ID`, `TUYA_ACCESS_KEY`, `TUYA_API_ENDPOINT`,
+  `TUYA_USERNAME`, `TUYA_PASSWORD`, `TUYA_COUNTRY_CODE`, `TUYA_SCHEMA`, `TUYA_DEVICE_ID`
+- Hue: `HUE_BRIDGE_IP`, `HUE_USERNAME`
+- Thermostat tuning: `THERMOSTAT_LOCATION` (default `Tietokonepöytä`),
+  `ROOM_THERMAL_CAPACITY_J_PER_K` (for power estimation)
+- Limiter backend: `RATE_LIMIT_STORAGE_URI` (default `redis://localhost:6379`)
+
+## Quick Start (development)
+
+```bash
+source .venv/bin/activate
+export SECRET_KEY=dev
+export WEB_USERNAME=admin WEB_PASSWORD=admin
+export DB_PATH=/tmp/timelapse.db
+python run.py
+```
+
+Browse http://127.0.0.1:5555 and log in with the credentials above. The first
+admin user is created automatically on startup.
+
+Note: the app sets session cookies with the Secure flag. Some browsers may not
+send Secure cookies over plain HTTP on localhost, which can affect login during
+local testing. Running behind TLS (e.g., via Nginx) avoids this.
 
 ---
 
@@ -147,7 +191,7 @@ Enable the service:
 sudo systemctl enable --now cloudflared
 ```
 
-### End‑to‑end flow
+### End‑to‑End Flow
 
 ```
 Browser → Cloudflare edge → cloudflared tunnel → Nginx (TLS offload) → Gunicorn → Flask / Socket.IO
@@ -156,36 +200,55 @@ All WebSocket upgrades (`Connection: Upgrade`) are passed straight through, so l
 
 ---
 
-## Socket.IO events (client ↔ server)
+## HTTP API
 
-| Event (→ server) | Payload | Description |
-|------------------|---------|-------------|
-| `image`          | `{ image: <base64 str> }`      | Push single JPEG/PNG frame from timelapse client |
-| `temphum`        | `{ temperature: float, humidity: float }` | Sensor reading |
-| `status`         | `{ status: str }`              | Free‑form printer status string |
+Examples (all routes require login):
 
-| Event (← server) | Payload |
-|------------------|---------|
-| `image2v`        | Same `{ image }`; broadcast to all browsers |
-| `temphum2v`      | Same `{ temperature, humidity }` |
-| `status2v`       | Same `{ status }` |
+- `GET /api/temphum?date=YYYY-MM-DD` — Raspberry Pi sensor readings
+- `GET /api/esp32_temphum?date=YYYY-MM-DD&location=<name>` — ESP32 readings
+- `GET /api/timelapse_config` — current timelapse config
+- `GET /api/gcode` — queued/submitted G‑code commands
+- `GET /api/previewJpg` — serves `/tmp/preview.jpg`
+- `GET /api/ac/status` — current AC status (if thermostat initialized)
+- `GET /api/hvac/avg_rates_today` — cooling/heating rates from today (°C/h and W)
+
+Other endpoints:
+
+- `GET /live/<path:filename>` — serves HLS assets from `/srv/hls` (printer streams)
+
+## Socket.IO Events (client ↔ server)
+
+Core channel types:
+
+- To server
+  - `image`: `{ image: <base64 str> }`
+  - `esp32_temphum`: `{ location: str, temperature_c: float, humidity_pct: float }`
+  - `status`: `{ status: str }`
+  - `printerAction`: `{ action: 'pause'|'resume'|'stop'|'home'|'timelapse_start'|'timelapse_stop'|'run_gcode', ... }`
+  - `ac_control`: `{ action: 'power_on'|'power_off'|'thermostat_enable'|'thermostat_disable'|'set_mode'|'set_fan_speed'|'set_setpoint'|'set_hysteresis'|'set_hysteresis_split'|'set_sleep_enabled'|'set_sleep_times'|'status', ... }`
+
+- To browser views
+  - `image`: notify new frame available
+  - `esp32_temphum`: `{ location, temperature, humidity, ac_on }`
+  - `status`: `{ status }`
+  - `ac_status`, `thermostat_status`, `ac_state`, `sleep_status`, `thermo_config`
+  - `timelapse_conf`: updated config
+  - `flash`: `{ category, message }`
 
 ---
 
-## Database schema (auto‑migrated)
+## Database (auto‑migrated)
 
-```sql
--- users
-id·INT PK, username·TEXT UNIQUE, password_hash·TEXT
--- temphum
-id, timestamp TEXT, temperature REAL, humidity REAL
--- status
-id, timestamp TEXT, status TEXT
--- images (last 10 rows kept by trigger)
-id, timestamp TEXT, image TEXT (base64)
--- timelapse_conf
-id = 1, image_delay INT, temphum_delay INT, status_delay INT
-```
+SQLite file path is controlled by `DB_PATH` (set this; recommended `/opt/<db-name>.db`). Tables include:
+
+- `users` — accounts (admin/root‑admin flags; temporary expiry)
+- `temphum` — Pi temperature/humidity
+- `esp32_temphum` — ESP32 temperature/humidity with `location` and `ac_on`
+- `status` — free‑form status messages
+- `images` — last frames (pruned)
+- `timelapse_conf` — capture intervals
+- `thermostat_conf` — thermostat settings and phase tracking
+- `ac_events` — AC on/off transitions for analytics
 
 ---
 
@@ -198,8 +261,10 @@ journalctl -u jannenkoti -f
 # open interactive Python shell with app context
 python - <<'PY'
 from app import create_app
-app, _ = create_app('config.json')
-ctx = app.app_context(); ctx.push()  # then play with app.ctrl ...
+app, socketio = create_app()
+ctx = app.app_context(); ctx.push()
+# then play with app.ctrl ...
+print(app.ctrl.get_all_users())
 PY
 ```
 
@@ -208,4 +273,3 @@ PY
 ---
 
 © 2025 Janne Siirtola.  Licensed under the MIT License.
-

@@ -37,7 +37,7 @@ class ACThermostat:
         self._fan_speed: Optional[str] = ac_status.get("fan_speed_enum") if isinstance(ac_status, dict) else None
         self._enabled: bool = bool(getattr(cfg, 'thermo_active', True))
         self._last_change_ts: float = 0.0
-        logger.info(f"thermo: init {cfg} is_on={self._is_on} mode={self._mode} fan={self._fan_speed}")
+        logger.debug(f"thermo: init {cfg} is_on={self._is_on} mode={self._mode} fan={self._fan_speed}")
         # Track persisted start ISO for the current phase
         self._phase_started_at_iso: str | None = getattr(cfg, 'phase_started_at', None)
         logger.debug(f"thermo: init current_phase={getattr(cfg, 'current_phase', None)} phase_started_at={self._phase_started_at_iso}")

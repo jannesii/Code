@@ -31,7 +31,6 @@ class SocketEventHandler:
         socketio.on_event('connect',    self.handle_connect)
         socketio.on_event('disconnect', self.handle_disconnect)
         socketio.on_event('image',      self.handle_image)
-        socketio.on_event('temphum',    self.handle_temphum)
         socketio.on_event('esp32_temphum', self.handle_esp32_temphum)
         socketio.on_event('status',     self.handle_status)
         socketio.on_event('printerAction', self.handle_printer_action)
@@ -47,7 +46,8 @@ class SocketEventHandler:
         role = None
         try:
             if isinstance(auth, dict):
-                role = (auth.get('role') or auth.get('type') or auth.get('client'))
+                role = (auth.get('role') or auth.get(
+                    'type') or auth.get('client'))
         except Exception:
             pass
         # Heuristic: consider browsers as view when UA looks like one
@@ -79,13 +79,16 @@ class SocketEventHandler:
         sid = request.sid  # type: ignore
         removed = False
         if sid in self.view_sids:
-            self.view_sids.discard(sid); removed = True
+            self.view_sids.discard(sid)
+            removed = True
             self.logger.info("View disconnected: %s (untracked)", sid)
         if sid in self.client_sids:
-            self.client_sids.discard(sid); removed = True
+            self.client_sids.discard(sid)
+            removed = True
             self.logger.info("Client disconnected: %s (untracked)", sid)
         if sid in self.esp32_sids:
-            self.esp32_sids.discard(sid); removed = True
+            self.esp32_sids.discard(sid)
+            removed = True
             self.logger.info("ESP32 server disconnected: %s (untracked)", sid)
         if not removed:
             self.logger.info("Client disconnected: %s", sid)
@@ -128,22 +131,9 @@ class SocketEventHandler:
         self.emit_to_views('image')
         self.logger.debug("Emitted 'image' event")
 
-    def handle_temphum(self, data):
-        temp, hum = data.get('temperature'), data.get('humidity')
-        if temp is None or hum is None:
-            self.socketio.emit(
-                'error', {'message': 'Invalid temperature/humidity data'})
-            self.logger.warning("Bad temphum payload: %s", data)
-            return
-        saved = self.ctrl.record_temphum(temp, hum)
-        self.emit_to_views('temphum2v', {
-            'temperature': saved.temperature,
-            'humidity':    saved.humidity
-        })
-        self.logger.debug("Broadcasted temphum: %s", data)
-        
     def handle_esp32_temphum(self, data):
-        location, temp, hum = data.get('location'), data.get('temperature_c'), data.get('humidity_pct')
+        location, temp, hum = data.get('location'), data.get(
+            'temperature_c'), data.get('humidity_pct')
         if location is None or temp is None or hum is None:
             self.socketio.emit(
                 'error', {'message': 'Invalid location/temperature/humidity data'})
@@ -152,24 +142,27 @@ class SocketEventHandler:
         # Derive current AC state if available
         try:
             from flask import current_app
-            ac_thermo: ACThermostat | None = getattr(current_app, 'ac_thermostat', None)  # type: ignore
-            ac_on_val: bool | None = bool(ac_thermo.is_on) if ac_thermo is not None else None
+            ac_thermo: ACThermostat | None = getattr(
+                current_app, 'ac_thermostat', None)  # type: ignore
+            ac_on_val: bool | None = bool(
+                ac_thermo.is_on) if ac_thermo is not None else None
             if ac_on_val is None:
                 # Fallback to persisted DB flag if thermostat not in memory
                 conf = self.ctrl.get_thermostat_conf()
-                if conf and conf.current_phase in ('on','off'):
+                if conf and conf.current_phase in ('on', 'off'):
                     ac_on_val = (conf.current_phase == 'on')
         except Exception:
             ac_on_val = None
 
-        saved = self.ctrl.record_esp32_temphum(location, temp-1, hum, ac_on=ac_on_val)
+        saved = self.ctrl.record_esp32_temphum(
+            location, temp-1, hum, ac_on=ac_on_val)
         self.emit_to_views('esp32_temphum', {
             'location': saved.location,
             'temperature': saved.temperature,
             'humidity':    saved.humidity,
             'ac_on':       saved.ac_on
         })
-        
+
         self.logger.debug("Broadcasted esp32 temphum: %s", data)
 
     def handle_status(self, data):
@@ -178,9 +171,9 @@ class SocketEventHandler:
             self.logger.warning("Bad status payload: %s", data)
             return
         # saved = self.ctrl.update_status(data)
-        self.emit_to_views('status2v', data)
+        self.emit_to_views('status', data)
         self.logger.debug("Broadcasted status: %s", data)
-        
+
     def handle_client_response(self, result, action):
         if result is None:
             self.socketio.emit('error', {'message': 'Invalid printer result'})
@@ -188,7 +181,7 @@ class SocketEventHandler:
             return
         elif result == '':
             return
-        
+
         if result:
             self.flash(
                 f"Printer action '{action}' completed successfully.",
@@ -213,7 +206,7 @@ class SocketEventHandler:
         if result != '':
             self.handle_client_response(result, action)
             return
-        if action not in ['pause', 'resume', 'stop', 'home', 
+        if action not in ['pause', 'resume', 'stop', 'home',
                           'timelapse_start', 'timelapse_stop',
                           'run_gcode'
                           ]:
@@ -221,7 +214,7 @@ class SocketEventHandler:
                 'error', {'message': f'Invalid printer action: {action}'})
             self.logger.warning("Bad printer action: %s", action)
             return
-        
+
         if action == 'run_gcode':
             gcode = data.get('gcode', '')
             if not gcode:
@@ -243,14 +236,17 @@ class SocketEventHandler:
 
     def handle_ac_control(self, data):
         if data is None or not isinstance(data, dict):
-            self.socketio.emit('error', {'message': 'Invalid AC control payload'})
+            self.socketio.emit(
+                'error', {'message': 'Invalid AC control payload'})
             self.logger.warning("Bad ac_control payload: %s", data)
             return
         action = (data.get('action') or '').strip()
         self.logger.info("Received ac_control: %s", action)
-        ac_thermo: ACThermostat | None = getattr(current_app, 'ac_thermostat', None)  # type: ignore
+        ac_thermo: ACThermostat | None = getattr(
+            current_app, 'ac_thermostat', None)  # type: ignore
         if ac_thermo is None:
-            self.socketio.emit('error', {'message': 'AC thermostat not initialized'})
+            self.socketio.emit(
+                'error', {'message': 'AC thermostat not initialized'})
             self.logger.error("ac_control: thermostat missing")
             return
         try:
@@ -270,7 +266,8 @@ class SocketEventHandler:
                 val = (data.get('value') or '').strip().lower()
                 # User reports 'hot' unsupported
                 if val not in {'cold', 'wet', 'wind'}:
-                    self.socketio.emit('error', {'message': f'Unsupported mode: {val}'})
+                    self.socketio.emit(
+                        'error', {'message': f'Unsupported mode: {val}'})
                     return
                 ac_thermo.set_mode(val)
                 return
@@ -278,7 +275,8 @@ class SocketEventHandler:
                 val = (data.get('value') or '').strip().lower()
                 # User reports 'mid' and 'auto' unsupported
                 if val not in {'low', 'high'}:
-                    self.socketio.emit('error', {'message': f'Unsupported fan speed: {val}'})
+                    self.socketio.emit(
+                        'error', {'message': f'Unsupported fan speed: {val}'})
                     return
                 ac_thermo.set_fan_speed(val)
                 return
@@ -286,7 +284,8 @@ class SocketEventHandler:
                 try:
                     val = float(data.get('value'))
                 except Exception:
-                    self.socketio.emit('error', {'message': 'Invalid setpoint'})
+                    self.socketio.emit(
+                        'error', {'message': 'Invalid setpoint'})
                     return
                 ac_thermo.set_setpoint(val)
                 return
@@ -294,7 +293,8 @@ class SocketEventHandler:
                 try:
                     val = float(data.get('value'))
                 except Exception:
-                    self.socketio.emit('error', {'message': 'Invalid hysteresis'})
+                    self.socketio.emit(
+                        'error', {'message': 'Invalid hysteresis'})
                     return
                 # Backward-compatible single value: split evenly
                 ac_thermo.set_hysteresis(val)
@@ -304,13 +304,15 @@ class SocketEventHandler:
                     pos = float(data.get('pos'))
                     neg = float(data.get('neg'))
                 except Exception:
-                    self.socketio.emit('error', {'message': 'Invalid hysteresis values'})
+                    self.socketio.emit(
+                        'error', {'message': 'Invalid hysteresis values'})
                     return
                 ac_thermo.set_hysteresis_split(pos, neg)
                 return
             if action == 'status':
                 # Re-emit current statuses to requester(s)
-                self.emit_to_views('ac_status', { 'is_on': bool(ac_thermo.is_on) })
+                self.emit_to_views(
+                    'ac_status', {'is_on': bool(ac_thermo.is_on)})
                 self.emit_to_views('thermostat_status', {
                     'enabled': getattr(ac_thermo, '_enabled', True),
                     'thermo_active': getattr(ac_thermo, '_enabled', True),
@@ -319,11 +321,13 @@ class SocketEventHandler:
                 try:
                     st = ac_thermo.ac.get_status()
                     mode = st.get('mode') if isinstance(st, dict) else None
-                    fan  = st.get('fan_speed_enum') if isinstance(st, dict) else None
+                    fan = st.get('fan_speed_enum') if isinstance(
+                        st, dict) else None
                 except Exception:
                     mode = None
                     fan = None
-                self.emit_to_views('ac_state', { 'mode': mode, 'fan_speed': fan })
+                self.emit_to_views(
+                    'ac_state', {'mode': mode, 'fan_speed': fan})
                 # Emit current sleep configuration as well
                 self.emit_to_views('sleep_status', {
                     'sleep_enabled': bool(getattr(ac_thermo.cfg, 'sleep_active', True)),
@@ -343,10 +347,11 @@ class SocketEventHandler:
                 return
             if action == 'set_sleep_times':
                 start = (data.get('start') or '').strip() or None
-                stop  = (data.get('stop') or '').strip() or None
+                stop = (data.get('stop') or '').strip() or None
                 ac_thermo.set_sleep_times(start, stop)
                 return
-            self.socketio.emit('error', {'message': f'Invalid AC control action: {action}'})
+            self.socketio.emit(
+                'error', {'message': f'Invalid AC control action: {action}'})
             self.logger.warning("Bad ac_control action: %s", action)
         except Exception as e:
             self.logger.exception("ac_control error: %s", e)

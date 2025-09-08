@@ -29,8 +29,8 @@ def _json_list(env_var: str, default: list[str]) -> list[str]:
     raise RuntimeError(f"{env_var} isn’t valid JSON list")
 
 
-def load_settings(*, is_windows: bool = False) -> Dict[str, Any]:
-    secret = os.getenv("SECRET_KEY", "test")
+def load_settings() -> Dict[str, Any]:
+    secret = os.getenv("SECRET_KEY")
     if not secret:
         raise RuntimeError("SECRET_KEY is missing – add to environment.")
 
@@ -41,16 +41,16 @@ def load_settings(*, is_windows: bool = False) -> Dict[str, Any]:
         # Flask
         "SECRET_KEY": secret,
         "PERMANENT_SESSION_LIFETIME": timedelta(days=7),
-        "SESSION_COOKIE_SECURE": not is_windows,
+        "SESSION_COOKIE_SECURE": True,
         "SESSION_COOKIE_HTTPONLY": True,
         "SESSION_COOKIE_SAMESITE": "Lax",
         # Forms / CSRF
         "WTF_CSRF_TIME_LIMIT": None,
         # Auth seeding
-        "WEB_USERNAME": os.getenv("WEB_USERNAME", "admin"),
-        "WEB_PASSWORD": os.getenv("WEB_PASSWORD", "admin"),
+        "WEB_USERNAME": os.getenv("WEB_USERNAME"),
+        "WEB_PASSWORD": os.getenv("WEB_PASSWORD"),
         # DB path
-        "DB_PATH": os.getenv("DB_PATH", os.path.join(tempfile.gettempdir(), "timelapse.db")),
+        "DB_PATH": os.getenv("DB_PATH", os.path.join(tempfile.gettempdir())),
         # Rate limit whitelist for request_filter
         "whitelist": whitelist,
         # Sockets
@@ -61,4 +61,3 @@ def load_settings(*, is_windows: bool = False) -> Dict[str, Any]:
     }
 
     return settings
-

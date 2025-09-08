@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return `${h}:${m}`;
     }
 
-    socket.on('status2v', data => {
+    socket.on('status', data => {
       console.log('ℹ️ Received status2v event:', data);
 
       if ('bed_temperature'    in data) bedTempEl.textContent    = data.bed_temperature.toFixed(1) + ' °C';

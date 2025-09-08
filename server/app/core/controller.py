@@ -36,7 +36,7 @@ class Controller:
         Creates the user if it doesn't exist, or returns the existing one.
         Uses INSERT OR IGNORE to avoid UNIQUE errors, then SELECT to fetch.
         """
-        logger.info(f"Registering user: {username}")
+        logger.debug(f"Registering user: {username}")
 
         # 1) Hash the password up front
         if password_hash is None and password:
@@ -54,9 +54,9 @@ class Controller:
              1 if is_root_admin else 0, 1 if is_temporary else 0, expires_at)
         )
         if cursor.rowcount == 1:
-            logger.info(f"User '{username}' created successfully.")
+            logger.debug(f"User '{username}' created successfully.")
         else:
-            logger.info(f"User '{username}' already exists, skipping INSERT.")
+            logger.debug(f"User '{username}' already exists, skipping INSERT.")
 
         # 3) Fetch whatever is now in the table
         row = self.db.fetchone(
@@ -69,7 +69,7 @@ class Controller:
                 f"After INSERT OR IGNORE, no row for '{username}' found.")
             raise RuntimeError(f"Failed to retrieve user '{username}'")
 
-        logger.info(f"Returning user '{username}' with id={row['id']}")
+        logger.debug(f"Returning user '{username}' with id={row['id']}")
         return User(
             id=row['id'],
             username=row['username'],
@@ -529,7 +529,7 @@ class Controller:
         )
 
     def record_gcode_command(self, gcode: str) -> None:
-        logger.info(f"Recording G-code command: {gcode}")
+        logger.debug(f"Recording G-code command: {gcode}")
         now = datetime.now(self.finland_tz).isoformat()
         self.db.execute_query(
             "INSERT INTO gcode_commands (timestamp, gcode) VALUES (?, ?)",
