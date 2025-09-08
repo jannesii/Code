@@ -295,37 +295,80 @@ class Controller:
             for row in rows
         ]
         
-    def record_esp32_temphum(self, location: str, temperature: float, humidity: float) -> ESP32TemperatureHumidity:
+    def record_esp32_temphum(self, location: str, temperature: float, humidity: float, ac_on: bool | None = None) -> ESP32TemperatureHumidity:
         now = datetime.now(self.finland_tz).isoformat()
+        # Insert with optional AC state flag (nullable)
         self.db.execute_query(
-            "INSERT INTO esp32_temphum (location, timestamp, temperature, humidity) VALUES (?, ?, ?, ?)",
-            (location, now, temperature, humidity)
+            "INSERT INTO esp32_temphum (location, timestamp, temperature, humidity, ac_on) VALUES (?, ?, ?, ?, ?)",
+            (location, now, temperature, humidity, None if ac_on is None else (1 if ac_on else 0))
         )
         row = self.db.fetchone(
-            "SELECT id, location, timestamp, temperature, humidity FROM esp32_temphum ORDER BY id DESC LIMIT 1"
+            "SELECT id, location, timestamp, temperature, humidity, ac_on FROM esp32_temphum ORDER BY id DESC LIMIT 1"
         )
         if row is None:
             raise RuntimeError("Failed to retrieve inserted esp32_temphum record")
         return ESP32TemperatureHumidity(
             id=row['id'], location=row['location'], timestamp=row['timestamp'],
-            temperature=row['temperature'], humidity=row['humidity']
+            temperature=row['temperature'], humidity=row['humidity'],
+            ac_on=(None if row['ac_on'] is None else bool(row['ac_on']))
         )
+
+    # --- AC event logging / queries ---
+    def record_ac_event(self, is_on: bool, source: str | None = None, note: str | None = None, when_iso: str | None = None) -> None:
+        """Insert an AC on/off event.
+
+        :param is_on: True for ON, False for OFF
+        :param source: optional tag (e.g., 'thermostat', 'manual')
+        :param note: optional message
+        :param when_iso: ISO timestamp; if None, uses local now
+        """
+        ts = when_iso or datetime.now(self.finland_tz).isoformat()
+        self.db.execute_query(
+            "INSERT INTO ac_events (timestamp, is_on, source, note) VALUES (?, ?, ?, ?)",
+            (ts, 1 if is_on else 0, source, note)
+        )
+
+    def get_ac_events_between(self, start_iso: str, end_iso: str) -> list[dict]:
+        rows = self.db.fetchall(
+            "SELECT id, timestamp, is_on, source, note FROM ac_events WHERE timestamp >= ? AND timestamp <= ? ORDER BY timestamp",
+            (start_iso, end_iso)
+        )
+        return [
+            {
+                'id': row['id'],
+                'timestamp': row['timestamp'],
+                'is_on': bool(row['is_on']),
+                'source': row['source'],
+                'note': row['note']
+            }
+            for row in rows
+        ]
+
+    def get_last_ac_state_before(self, ts_iso: str) -> bool | None:
+        row = self.db.fetchone(
+            "SELECT is_on FROM ac_events WHERE timestamp <= ? ORDER BY timestamp DESC, id DESC LIMIT 1",
+            (ts_iso,)
+        )
+        if row is None:
+            return None
+        return bool(row['is_on'])
 
     def get_last_esp32_temphum(self) -> Optional[ESP32TemperatureHumidity]:
         row = self.db.fetchone(
-            "SELECT id, location, timestamp, temperature, humidity FROM esp32_temphum ORDER BY id DESC LIMIT 1"
+            "SELECT id, location, timestamp, temperature, humidity, ac_on FROM esp32_temphum ORDER BY id DESC LIMIT 1"
         )
         if row is None:
             return None
         return ESP32TemperatureHumidity(
             id=row['id'], location=row['location'], timestamp=row['timestamp'],
-            temperature=row['temperature'], humidity=row['humidity']
+            temperature=row['temperature'], humidity=row['humidity'],
+            ac_on=(None if row['ac_on'] is None else bool(row['ac_on']))
         )
 
     def get_esp32_temphum_for_date(self, date_str: str, location: str) -> List[ESP32TemperatureHumidity]:
         rows = self.db.fetchall(
             """
-            SELECT id, location, timestamp, temperature, humidity
+            SELECT id, location, timestamp, temperature, humidity, ac_on
               FROM esp32_temphum
              WHERE date(timestamp) = ? AND location = ?
              ORDER BY timestamp
@@ -338,7 +381,8 @@ class Controller:
                 location=row['location'],
                 timestamp=row['timestamp'],
                 temperature=row['temperature'],
-                humidity=row['humidity']
+                humidity=row['humidity'],
+                ac_on=(None if row['ac_on'] is None else bool(row['ac_on']))
             )
             for row in rows
         ]
@@ -347,7 +391,7 @@ class Controller:
         """Return the most recent ESP32TemperatureHumidity row for a given location, or None."""
         row = self.db.fetchone(
             """
-            SELECT id, location, timestamp, temperature, humidity
+            SELECT id, location, timestamp, temperature, humidity, ac_on
               FROM esp32_temphum
              WHERE location = ?
              ORDER BY timestamp DESC, id DESC
@@ -362,7 +406,8 @@ class Controller:
             location=row['location'],
             timestamp=row['timestamp'],
             temperature=row['temperature'],
-            humidity=row['humidity']
+            humidity=row['humidity'],
+            ac_on=(None if row['ac_on'] is None else bool(row['ac_on']))
         )
 
 

@@ -149,11 +149,25 @@ class SocketEventHandler:
                 'error', {'message': 'Invalid location/temperature/humidity data'})
             self.logger.warning("Bad esp32 temphum payload: %s", data)
             return
-        saved = self.ctrl.record_esp32_temphum(location, temp-1, hum)
+        # Derive current AC state if available
+        try:
+            from flask import current_app
+            ac_thermo: ACThermostat | None = getattr(current_app, 'ac_thermostat', None)  # type: ignore
+            ac_on_val: bool | None = bool(ac_thermo.is_on) if ac_thermo is not None else None
+            if ac_on_val is None:
+                # Fallback to persisted DB flag if thermostat not in memory
+                conf = self.ctrl.get_thermostat_conf()
+                if conf and conf.current_phase in ('on','off'):
+                    ac_on_val = (conf.current_phase == 'on')
+        except Exception:
+            ac_on_val = None
+
+        saved = self.ctrl.record_esp32_temphum(location, temp-1, hum, ac_on=ac_on_val)
         self.emit_to_views('esp32_temphum', {
             'location': saved.location,
             'temperature': saved.temperature,
-            'humidity':    saved.humidity
+            'humidity':    saved.humidity,
+            'ac_on':       saved.ac_on
         })
         
         self.logger.debug("Broadcasted esp32 temphum: %s", data)

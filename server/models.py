@@ -51,6 +51,7 @@ class ESP32TemperatureHumidity:
     timestamp: str
     temperature: float
     humidity: float
+    ac_on: bool | None = None
 
 @dataclass
 class Status:

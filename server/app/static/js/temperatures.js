@@ -130,6 +130,8 @@ function initSIO(){
   socket.on('esp32_temphum', data => {
     console.log('📡 Received esp32_temphum:', data);
     updateTile(data);
+    // Optionally refresh averages on new data bursts
+    refreshAvgRatesSoon();
   });
   socket.on('ac_status', data => {
     console.log('📡 Received ac_status:', data);
@@ -236,6 +238,9 @@ document.addEventListener('DOMContentLoaded', () => {
   renderItems(locations);
   initSIO();
   fetchACStatus();
+  fetchAvgRates();
+  // Periodic refresh every 5 minutes
+  setInterval(fetchAvgRates, 5 * 60 * 1000);
 
   // Wire control buttons
   const btnAc = document.getElementById('btnAcPowerToggle');
@@ -385,4 +390,60 @@ function setThermoConfigUI(data){
     const v = parseFloat(data.neg_hysteresis);
     if (!Number.isNaN(v)) hyNeg.value = v.toFixed(1);
   }
+}
+
+// --- Avg rates / power ---
+let _avgRatesTimer = null;
+function refreshAvgRatesSoon(){
+  if (_avgRatesTimer) return;
+  _avgRatesTimer = setTimeout(() => { _avgRatesTimer = null; fetchAvgRates(); }, 3000);
+}
+
+async function fetchAvgRates(){
+  try{
+    const resp = await fetch('/api/hvac/avg_rates_today');
+    if(!resp.ok){
+      console.warn('avg rates fetch failed:', resp.status);
+      setAvgPills(null);
+      return;
+    }
+    const data = await resp.json();
+    setAvgPills(data);
+  }catch(err){
+    console.error('avg rates error:', err);
+    setAvgPills(null);
+  }
+}
+
+function setAvgPills(data){
+  const coolEl = document.getElementById('avgCoolingPill');
+  const heatEl = document.getElementById('avgHeatingPill');
+  if(!coolEl || !heatEl) return;
+
+  if(!data){
+    coolEl.textContent = 'Cooling: —';
+    heatEl.textContent = 'Heat: —';
+    return;
+  }
+  const cr = data.cooling_rate_c_per_h;
+  const hr = data.heating_rate_c_per_h;
+  const cp = data.cooling_power_w;
+  const hp = data.heating_power_w;
+  const fmtRate = (v, sign='+/-') => {
+    if (v === null || v === undefined) return '—';
+    const n = Number(v);
+    if (!Number.isFinite(n)) return '—';
+    return `${n.toFixed(2)} °C/h`;
+  };
+  const fmtPower = (w) => {
+    if (w === null || w === undefined) return '';
+    const n = Number(w);
+    if (!Number.isFinite(n)) return '';
+    return ` (${Math.round(n)} W)`;
+  };
+  // Cooling rate is typically negative; display absolute magnitude
+  const coolText = (cr == null ? '—' : `${Math.abs(cr).toFixed(2)} °C/h`) + (cp != null ? ` (${Math.round(cp)} W)` : '');
+  const heatText = fmtRate(hr) + fmtPower(hp);
+  coolEl.textContent = `Cooling: ${coolText}`;
+  heatEl.textContent = `Heat: ${heatText}`;
 }

@@ -48,7 +48,15 @@ class DatabaseManager:
                 'location TEXT NOT NULL, '
                 'timestamp TEXT NOT NULL, '
                 'temperature REAL NOT NULL, '
-                'humidity REAL NOT NULL'
+                'humidity REAL NOT NULL, '
+                'ac_on BOOLEAN'
+            ),
+            'ac_events': (
+                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+                'timestamp TEXT NOT NULL, '
+                'is_on BOOLEAN NOT NULL, '
+                'source TEXT, '
+                'note TEXT'
             ),
             'status': (
                 'id INTEGER PRIMARY KEY CHECK (id = 1),'
@@ -155,6 +163,33 @@ class DatabaseManager:
                 )
         except Exception:
             pass
+        
+        # esp32_temphum: ensure ac_on exists (nullable boolean)
+        try:
+            self.cursor.execute("PRAGMA table_info(esp32_temphum)")
+            cols = [row[1] for row in self.cursor.fetchall()]
+            if 'ac_on' not in cols:
+                self.cursor.execute(
+                    "ALTER TABLE esp32_temphum ADD COLUMN ac_on BOOLEAN"
+                )
+        except Exception:
+            pass
+
+        # ac_events: ensure table exists (migration for older installs)
+        try:
+            self.cursor.execute("SELECT 1 FROM ac_events LIMIT 1")
+        except Exception:
+            try:
+                self.cursor.execute(
+                    "CREATE TABLE IF NOT EXISTS ac_events ("
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    "timestamp TEXT NOT NULL, "
+                    "is_on BOOLEAN NOT NULL, "
+                    "source TEXT, "
+                    "note TEXT)"
+                )
+            except Exception:
+                pass
         # Insert default values for status and timelapse_conf if they don't exist
         self.cursor.execute("""
         INSERT OR IGNORE INTO status (id, timestamp, status)
@@ -197,6 +232,15 @@ class DatabaseManager:
                 WHERE timestamp < datetime('now', '-7 days');
             END;
             """
+            ,
+            'cleanup_ac_events_after_insert':"""
+            CREATE TRIGGER IF NOT EXISTS cleanup_ac_events_after_insert
+            AFTER INSERT ON ac_events
+            BEGIN
+                DELETE FROM ac_events
+                WHERE timestamp < datetime('now', '-30 days');
+            END;
+            """
         }
 
         for name, trigger_sql in triggers.items():
@@ -231,6 +275,14 @@ class DatabaseManager:
                 CREATE INDEX IF NOT EXISTS idx_esp32_temphum_date_loc
                 ON esp32_temphum (date(timestamp), location)
                 """
+            )
+        except Exception:
+            pass
+
+        # Indexes for ac_events
+        try:
+            self.cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_ac_events_ts ON ac_events (timestamp)"
             )
         except Exception:
             pass

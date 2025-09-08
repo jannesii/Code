@@ -329,7 +329,12 @@ class ACThermostat:
     def _record_transition(self) -> int | None:
         """Record OFF→ON transition, accumulate OFF seconds, persist. Returns OFF minutes."""
         minutes: int | None = self._compute_phase_duration(self._phase_started_at_iso)
-        
+        # Log AC on/off event into DB for slope segmentation
+        try:
+            self.ctrl.record_ac_event(is_on=bool(self._is_on), source='thermostat')
+        except Exception as e:
+            logger.debug("thermo: failed to record ac_event: %s", e)
+
         # set persisted phase start (UTC 'Z')
         self._phase_started_at_iso = datetime.now(self.tz).isoformat()
         self._persist_conf()
