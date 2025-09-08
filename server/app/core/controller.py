@@ -246,56 +246,6 @@ class Controller:
         return self.get_user_by_username(new_username or current_username)
 
     # --- Sensor data operations ---
-    def record_temphum(self, temperature: float, humidity: float) -> TemperatureHumidity:
-        now = datetime.now(self.finland_tz).isoformat()
-        self.db.execute_query(
-            "INSERT INTO temphum (timestamp, temperature, humidity) VALUES (?, ?, ?)",
-            (now, temperature, humidity)
-        )
-        row = self.db.fetchone(
-            "SELECT id, timestamp, temperature, humidity FROM temphum ORDER BY id DESC LIMIT 1"
-        )
-        if row is None:
-            raise RuntimeError("Failed to retrieve inserted temphum record")
-        return TemperatureHumidity(
-            id=row['id'], timestamp=row['timestamp'],
-            temperature=row['temperature'], humidity=row['humidity']
-        )
-
-    def get_last_temphum(self) -> Optional[TemperatureHumidity]:
-        row = self.db.fetchone(
-            "SELECT id, timestamp, temperature, humidity FROM temphum ORDER BY id DESC LIMIT 1"
-        )
-        if row is None:
-            return None
-        return TemperatureHumidity(
-            id=row['id'], timestamp=row['timestamp'],
-            temperature=row['temperature'], humidity=row['humidity']
-        )
-
-    def get_temphum_for_date(self, date_str: str) -> List[TemperatureHumidity]:
-        """
-        Returns all TemperatureHumidity rows whose timestamp falls on `date_str`
-        (ISO date, e.g. '2025-04-20'), ordered by timestamp.
-        """
-        rows = self.db.fetchall(
-            """
-            SELECT id, timestamp, temperature, humidity
-              FROM temphum
-             WHERE date(timestamp) = ?
-             ORDER BY timestamp
-            """,
-            (date_str,)
-        )
-        return [
-            TemperatureHumidity(
-                id=row['id'],
-                timestamp=row['timestamp'],
-                temperature=row['temperature'],
-                humidity=row['humidity']
-            )
-            for row in rows
-        ]
 
     def record_esp32_temphum(self, location: str, temperature: float, humidity: float, ac_on: bool | None = None) -> ESP32TemperatureHumidity:
         now = datetime.now(self.finland_tz).isoformat()

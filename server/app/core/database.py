@@ -38,12 +38,6 @@ class DatabaseManager:
                 'is_temporary BOOLEAN DEFAULT 0, '
                 'expires_at TEXT'
             ),
-            'temphum': (
-                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-                'timestamp TEXT NOT NULL, '
-                'temperature REAL NOT NULL, '
-                'humidity REAL NOT NULL'
-            ),
             'esp32_temphum': (
                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
                 'location TEXT NOT NULL, '
@@ -106,75 +100,6 @@ class DatabaseManager:
         }
         for name, schema in tables.items():
             self.cursor.execute(f"CREATE TABLE IF NOT EXISTS {name} ({schema})")
-        # Migrations for existing installs
-        try:
-            # users: ensure is_root_admin exists
-            self.cursor.execute("PRAGMA table_info(users)")
-            cols = [row[1] for row in self.cursor.fetchall()]
-            if 'is_root_admin' not in cols:
-                self.cursor.execute(
-                    "ALTER TABLE users ADD COLUMN is_root_admin BOOLEAN NOT NULL DEFAULT 0"
-                )
-        except Exception:
-            pass
-
-        try:
-            # thermostat_conf: ensure new fields exist
-            self.cursor.execute("PRAGMA table_info(thermostat_conf)")
-            cols = [row[1] for row in self.cursor.fetchall()]
-            if 'thermo_active' not in cols:
-                self.cursor.execute(
-                    "ALTER TABLE thermostat_conf ADD COLUMN thermo_active BOOLEAN NOT NULL DEFAULT 1"
-                )
-            if 'total_on_s' not in cols:
-                self.cursor.execute(
-                    "ALTER TABLE thermostat_conf ADD COLUMN total_on_s INTEGER NOT NULL DEFAULT 0"
-                )
-            if 'total_off_s' not in cols:
-                self.cursor.execute(
-                    "ALTER TABLE thermostat_conf ADD COLUMN total_off_s INTEGER NOT NULL DEFAULT 0"
-                )
-            if 'min_on_s' not in cols:
-                self.cursor.execute(
-                    "ALTER TABLE thermostat_conf ADD COLUMN min_on_s INTEGER NOT NULL DEFAULT 240"
-                )
-            if 'min_off_s' not in cols:
-                self.cursor.execute(
-                    "ALTER TABLE thermostat_conf ADD COLUMN min_off_s INTEGER NOT NULL DEFAULT 240"
-                )
-            if 'poll_interval_s' not in cols:
-                self.cursor.execute(
-                    "ALTER TABLE thermostat_conf ADD COLUMN poll_interval_s INTEGER NOT NULL DEFAULT 15"
-                )
-            if 'smooth_window' not in cols:
-                self.cursor.execute(
-                    "ALTER TABLE thermostat_conf ADD COLUMN smooth_window INTEGER NOT NULL DEFAULT 5"
-                )
-            if 'max_stale_s' not in cols:
-                self.cursor.execute(
-                    "ALTER TABLE thermostat_conf ADD COLUMN max_stale_s INTEGER"
-                )
-            if 'current_phase' not in cols:
-                self.cursor.execute(
-                    "ALTER TABLE thermostat_conf ADD COLUMN current_phase TEXT"
-                )
-            if 'phase_started_at' not in cols:
-                self.cursor.execute(
-                    "ALTER TABLE thermostat_conf ADD COLUMN phase_started_at TEXT"
-                )
-        except Exception:
-            pass
-        
-        # esp32_temphum: ensure ac_on exists (nullable boolean)
-        try:
-            self.cursor.execute("PRAGMA table_info(esp32_temphum)")
-            cols = [row[1] for row in self.cursor.fetchall()]
-            if 'ac_on' not in cols:
-                self.cursor.execute(
-                    "ALTER TABLE esp32_temphum ADD COLUMN ac_on BOOLEAN"
-                )
-        except Exception:
-            pass
 
         # ac_events: ensure table exists (migration for older installs)
         try:
