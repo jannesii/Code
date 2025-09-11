@@ -155,7 +155,7 @@ class SocketEventHandler:
             ac_on_val = None
 
         saved = self.ctrl.record_esp32_temphum(
-            location, temp-1, hum, ac_on=ac_on_val)
+            location, temp, hum, ac_on=ac_on_val)
         self.emit_to_views('esp32_temphum', {
             'location': saved.location,
             'temperature': saved.temperature,

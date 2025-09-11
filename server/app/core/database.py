@@ -101,6 +101,9 @@ class DatabaseManager:
         for name, schema in tables.items():
             self.cursor.execute(f"CREATE TABLE IF NOT EXISTS {name} ({schema})")
 
+        # Clean up test data if present
+        self.cursor.execute("DELETE FROM esp32_temphum WHERE location='Test'")
+
         # ac_events: ensure table exists (migration for older installs)
         try:
             self.cursor.execute("SELECT 1 FROM ac_events LIMIT 1")
