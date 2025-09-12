@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}API-avaimet{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flash.css') }}">
+{# Reuse existing styles for cards and grids #}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/users.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/edit_user.css') }}">
+{% endblock %}
+
+{% block content %}
+{% include 'settings_flash.html' %}
+
+<div class="container">
+  <div class="edit-card">
+    <h2>Luo uusi API-avain</h2>
+    <form method="post" id="createApiKeyForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row">
+        <label for="key_name">Nimi</label>
+        <input type="text" id="key_name" name="key_name" required placeholder="Esim. integraatio tai palvelun nimi">
+      </div>
+      <div class="actions">
+        <a class="btn secondary" href="{{ url_for('web.get_settings_page') }}">Takaisin</a>
+        <button type="submit" name="create_key" value="1" class="btn primary">Luo avain</button>
+      </div>
+    </form>
+  </div>
+
+  {# Show newly created key exactly once, if provided by backend #}
+  {% if created_key %}
+  <div class="edit-card" style="margin-top:16px; border-color:#2a5;">
+    <h3>Uusi API-avain luotu</h3>
+    <p style="color:#bbb; margin:6px 0;">Tämä avain näytetään vain kerran. Tallenna se heti.</p>
+    <div class="form-row">
+      <label>API-avain</label>
+      <input type="text" id="createdKeyValue" readonly value="{{ created_key }}" style="font-family:monospace;">
+    </div>
+    <div class="actions">
+      <button type="button" class="btn primary" onclick="copyCreatedKey()">Kopioi</button>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="user-grid" style="margin-top:20px;">
+    {% if keys and keys|length > 0 %}
+      {% for k in keys %}
+      <form method="post" class="user-tile">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="user-info">
+          <div class="field username">{{ k.name }}</div>
+          <div class="field type">ID: {{ k.key_id }}</div>
+          <div class="field expires">Luotu: {{ k.created_at }}</div>
+          <div class="field role">{% if k.revoked %}Peruttu{% else %}Aktiivinen{% endif %}</div>
+        </div>
+        <div class="buttons">
+          <button type="submit" name="delete_key" value="{{ k.key_id }}" class="delete-btn">Poista</button>
+        </div>
+      </form>
+      {% endfor %}
+    {% else %}
+      <div class="edit-card" style="grid-column:1 / -1;">
+        <p>Ei API-avaimia vielä.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/flash.js') }}"></script>
+<script src="{{ url_for('static', filename='js/api_keys.js') }}"></script>
+{% endblock %}
+

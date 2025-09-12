@@ -7,7 +7,7 @@ from dataclasses import asdict
 import time
 from ...utils import (
     check_vals, get_ctrl, require_admin_or_redirect, combine_local_date_time,
-    can_edit_user, can_delete_user, flash_error, flash_success,
+    can_edit_user, can_delete_user, flash_error, flash_success, flash_info,
     get_new_password_pair, validate_password_pair,
 )
 from ...core.controller import Controller
@@ -335,3 +335,30 @@ def logs():
     ctrl: Controller = get_ctrl()
     logs = ctrl.get_logs(limit=200)
     return render_template('logs.html', logs=logs)
+
+
+@web_bp.route('/settings/api_keys', methods=['GET', 'POST'])
+@login_required
+def api_keys():
+    """Manage API keys (UI only; backend implemented in next step)."""
+    guard = require_admin_or_redirect("Sinulla ei ole oikeuksia hallita API-avaimia.", 'web.get_settings_page')
+    if guard:
+        return guard
+
+    # Placeholder list until backend is added
+    keys = []
+
+    if request.method == 'POST':
+        if 'create_key' in request.form:
+            name = (request.form.get('key_name') or '').strip()
+            if not name:
+                flash_error('Anna nimi API-avaimelle.')
+            else:
+                # Will be replaced with real creation in Step 2
+                flash_info('API-avaimen luonti toteutetaan seuraavassa vaiheessa.')
+        elif 'delete_key' in request.form:
+            # Will be replaced with real deletion in Step 2
+            flash_info('API-avaimen poisto toteutetaan seuraavassa vaiheessa.')
+        # Fall through to render
+
+    return render_template('api_keys.html', keys=keys, created_key=None)
