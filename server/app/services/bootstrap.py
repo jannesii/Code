@@ -46,7 +46,7 @@ def init_services(app) -> Dict[str, Any]:
     services: Dict[str, Any] = {}
 
     # Ensure Socket event handlers are registered (singleton takes care of idempotency)
-    SocketEventHandler(socketio, app.ctrl)  # type: ignore[attr-defined]
+    app.sio_handler = SocketEventHandler(socketio, app.ctrl)  # type: ignore[attr-defined]
 
     # --- AC / Thermostat ---
     ACCESS_ID = os.getenv("TUYA_ACCESS_ID")
