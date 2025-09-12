@@ -10,6 +10,7 @@ from ...core.controller import Controller
 from typing import Any, Dict
 from datetime import timedelta
 from ...extensions import csrf
+from ...security import require_api_key
 from datetime import timezone
 
 # In-memory state for ESP32 test telemetry (no DB persistence)
@@ -112,15 +113,14 @@ def serve_tmp_file():
 
 
 @api_bp.route('/esp32_test', methods=['GET', 'POST'])
-@csrf.exempt  # Unprotected endpoint for ESP32 test pings
+@csrf.exempt
 def esp32_test():
     """
-    Unprotected endpoint for testing ESP32 Wi‑Fi/internet connectivity.
+    Protected endpoint for testing ESP32 Wi‑Fi/internet connectivity.
 
-    - POST: device sends JSON every second: { location, uptime_ms, ... }
-            We store last payload in memory only.
-    - GET:  returns a standalone HTML page. If `?format=json` or the
-            request prefers JSON, returns latest status JSON instead.
+    - Requires API key (Authorization: Bearer <token> or X-API-Key).
+    - POST: device sends JSON every second: { location, uptime_ms, ... } (stored in-memory only).
+    - GET:  returns HTML page by default; `?format=json` returns latest status as JSON.
     """
     global _esp32_test_last
 

@@ -354,12 +354,17 @@ def api_keys():
             if not name:
                 flash_error('Anna nimi API-avaimelle.')
             else:
-                try:
-                    _, token = ctrl.create_api_key(name=name, created_by=current_user.get_id())
-                    created_token = token  # show once
-                    flash_success('API-avain luotu.')
-                except Exception as e:
-                    flash_error(f'API-avaimen luonti epäonnistui: {e}')
+                # Prevent duplicate names (case-insensitive)
+                existing = ctrl.list_api_keys()
+                if any(k.name.lower() == name.lower() for k in existing):
+                    flash_error('Samanniminen API-avain on jo olemassa.')
+                else:
+                    try:
+                        _, token = ctrl.create_api_key(name=name, created_by=current_user.get_id())
+                        created_token = token  # show once
+                        flash_success('API-avain luotu.')
+                    except Exception as e:
+                        flash_error(f'API-avaimen luonti epäonnistui: {e}')
         elif 'delete_key' in request.form:
             key_id = (request.form.get('delete_key') or '').strip()
             if not key_id:
