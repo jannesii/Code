@@ -340,13 +340,13 @@ def logs():
 @web_bp.route('/settings/api_keys', methods=['GET', 'POST'])
 @login_required
 def api_keys():
-    """Manage API keys (UI only; backend implemented in next step)."""
+    """Manage API keys: create and delete (secure storage)."""
     guard = require_admin_or_redirect("Sinulla ei ole oikeuksia hallita API-avaimia.", 'web.get_settings_page')
     if guard:
         return guard
 
-    # Placeholder list until backend is added
-    keys = []
+    ctrl: Controller = get_ctrl()
+    created_token: str | None = None
 
     if request.method == 'POST':
         if 'create_key' in request.form:
@@ -354,11 +354,23 @@ def api_keys():
             if not name:
                 flash_error('Anna nimi API-avaimelle.')
             else:
-                # Will be replaced with real creation in Step 2
-                flash_info('API-avaimen luonti toteutetaan seuraavassa vaiheessa.')
+                try:
+                    _, token = ctrl.create_api_key(name=name, created_by=current_user.get_id())
+                    created_token = token  # show once
+                    flash_success('API-avain luotu.')
+                except Exception as e:
+                    flash_error(f'API-avaimen luonti epäonnistui: {e}')
         elif 'delete_key' in request.form:
-            # Will be replaced with real deletion in Step 2
-            flash_info('API-avaimen poisto toteutetaan seuraavassa vaiheessa.')
+            key_id = (request.form.get('delete_key') or '').strip()
+            if not key_id:
+                flash_error('Virheellinen avaimen tunniste.')
+            else:
+                try:
+                    ctrl.delete_api_key(key_id)
+                    flash_success('API-avain poistettu.')
+                except Exception as e:
+                    flash_error(f'Poisto epäonnistui: {e}')
         # Fall through to render
 
-    return render_template('api_keys.html', keys=keys, created_key=None)
+    keys = ctrl.list_api_keys()
+    return render_template('api_keys.html', keys=keys, created_key=created_token)

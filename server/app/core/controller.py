@@ -8,10 +8,12 @@ from flask_login import current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 
-from .models import User, TemperatureHumidity, ESP32TemperatureHumidity, Status, ImageData, TimelapseConf, ThermostatConf
+from .models import User, TemperatureHumidity, ESP32TemperatureHumidity, Status, ImageData, TimelapseConf, ThermostatConf, ApiKey
 from .database import DatabaseManager
 import pytz
 import sqlite3
+import secrets
+import hashlib
 
 logger = logging.getLogger(__name__)
 
@@ -512,6 +514,100 @@ class Controller:
             (limit,)
         )
         return [dict(row) for row in rows]
+
+    # --- API key management ---
+    def create_api_key(self, name: str, created_by: str | None = None) -> tuple[ApiKey, str]:
+        """Create a new API key. Stores only a salted hash; returns the full token once.
+
+        Token format: 'sk_' + key_id + '_' + secret
+        - key_id: 16 hex chars (64-bit randomness)
+        - secret: 43+ chars URL-safe random string
+        """
+        if not name or not name.strip():
+            raise ValueError("Key name is required")
+        key_id = secrets.token_hex(8)  # 64-bit id, hex
+        secret = secrets.token_urlsafe(32)
+        token = f"sk_{key_id}_{secret}"
+        # Use a password hash to store the secret (includes salt and iterations)
+        secret_hash = generate_password_hash(secret)
+        now = datetime.now(self.finland_tz).isoformat()
+        self.db.execute_query(
+            "INSERT INTO api_keys (key_id, name, secret_hash, created_at, created_by, revoked, last_used_at) VALUES (?, ?, ?, ?, ?, 0, NULL)",
+            (key_id, name.strip(), secret_hash, now, created_by)
+        )
+        row = self.db.fetchone(
+            "SELECT id, key_id, name, created_at, created_by, revoked, last_used_at FROM api_keys WHERE key_id = ?",
+            (key_id,)
+        )
+        if row is None:
+            raise RuntimeError("Failed to create API key")
+        api_key = ApiKey(
+            id=row['id'], key_id=row['key_id'], name=row['name'], created_at=row['created_at'],
+            created_by=row['created_by'], revoked=bool(row['revoked']), last_used_at=row['last_used_at']
+        )
+        return api_key, token
+
+    def list_api_keys(self) -> list[ApiKey]:
+        rows = self.db.fetchall(
+            "SELECT id, key_id, name, created_at, created_by, revoked, last_used_at FROM api_keys ORDER BY id DESC",
+            ()
+        )
+        return [
+            ApiKey(
+                id=row['id'], key_id=row['key_id'], name=row['name'], created_at=row['created_at'],
+                created_by=row['created_by'], revoked=bool(row['revoked']), last_used_at=row['last_used_at']
+            )
+            for row in rows
+        ]
+
+    def delete_api_key(self, key_id: str) -> None:
+        self.db.execute_query("DELETE FROM api_keys WHERE key_id = ?", (key_id,))
+
+    def revoke_api_key(self, key_id: str) -> None:
+        self.db.execute_query("UPDATE api_keys SET revoked = 1 WHERE key_id = ?", (key_id,))
+
+    def verify_api_key_token(self, token: str) -> dict | None:
+        """Verify a presented API key token and return key metadata on success.
+
+        On success, updates last_used_at. Returns dict with key fields; otherwise None.
+        """
+        try:
+            if not token or not token.startswith('sk_'):
+                return None
+            rest = token[3:]
+            idx = rest.find('_')
+            if idx <= 0:
+                return None
+            key_id = rest[:idx]
+            secret = rest[idx + 1:]
+            if not key_id or not secret:
+                return None
+        except Exception:
+            return None
+
+        row = self.db.fetchone(
+            "SELECT id, key_id, name, secret_hash, created_at, created_by, revoked, last_used_at FROM api_keys WHERE key_id = ?",
+            (key_id,)
+        )
+        if row is None or bool(row['revoked']):
+            return None
+        if not check_password_hash(row['secret_hash'], secret):
+            return None
+        # Update last_used_at best-effort
+        try:
+            now = datetime.now(self.finland_tz).isoformat()
+            self.db.execute_query("UPDATE api_keys SET last_used_at = ? WHERE id = ?", (now, row['id']))
+        except Exception:
+            pass
+        return {
+            'id': row['id'],
+            'key_id': row['key_id'],
+            'name': row['name'],
+            'created_at': row['created_at'],
+            'created_by': row['created_by'],
+            'revoked': bool(row['revoked']),
+            'last_used_at': row['last_used_at'],
+        }
 
     # --- Thermostat configuration operations ---
     def get_thermostat_conf(self) -> ThermostatConf | None:

@@ -96,3 +96,13 @@ class ThermostatConf:
     smooth_window: int = 5
     max_stale_s: int | None = 120
 
+
+@dataclass
+class ApiKey:
+    id: int
+    key_id: str
+    name: str
+    created_at: str
+    created_by: str | None
+    revoked: bool
+    last_used_at: str | None = None

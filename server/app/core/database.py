@@ -38,6 +38,16 @@ class DatabaseManager:
                 'is_temporary BOOLEAN DEFAULT 0, '
                 'expires_at TEXT'
             ),
+            'api_keys': (
+                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+                'key_id TEXT UNIQUE NOT NULL, '
+                'name TEXT NOT NULL, '
+                'secret_hash TEXT NOT NULL, '
+                'created_at TEXT NOT NULL, '
+                'created_by TEXT, '
+                'revoked BOOLEAN NOT NULL DEFAULT 0, '
+                'last_used_at TEXT'
+            ),
             'esp32_temphum': (
                 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
                 'location TEXT NOT NULL, '
@@ -104,21 +114,6 @@ class DatabaseManager:
         # Clean up test data if present
         self.cursor.execute("DELETE FROM esp32_temphum WHERE location='Test'")
 
-        # ac_events: ensure table exists (migration for older installs)
-        try:
-            self.cursor.execute("SELECT 1 FROM ac_events LIMIT 1")
-        except Exception:
-            try:
-                self.cursor.execute(
-                    "CREATE TABLE IF NOT EXISTS ac_events ("
-                    "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-                    "timestamp TEXT NOT NULL, "
-                    "is_on BOOLEAN NOT NULL, "
-                    "source TEXT, "
-                    "note TEXT)"
-                )
-            except Exception:
-                pass
         # Insert default values for status and timelapse_conf if they don't exist
         self.cursor.execute("""
         INSERT OR IGNORE INTO status (id, timestamp, status)
@@ -212,6 +207,14 @@ class DatabaseManager:
         try:
             self.cursor.execute(
                 "CREATE INDEX IF NOT EXISTS idx_ac_events_ts ON ac_events (timestamp)"
+            )
+        except Exception:
+            pass
+
+        # Indexes for API keys
+        try:
+            self.cursor.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_api_keys_key_id ON api_keys (key_id)"
             )
         except Exception:
             pass
