@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESP32 Connectivity Test</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; background:#0b0f14; color:#e6edf3; }
+    h1 { font-size: 1.2rem; margin: 0 0 12px; color:#9ecbff; }
+    .card { background:#111822; border:1px solid #263342; border-radius:10px; padding:16px; max-width:720px; }
+    .status { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+    .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+    .dot.online { background:#2ecc71; box-shadow:0 0 8px #2ecc71; }
+    .dot.offline { background:#e74c3c; box-shadow:0 0 8px #e74c3c; }
+    .meta { display:grid; grid-template-columns: 160px 1fr; gap:8px 16px; font-size: 0.95rem; }
+    .key { color:#8b949e; }
+    code { color:#d2a8ff; background:#0b1117; padding:2px 4px; border-radius:4px; }
+    .muted { color:#8b949e; }
+    .small { font-size: 0.9rem; }
+  </style>
+  <meta name="robots" content="noindex,nofollow">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <script>
+    const pollIntervalMs = 1000;
+    let timer = null;
+    function $(id){ return document.getElementById(id); }
+
+    function fmtMs(ms){
+      if(ms == null) return '—';
+      const s = Math.floor(ms/1000);
+      const h = Math.floor(s/3600);
+      const m = Math.floor((s%3600)/60);
+      const ss = s%60;
+      return h>0 ? `${h}h ${m}m ${ss}s` : (m>0 ? `${m}m ${ss}s` : `${ss}s`);
+    }
+
+    function fmtAge(age){
+      if(age == null) return 'never';
+      const s = Math.max(0, Math.floor(age));
+      if(s < 1) return '<1s';
+      if(s < 60) return `${s}s`;
+      if(s < 3600) return `${Math.floor(s/60)}m ${s%60}s`;
+      return `${Math.floor(s/3600)}h`;
+    }
+
+    async function poll(){
+      try{
+        const url = new URL(window.location.href);
+        url.searchParams.set('format','json');
+        const r = await fetch(url.toString(), { headers: { 'Accept':'application/json' }, cache: 'no-store' });
+        const j = await r.json();
+        const online = !!j.online;
+        $('dot').className = 'dot ' + (online ? 'online' : 'offline');
+        $('status_text').textContent = online ? 'Online (data seen recently)' : 'Offline (no recent data)';
+        $('last_seen').textContent = j.last_seen || '—';
+        $('age').textContent = fmtAge(j.age_seconds);
+        $('location').textContent = j.location || '—';
+        $('remote').textContent = j.remote_addr || '—';
+        $('uptime').textContent = fmtMs(j.uptime_ms);
+        $('raw').textContent = JSON.stringify(j.data ?? {}, null, 2);
+      }catch(e){
+        // keep UI as-is on fetch errors
+      }finally{
+        timer = setTimeout(poll, pollIntervalMs);
+      }
+    }
+    window.addEventListener('load', poll);
+    window.addEventListener('beforeunload', ()=>{ if(timer) clearTimeout(timer); });
+  </script>
+  <!-- No links/navigation: page is intentionally standalone and unlisted. -->
+  <noscript><style>.card{display:none}</style></noscript>
+  <style>noscript{color:#e74c3c}</style>
+</head>
+<body>
+  <div class="card">
+    <h1>ESP32 Connectivity Test</h1>
+    <div class="status">
+      <span id="dot" class="dot offline"></span>
+      <strong id="status_text">Offline (no recent data)</strong>
+    </div>
+    <div class="meta">
+      <div class="key">Last seen (UTC)</div><div><code id="last_seen">—</code></div>
+      <div class="key">Age</div><div><code id="age">never</code></div>
+      <div class="key">Location</div><div><code id="location">—</code></div>
+      <div class="key">Remote IP</div><div><code id="remote">—</code></div>
+      <div class="key">Uptime</div><div><code id="uptime">—</code></div>
+    </div>
+    <p class="muted small">Page refreshes every second. Device should POST once/second when online.</p>
+    <pre id="raw" class="small" style="background:#0b1117; border:1px solid #263342; border-radius:8px; padding:10px; overflow:auto; max-height:240px; margin-top:12px;">{}</pre>
+  </div>
+  <noscript>Enable JavaScript to see live status.</noscript>
+  <!-- Example POST payload (JSON): {"location":"desk","uptime_ms":123456} -->
+</body>
+</html>
+

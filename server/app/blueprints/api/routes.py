@@ -4,11 +4,22 @@ import os
 import tempfile
 from datetime import datetime
 import pytz
-from flask import Blueprint, request, jsonify, current_app, send_from_directory
+from flask import Blueprint, request, jsonify, current_app, send_from_directory, render_template
 from flask_login import login_required, current_user
 from ...core.controller import Controller
 from typing import Any, Dict
 from datetime import timedelta
+from ...extensions import csrf
+from datetime import timezone
+
+# In-memory state for ESP32 test telemetry (no DB persistence)
+_esp32_test_last: dict[str, Any] = {
+    'last_seen': None,   # UTC datetime
+    'location': None,    # str | None
+    'uptime_ms': None,   # int | None
+    'remote_addr': None, # str | None
+    'data': None,        # original payload
+}
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 logger = logging.getLogger(__name__)
@@ -98,6 +109,78 @@ def serve_tmp_file():
     # In production, you may want to sanitize `path`!
     temp_dir = tempfile.gettempdir()
     return send_from_directory(temp_dir, 'preview.jpg')
+
+
+@api_bp.route('/esp32_test', methods=['GET', 'POST'])
+@csrf.exempt  # Unprotected endpoint for ESP32 test pings
+def esp32_test():
+    """
+    Unprotected endpoint for testing ESP32 Wi‑Fi/internet connectivity.
+
+    - POST: device sends JSON every second: { location, uptime_ms, ... }
+            We store last payload in memory only.
+    - GET:  returns a standalone HTML page. If `?format=json` or the
+            request prefers JSON, returns latest status JSON instead.
+    """
+    global _esp32_test_last
+
+    if request.method == 'POST':
+        payload = request.get_json(silent=True) or {}
+        # Normalize/validate minimal fields
+        location = (payload.get('location') or 'default') if isinstance(payload, dict) else 'default'
+        try:
+            uptime_ms = int(payload.get('uptime_ms')) if isinstance(payload, dict) and 'uptime_ms' in payload else None
+        except Exception:
+            uptime_ms = None
+        remote = (request.headers.get('X-Forwarded-For') or request.remote_addr or '').split(',')[0].strip()
+        now_utc = datetime.now(timezone.utc)
+
+        _esp32_test_last = {
+            'last_seen': now_utc,
+            'location': location,
+            'uptime_ms': uptime_ms,
+            'remote_addr': remote,
+            'data': payload,
+        }
+        logger.info("/api/esp32_test POST from %s loc=%s uptime_ms=%s", remote, location, uptime_ms)
+        return jsonify({
+            'ok': True,
+            'received': {'location': location, 'uptime_ms': uptime_ms},
+            'server_time': now_utc.isoformat(),
+        })
+
+    # GET — return JSON if requested, otherwise render minimal standalone page
+    def _status_json() -> Dict[str, Any]:
+        last = _esp32_test_last
+        now_utc = datetime.now(timezone.utc)
+        last_seen = last.get('last_seen')
+        age_s = None
+        online = False
+        if last_seen is not None:
+            try:
+                age_s = (now_utc - last_seen).total_seconds()
+                online = age_s is not None and age_s <= 5.0
+            except Exception:
+                age_s = None
+                online = False
+        return {
+            'online': bool(online),
+            'age_seconds': age_s,
+            'last_seen': last_seen.isoformat() if last_seen else None,
+            'location': last.get('location'),
+            'uptime_ms': last.get('uptime_ms'),
+            'remote_addr': last.get('remote_addr'),
+            'data': last.get('data'),
+        }
+
+    wants_json = (
+        request.args.get('format') == 'json' or
+        request.args.get('json') in {'1', 'true', 'yes'} or
+        (request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html'])
+    )
+    if wants_json:
+        return jsonify(_status_json())
+    return render_template('esp32_test.html')
 
 
 @api_bp.route('/ac/status')
