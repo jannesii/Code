@@ -157,6 +157,20 @@
     });
   }
 
+  // Temporary sleep override: disable sleep for X minutes
+  const disableInput = document.getElementById('sleepDisableMinutes');
+  const disableBtn = document.getElementById('btnSleepDisableFor');
+  if (disableBtn){
+    disableBtn.addEventListener('click', () => {
+      const raw = disableInput ? parseInt(disableInput.value, 10) : NaN;
+      let minutes = Number.isFinite(raw) ? raw : 0;
+      if (minutes < 5) minutes = 5;
+      // snap to 5-minute steps
+      minutes = Math.max(5, Math.round(minutes / 5) * 5);
+      if (window.socket){ window.socket.emit('ac_control', { action: 'disable_sleep_for', minutes }); }
+    });
+  }
+
   // Auto-save thermostat settings on change
   const sp  = document.getElementById('modalSetpointC');
   const hyP = document.getElementById('modalHysteresisPos');

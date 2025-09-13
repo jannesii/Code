@@ -17,6 +17,14 @@
             <label>Enabled</label>
             <button id="btnSleepToggle" class="btn">Enable Sleep</button>
           </div>
+          <div class="row">
+            <label for="sleepDisableMinutes">Disable sleep for</label>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <input id="sleepDisableMinutes" type="number" step="5" min="5" value="30" title="Minutes" />
+              <span class="sep">minutes</span>
+              <button id="btnSleepDisableFor" class="btn">Apply</button>
+            </div>
+          </div>
           <div class="divider"></div>
           <div class="row"><em style="color:#aaa; font-size:0.9rem;">Overnight schedule per day: End = this day morning, Start = this day evening.</em></div>
           <div class="row"><label>Mon</label><input id="sleep_mon_stop" type="time" title="End (Monday morning)" /><input id="sleep_mon_start" type="time" title="Start (Monday evening)" /></div>

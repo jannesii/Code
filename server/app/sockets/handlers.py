@@ -423,6 +423,14 @@ class SocketEventHandler:
                     return
                 ac_thermo.set_sleep_schedule(sched)
                 return
+            if action == 'disable_sleep_for':
+                try:
+                    minutes = int(data.get('minutes'))
+                except Exception:
+                    self.socketio.emit('error', {'message': 'Invalid minutes for sleep override'})
+                    return
+                ac_thermo.disable_sleep_for(minutes)
+                return
             self.socketio.emit(
                 'error', {'message': f'Invalid AC control action: {action}'})
             self.logger.warning("Bad ac_control action: %s", action)

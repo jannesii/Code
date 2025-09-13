@@ -42,6 +42,8 @@ class ACThermostat:
             "fan_speed_enum") if isinstance(ac_status, dict) else None
         self._enabled: bool = bool(getattr(cfg, 'thermo_active', True))
         self._is_sleep_time = self._is_sleep_time_window_now()
+        # Temporary override to suppress sleep window until given epoch seconds
+        self._sleep_override_until: Optional[float] = None
         self._last_change_ts: float = 0.0
         logger.debug(
             f"thermo: init {cfg} is_on={self._is_on} mode={self._mode} fan={self._fan_speed}")
@@ -228,6 +230,16 @@ class ACThermostat:
         # { mon: {start:"HH:MM", stop:"HH:MM"}, tue: {...}, ... }
         if not getattr(self.cfg, 'sleep_active', True):
             return False
+        # Honor temporary override: when active, pretend not in sleep window
+        try:
+            if self._sleep_override_until is not None:
+                now = time.time()
+                if now < float(self._sleep_override_until):
+                    return False
+                # Expired -> clear override
+                self._sleep_override_until = None
+        except Exception:
+            self._sleep_override_until = None
         try:
             weekly = getattr(self.cfg, 'sleep_weekly', None)
             if weekly:
@@ -524,6 +536,22 @@ class ACThermostat:
             logger.debug("thermo: set_sleep_schedule failed: %s", e)
             return
         self._persist_conf()
+        self._emit_sleep_status()
+        self.step_sleep_check()
+
+    def disable_sleep_for(self, minutes: int) -> None:
+        """Temporarily disable sleep enforcement for the given minutes.
+        Does not change persistent sleep configuration.
+        """
+        try:
+            m = int(minutes)
+        except Exception:
+            return
+        if m <= 0:
+            return
+        self._sleep_override_until = time.time() + (m * 60)
+        logger.info("thermo: sleep override enabled for %d minutes (until %.0f)", m, self._sleep_override_until)
+        # Re-evaluate sleep state and inform listeners
         self._emit_sleep_status()
         self.step_sleep_check()
 
