@@ -2,8 +2,7 @@ import logging
 from collections import deque
 import time
 from typing import Any, Dict, List, Optional, Callable
-from datetime import datetime, timezone
-from tuya_iot import TuyaOpenAPI
+from datetime import datetime, timedelta
 import pytz
 from ...core.controller import Controller
 from .controller import ACController
@@ -550,7 +549,7 @@ class ACThermostat:
         if m <= 0:
             return
         self._sleep_override_until = time.time() + (m * 60)
-        logger.info("thermo: sleep override enabled for %d minutes (until %.0f)", m, self._sleep_override_until)
+        logger.info("thermo: sleep override enabled for %d minutes (until %s)", m, (datetime.now() + timedelta(minutes=m)).strftime("%H:%M"))
         # Re-evaluate sleep state and inform listeners
         self._emit_sleep_status()
         self.step_sleep_check()

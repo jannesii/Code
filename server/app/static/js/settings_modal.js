@@ -164,9 +164,8 @@
     disableBtn.addEventListener('click', () => {
       const raw = disableInput ? parseInt(disableInput.value, 10) : NaN;
       let minutes = Number.isFinite(raw) ? raw : 0;
-      if (minutes < 5) minutes = 5;
+      if (minutes < 1) return;
       // snap to 5-minute steps
-      minutes = Math.max(5, Math.round(minutes / 5) * 5);
       if (window.socket){ window.socket.emit('ac_control', { action: 'disable_sleep_for', minutes }); }
     });
   }
