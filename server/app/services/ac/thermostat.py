@@ -10,7 +10,7 @@ from .controller import ACController
 from ...core.models import ThermostatConf
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 # ----------------------------
 # Thermostat loop (no device temp reads)
@@ -216,9 +216,12 @@ class ACThermostat:
         except Exception:
             return None
 
-    def _now_minutes_local(self) -> int:
+    def _now_minutes_local(self, hhmm = False) -> int:
         lt = time.localtime()
-        return lt.tm_hour * 60 + lt.tm_min
+        minutes = lt.tm_hour * 60 + lt.tm_min
+        if hhmm:
+            return minutes, datetime.now(self.tz).strftime("%H:%M")
+        return minutes
 
     def _is_sleep_time_window_now(self) -> bool:
         """Return True if current local time falls within configured sleep window.
@@ -246,14 +249,15 @@ class ACThermostat:
                     stop_m = self._parse_hhmm_to_minutes(stop)
                     if start_m is None or stop_m is None:
                         return False
-                    now_m = self._now_minutes_local()
+                    now_m, now = self._now_minutes_local(hhmm=True)
                     if start_m == stop_m:
                         return False
                     if start_m < stop_m:
                         return start_m <= now_m < stop_m
-                    return (now_m >= start_m) or (now_m < stop_m)
+                    active = (now_m >= start_m) or (now_m < stop_m)
+                    return active
         except Exception as e:
-            logger.debug("thermo: failed weekly sleep parse: %s", e)
+            logger.exception("thermo: failed weekly sleep parse: %s", e)
         # Fallback: single start/stop
         start_m = self._parse_hhmm_to_minutes(self.cfg.sleep_start)
         stop_m = self._parse_hhmm_to_minutes(self.cfg.sleep_stop)
@@ -415,10 +419,14 @@ class ACThermostat:
                     "setpoint_c": float(self.cfg.target_temp),
                     "pos_hysteresis": float(self.cfg.pos_hysteresis),
                     "neg_hysteresis": float(self.cfg.neg_hysteresis),
+                    "min_on_s": int(self.cfg.min_on_s),
+                    "min_off_s": int(self.cfg.min_off_s),
+                    "poll_interval_s": int(self.cfg.poll_interval_s),
+                    "smooth_window": int(self.cfg.smooth_window),
+                    "max_stale_s": None if self.cfg.max_stale_s is None else int(self.cfg.max_stale_s),
                 }
                 try:
-                    payload["control_locations"] = getattr(
-                        self.cfg, 'control_locations', None)
+                    payload["control_locations"] = getattr(self.cfg, 'control_locations', None)
                 except Exception:
                     pass
                 self.notify('thermo_config', payload)
@@ -491,12 +499,14 @@ class ACThermostat:
         self.cfg.sleep_active = bool(enabled)
         self._persist_conf()
         self._emit_sleep_status()
+        self.step_sleep_check()
 
     def set_sleep_times(self, start: Optional[str], stop: Optional[str]) -> None:
         self.cfg.sleep_start = start
         self.cfg.sleep_stop = stop
         self._persist_conf()
         self._emit_sleep_status()
+        self.step_sleep_check()
 
     def set_sleep_schedule(self, schedule: Dict[str, Dict[str, Optional[str]]]) -> None:
         """Set weekly sleep schedule from dict mapping days to {start, stop}."""
@@ -520,6 +530,7 @@ class ACThermostat:
             return
         self._persist_conf()
         self._emit_sleep_status()
+        self.step_sleep_check()
         
     # Thermostat parameters
 
@@ -555,7 +566,69 @@ class ACThermostat:
         split = d / 2.0
         self.set_hysteresis_split(split, split)
 
+    # --- Runtime config setters ---
+    def set_min_on_s(self, seconds: int) -> None:
+        try:
+            v = int(seconds)
+            if v < 0:
+                return
+            self.cfg.min_on_s = v
+        except Exception:
+            return
+        self._persist_conf()
+        self._emit_config()
+
+    def set_min_off_s(self, seconds: int) -> None:
+        try:
+            v = int(seconds)
+            if v < 0:
+                return
+            self.cfg.min_off_s = v
+        except Exception:
+            return
+        self._persist_conf()
+        self._emit_config()
+
+    def set_poll_interval_s(self, seconds: int) -> None:
+        try:
+            v = int(seconds)
+            if v <= 0:
+                return
+            self.cfg.poll_interval_s = v
+        except Exception:
+            return
+        self._persist_conf()
+        self._emit_config()
+
+    def set_smooth_window(self, n: int) -> None:
+        try:
+            v = int(n)
+            if v < 1:
+                v = 1
+            self.cfg.smooth_window = v
+            # Recreate smoothing buffer with new window size
+            from collections import deque as _dq
+            self._temps = _dq(self._temps, maxlen=max(1, v))
+        except Exception:
+            return
+        self._persist_conf()
+        self._emit_config()
+
+    def set_max_stale_s(self, seconds: Optional[int]) -> None:
+        try:
+            if seconds is None:
+                self.cfg.max_stale_s = None
+            else:
+                v = int(seconds)
+                self.cfg.max_stale_s = None if v < 0 else v
+        except Exception:
+            return
+        self._persist_conf()
+        self._emit_config()
+
     def step_sleep_check(self) -> None:
+        logger.debug("thermo: step_sleep_check: sleep_active=%s is_sleep_time=%s is_on=%s",
+                     getattr(self.cfg, 'sleep_active', True), self._is_sleep_time(), self._is_on)
         if self._is_sleep_time():
             if self._is_on:
                 if self._can_turn_off():
@@ -576,6 +649,7 @@ class ACThermostat:
             return
 
     def step_on_off_check(self) -> None:
+        start = time.perf_counter()
         temp = self._read_external_temp()
         if temp is None:
             logger.warning(
@@ -642,6 +716,7 @@ class ACThermostat:
                     reasons.append(f"min-on {wait:.0f}s")
                 if reasons:
                     logger.debug("thermo: staying ON: %s", ", ".join(reasons))
+        logger.debug
 
     def step(self):
         """One control step using external temperature."""

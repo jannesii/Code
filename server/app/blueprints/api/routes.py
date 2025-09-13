@@ -254,6 +254,11 @@ def get_ac_status():
             "setpoint_c": float(getattr(ac_thermo.cfg, 'target_temp', 0.0)),
             "pos_hysteresis": float(getattr(ac_thermo.cfg, 'pos_hysteresis', 0.0)),
             "neg_hysteresis": float(getattr(ac_thermo.cfg, 'neg_hysteresis', 0.0)),
+            "min_on_s": int(getattr(ac_thermo.cfg, 'min_on_s', 240)),
+            "min_off_s": int(getattr(ac_thermo.cfg, 'min_off_s', 240)),
+            "poll_interval_s": int(getattr(ac_thermo.cfg, 'poll_interval_s', 15)),
+            "smooth_window": int(getattr(ac_thermo.cfg, 'smooth_window', 5)),
+            "max_stale_s": getattr(ac_thermo.cfg, 'max_stale_s', None),
             "control_locations": getattr(ac_thermo.cfg, 'control_locations', None),
         })
     except Exception as e:

@@ -518,6 +518,11 @@ function setThermoConfigUI(data){
   const hyNegMain = document.getElementById('hysteresisNeg');
   const hyPosModal = document.getElementById('modalHysteresisPos');
   const hyNegModal = document.getElementById('modalHysteresisNeg');
+  const minOnEl = document.getElementById('modalMinOnS');
+  const minOffEl= document.getElementById('modalMinOffS');
+  const pollEl  = document.getElementById('modalPollS');
+  const smoothEl= document.getElementById('modalSmoothWindow');
+  const staleEl = document.getElementById('modalMaxStaleS');
   if ('setpoint_c' in data){
     const v = parseFloat(data.setpoint_c);
     if (!Number.isNaN(v)){
@@ -539,6 +544,11 @@ function setThermoConfigUI(data){
       if (hyNegModal) hyNegModal.value = v.toFixed(1);
     }
   }
+  if ('min_on_s' in data && minOnEl) minOnEl.value = parseInt(data.min_on_s)||0;
+  if ('min_off_s' in data && minOffEl) minOffEl.value = parseInt(data.min_off_s)||0;
+  if ('poll_interval_s' in data && pollEl) pollEl.value = parseInt(data.poll_interval_s)||15;
+  if ('smooth_window' in data && smoothEl) smoothEl.value = parseInt(data.smooth_window)||1;
+  if ('max_stale_s' in data && staleEl) staleEl.value = (data.max_stale_s == null ? '' : parseInt(data.max_stale_s));
 }
 
 // --- Avg rates / power ---
@@ -606,7 +616,7 @@ function updateSummary(items){
 
   const vals = (Array.isArray(items) ? items : []).map(x => Number(x.temp)).filter(Number.isFinite);
   if (!vals.length){
-    avgEl.textContent = 'Keskiarvo: —';
+    avgEl.textContent = 'AVG: —';
     minEl.textContent = 'Min: —';
     maxEl.textContent = 'Max: —';
     return;
@@ -620,7 +630,7 @@ function updateSummary(items){
       if (t > maxV){ maxV = t; maxN = it.name || it.location || '—'; }
     }
   }
-  avgEl.textContent = `Keskiarvo: ${avg.toFixed(1)}°C`;
+  avgEl.textContent = `AVG: ${avg.toFixed(1)}°C`;
   minEl.textContent = `Min: ${Number.isFinite(minV) ? minV.toFixed(1)+'°C' : '—'} (${minN})`;
   maxEl.textContent = `Max: ${Number.isFinite(maxV) ? maxV.toFixed(1)+'°C' : '—'} (${maxN})`;
 }

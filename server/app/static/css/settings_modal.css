@@ -45,6 +45,8 @@
 #settingsModal .form-grid { display: grid; gap: 0.6rem; }
 #settingsModal .row { display:flex; align-items:center; justify-content:space-between; gap: 12px; }
 #settingsModal label { color:#bbb; min-width: 160px; }
+/* Visual hint arrow between times */
+#settingsModal .sep { color:#888; font-size:0.95rem; margin: 0 6px; white-space: nowrap; }
 
 /* Sensor locations selection */
 .loc-select{ display:flex; flex-wrap:wrap; gap:8px; }
@@ -55,8 +57,8 @@
 
 #settingsModal input[type="number"],
 #settingsModal input[type="time"] {
-  background:#2a2a2a; color:#ddd; border:1px solid #444;
-  border-radius:6px; padding:6px 8px; height:36px;
+  text-align: center; background:#2a2a2a; color:#ddd; border:1px solid #444;
+  border-radius:6px; padding:6px 8px; height:36px; width: 90px;
 }
 
 #settingsModal .actions { display:flex; justify-content:flex-end; }

@@ -240,6 +240,12 @@ class SocketEventHandler:
                 'error', {'message': 'Invalid AC control payload'})
             self.logger.warning("Bad ac_control payload: %s", data)
             return
+        elif not current_user.is_admin:
+            self.flash(
+                "You do not have permission to perform AC control actions.",
+                'error'
+            )
+            return
         action = (data.get('action') or '').strip()
         self.logger.info("Received ac_control: %s", action)
         ac_thermo: ACThermostat | None = getattr(
@@ -308,6 +314,50 @@ class SocketEventHandler:
                         'error', {'message': 'Invalid hysteresis values'})
                     return
                 ac_thermo.set_hysteresis_split(pos, neg)
+                return
+            if action == 'set_min_on_s':
+                try:
+                    v = int(data.get('value'))
+                except Exception:
+                    self.socketio.emit('error', {'message': 'Invalid min_on_s'})
+                    return
+                ac_thermo.set_min_on_s(v)
+                return
+            if action == 'set_min_off_s':
+                try:
+                    v = int(data.get('value'))
+                except Exception:
+                    self.socketio.emit('error', {'message': 'Invalid min_off_s'})
+                    return
+                ac_thermo.set_min_off_s(v)
+                return
+            if action == 'set_poll_interval_s':
+                try:
+                    v = int(data.get('value'))
+                except Exception:
+                    self.socketio.emit('error', {'message': 'Invalid poll_interval_s'})
+                    return
+                ac_thermo.set_poll_interval_s(v)
+                return
+            if action == 'set_smooth_window':
+                try:
+                    v = int(data.get('value'))
+                except Exception:
+                    self.socketio.emit('error', {'message': 'Invalid smooth_window'})
+                    return
+                ac_thermo.set_smooth_window(v)
+                return
+            if action == 'set_max_stale_s':
+                # Allow null to disable stale filtering
+                raw = data.get('value')
+                v = None
+                if raw not in (None, ''):
+                    try:
+                        v = int(raw)
+                    except Exception:
+                        self.socketio.emit('error', {'message': 'Invalid max_stale_s'})
+                        return
+                ac_thermo.set_max_stale_s(v)
                 return
             if action == 'set_control_locations':
                 locs = data.get('locations')

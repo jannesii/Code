@@ -58,6 +58,16 @@
         if (sp  && 'setpoint_c'     in data){ const v = parseFloat(data.setpoint_c); if (!Number.isNaN(v)) sp.value  = v.toFixed(1); }
         if (hyP && 'pos_hysteresis' in data){ const v = parseFloat(data.pos_hysteresis); if (!Number.isNaN(v)) hyP.value = v.toFixed(1); }
         if (hyN && 'neg_hysteresis' in data){ const v = parseFloat(data.neg_hysteresis); if (!Number.isNaN(v)) hyN.value = v.toFixed(1); }
+        const minOn = document.getElementById('modalMinOnS');
+        const minOff= document.getElementById('modalMinOffS');
+        const pollS = document.getElementById('modalPollS');
+        const smooth= document.getElementById('modalSmoothWindow');
+        const stale = document.getElementById('modalMaxStaleS');
+        if (minOn && 'min_on_s' in data) minOn.value = parseInt(data.min_on_s)||0;
+        if (minOff&& 'min_off_s' in data) minOff.value= parseInt(data.min_off_s)||0;
+        if (pollS && 'poll_interval_s' in data) pollS.value = parseInt(data.poll_interval_s)||15;
+        if (smooth&& 'smooth_window' in data) smooth.value= parseInt(data.smooth_window)||1;
+        if (stale) stale.value = (data.max_stale_s == null ? '' : parseInt(data.max_stale_s));
         // Populate location selection
         const cont = document.getElementById('ctrlLocContainer');
         if (cont){
@@ -151,6 +161,11 @@
   const sp  = document.getElementById('modalSetpointC');
   const hyP = document.getElementById('modalHysteresisPos');
   const hyN = document.getElementById('modalHysteresisNeg');
+  const minOn = document.getElementById('modalMinOnS');
+  const minOff= document.getElementById('modalMinOffS');
+  const pollS = document.getElementById('modalPollS');
+  const smooth= document.getElementById('modalSmoothWindow');
+  const stale = document.getElementById('modalMaxStaleS');
   function emitSetpoint(){
     if (!sp) return;
     const v = parseFloat(sp.value);
@@ -174,4 +189,10 @@
   if (sp){ sp.addEventListener('input', debounce(emitSetpoint, 'sp')); sp.addEventListener('change', emitSetpoint); }
   if (hyP){ hyP.addEventListener('input', debounce(emitHysteresis)); hyP.addEventListener('change', emitHysteresis); }
   if (hyN){ hyN.addEventListener('input', debounce(emitHysteresis)); hyN.addEventListener('change', emitHysteresis); }
+  function emitSimple(action, el, parser){ if (!el) return; const raw = el.value; const v = parser(raw); if (window.socket && v !== undefined) window.socket.emit('ac_control', { action, value: v }); }
+  if (minOn){ minOn.addEventListener('change', () => emitSimple('set_min_on_s', minOn, v=>parseInt(v))); }
+  if (minOff){ minOff.addEventListener('change', () => emitSimple('set_min_off_s', minOff, v=>parseInt(v))); }
+  if (pollS){ pollS.addEventListener('change', () => emitSimple('set_poll_interval_s', pollS, v=>parseInt(v))); }
+  if (smooth){ smooth.addEventListener('change', () => emitSimple('set_smooth_window', smooth, v=>parseInt(v))); }
+  if (stale){ stale.addEventListener('change', () => emitSimple('set_max_stale_s', stale, v=> (v===''? null : parseInt(v)) )); }
 })();
