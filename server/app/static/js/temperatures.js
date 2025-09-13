@@ -363,25 +363,19 @@ document.addEventListener('DOMContentLoaded', () => {
   setSortKey(state.sortKey);
   if (sortDirBtn) sortDirBtn.textContent = (state.sortDir === 'asc') ? '↑' : '↓';
 
-  const sleepEnabled = document.getElementById('sleepEnabled');
+
+  const btnSleepToggle = document.getElementById('btnSleepToggle-main');
   const sleepPill    = document.getElementById('sleepStatusPill');
-  const btnSleepToggle = document.getElementById('btnSleepToggle');
-  const sleepStart   = document.getElementById('sleepStart');
-  const sleepStop    = document.getElementById('sleepStop');
-  const btnSleepSave = document.getElementById('btnSleepSave');
+
   if (btnSleepToggle){
     btnSleepToggle.addEventListener('click', () => {
-      const enabled = sleepPill && sleepPill.classList.contains('ac-on');
-      socket.emit('ac_control', { action: 'set_sleep_enabled', value: !enabled });
+      const enabled = /enable/i.test(btnSleepToggle.textContent || '');
+      socket.emit('ac_control', { action: 'set_sleep_enabled', value: enabled });
+      btnSleepToggle.textContent = enabled ? 'Disable Sleep' : 'Enable Sleep';
     });
   }
-  if (btnSleepSave && sleepStart && sleepStop){
-    btnSleepSave.addEventListener('click', () => {
-      const start = asTimeValue((sleepStart.value || '').trim());
-      const stop  = asTimeValue((sleepStop.value || '').trim());
-      socket.emit('ac_control', { action: 'set_sleep_times', start, stop });
-    });
-  }
+
+
 
   // Prefer modal fields when present
   const sp = document.getElementById('modalSetpointC') || document.getElementById('setpointC');
@@ -427,6 +421,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   if (btnSpDec) btnSpDec.addEventListener('click', () => stepSetpoint(-1));
   if (btnSpInc) btnSpInc.addEventListener('click', () => stepSetpoint(+1));
+  if (sp){
+    sp.addEventListener('change', () => {
+      const v = parseFloat(sp.value);
+      if (!Number.isNaN(v)) socket.emit('ac_control', { action: 'set_setpoint', value: v });
+    });
+  }
 });
 
 function setSelectValue(id, value){
@@ -461,23 +461,42 @@ function setFanUI(fan){
 
 function setSleepUI(data){
   if (!data) return;
-  const sleepEnabled = document.getElementById('sleepEnabled');
   const pill = document.getElementById('sleepStatusPill');
-  const btn  = document.getElementById('btnSleepToggle');
-  const sleepStart   = document.getElementById('sleepStart');
-  const sleepStop    = document.getElementById('sleepStop');
-  if ('sleep_enabled' in data){
-    const en = !!data.sleep_enabled;
-    if (pill){
-      pill.classList.remove('ac-on','ac-off','ac-unknown');
-      if (en){ pill.classList.add('ac-on'); pill.textContent = 'Sleep ON'; }
-      else    { pill.classList.add('ac-off'); pill.textContent = 'Sleep OFF'; }
-    }
-    if (btn){ btn.textContent = en ? 'Disable Sleep' : 'Enable Sleep'; }
-    if (sleepEnabled){ sleepEnabled.checked = en; }
+  if (!pill) return;
+  const enabled = ('sleep_enabled' in data) ? !!data.sleep_enabled : null;
+  const activeNow = ('sleep_time_active' in data) ? !!data.sleep_time_active : null;
+
+  const btnSleepToggleMain = document.getElementById('btnSleepToggle-main');
+  const btnSleepToggle = document.getElementById('btnSleepToggle');
+  if (btnSleepToggle) { btnSleepToggle.textContent = enabled ? 'Disable Sleep' : 'Enable Sleep'; }
+  if (btnSleepToggleMain) { btnSleepToggleMain.textContent = enabled ? 'Disable Sleep' : 'Enable Sleep'; }
+
+  pill.classList.remove('ac-on','ac-off','ac-unknown','ac-idle');
+
+  if (enabled === false){
+    // Disabled -> red
+    pill.classList.add('ac-off');
+    pill.textContent = 'Sleep OFF';
+    return;
   }
-  if (data.sleep_start && sleepStart){ sleepStart.value = asTimeValue(data.sleep_start); }
-  if (data.sleep_stop  && sleepStop ){ sleepStop.value  = asTimeValue(data.sleep_stop); }
+  if (enabled === true){
+    if (activeNow === true){
+      // Enabled and in window -> green
+      pill.classList.add('ac-on');
+      pill.textContent = 'Sleep NOW';
+    } else if (activeNow === false){
+      // Enabled but not in window -> yellow
+      pill.classList.add('ac-idle');
+      pill.textContent = 'Sleep Enabled';
+    } else {
+      pill.classList.add('ac-unknown');
+      pill.textContent = 'Sleep —';
+    }
+    return;
+  }
+  // Unknown state
+  pill.classList.add('ac-unknown');
+  pill.textContent = 'Sleep —';
 }
 
 function asTimeValue(s){

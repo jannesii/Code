@@ -83,7 +83,7 @@
 .toggle-row{ display:flex; align-items:center; gap:8px; }
 .input-row{ display:flex; align-items:center; gap:8px; }
 .field input[type="time"], .input-row input[type="number"]{ height:36px; }
-.field-input { height: 36px; }
+.field-input { height: 36px; text-align: center; }
 .btn-icon{ width:36px; height:36px; padding:0; display:flex; align-items:center; justify-content:center; }
 .toggle-row{ display:flex; align-items:center; gap:8px; }
 .col-label {
@@ -163,6 +163,8 @@
 .ac-on    { background: #12381f; color: #78ffa1; border-color: #226b3d; }
 .ac-off   { background: #3a1616; color: #ff8e8e; border-color: #6b2222; }
 .ac-unknown { background: #2a2a2a; color: #bbb; border-color: #444; }
+/* Sleep enabled but currently not in window */
+.ac-idle  { background: #3a3416; color: #ffe38e; border-color: #6b5f22; }
 
 .ac-controls { display:flex; gap:8px; }
 .ac-controls .btn{

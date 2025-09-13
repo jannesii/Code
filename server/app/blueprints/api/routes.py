@@ -6,6 +6,7 @@ from datetime import datetime
 import pytz
 from flask import Blueprint, request, jsonify, current_app, send_from_directory, render_template
 from flask_login import login_required, current_user
+import threading
 from ...core.controller import Controller
 from ...services.ac.thermostat import ACThermostat
 from typing import Any, Dict
@@ -51,14 +52,17 @@ def get_esp32_temphum():
         for d in data
     ])
 
+ac_check_flag = True
+
 @api_bp.route('/esp32_temphum', methods=['POST'])
 @require_api_key
 @csrf.exempt
 def post_esp32_temphum():
+
     data = request.get_json(silent=True) or {}
     location, temp, hum, error = data.get('location'), data.get(
         'temperature_c'), data.get('humidity_pct'), data.get('error')
-    
+
     if error:
         logger.error(f'ESP32 ERROR: {error} | Location: {location}')
         return jsonify({
@@ -66,7 +70,7 @@ def post_esp32_temphum():
             'error': 'device_error',
             'message': str(error),
         }), 400
-    
+
     if location is None or temp is None or hum is None:
         logger.warning("Bad esp32 temphum payload: %s", data)
         return jsonify({
@@ -74,8 +78,9 @@ def post_esp32_temphum():
             'error': 'invalid_payload',
             'message': 'location, temperature_c, humidity_pct required',
         }), 400
-        
-    valid_locations = ["Keittiö", "Makuuhuone", "Tietokonepöytä", "WC", "Parveke", "test"]
+
+    valid_locations = ["Keittiö", "Makuuhuone",
+                       "Tietokonepöytä", "WC", "Parveke", "test"]
     if location not in valid_locations:
         logger.warning(f"Invalid esp32 location: {location}")
         return jsonify({
@@ -83,7 +88,7 @@ def post_esp32_temphum():
             'error': 'invalid_payload',
             'message': 'Invalid location',
         }), 400
-        
+
     ctrl: Controller = current_app.ctrl
     # Derive current AC state if available
     try:
@@ -107,14 +112,28 @@ def post_esp32_temphum():
         'humidity':    saved.humidity,
         'ac_on':       saved.ac_on
     })
+    def reset_flag():
+        global ac_check_flag
+        ac_check_flag = True
+        
+    # Trigger immediate thermostat check once per minute at most
+    global ac_check_flag
+    if ac_check_flag:
+        ac_check_flag = False
+        # Wait a second to make sure all sensors have reported
+        threading.Timer(1, ac_thermo.step_on_off_check).start() if ac_thermo else None
+        # Reset flag after 10 seconds
+        threading.Timer(10, reset_flag).start()
+        
     return jsonify({
         'ok': True,
         'received': {
-            'location': saved.location, 
+            'location': saved.location,
             'temp': saved.temperature,
             'hum': saved.humidity
         },
     })
+
 
 @api_bp.route('/esp32_test', methods=['GET', 'POST'])
 @csrf.exempt
@@ -194,7 +213,7 @@ def esp32_test():
 
 @api_bp.route('/ac/status')
 @login_required
-def get_ac_status(): 
+def get_ac_status():
     """Return current AC on/off status from the running thermostat."""
     ac_thermo = getattr(current_app, 'ac_thermostat', None)  # type: ignore
     if ac_thermo is None:
@@ -209,6 +228,8 @@ def get_ac_status():
             "sleep_enabled": None,
             "sleep_start": None,
             "sleep_stop": None,
+            "sleep_time_active": None,
+            "sleep_schedule": None,
         }), 503
     try:
         enabled = getattr(ac_thermo, '_enabled', True)
@@ -228,9 +249,12 @@ def get_ac_status():
             "sleep_enabled": bool(getattr(ac_thermo.cfg, 'sleep_active', True)),
             "sleep_start": getattr(ac_thermo.cfg, 'sleep_start', None),
             "sleep_stop": getattr(ac_thermo.cfg, 'sleep_stop', None),
+            "sleep_time_active": bool(ac_thermo._is_sleep_time_window_now()),
+            "sleep_schedule": getattr(ac_thermo.cfg, 'sleep_weekly', None),
             "setpoint_c": float(getattr(ac_thermo.cfg, 'target_temp', 0.0)),
             "pos_hysteresis": float(getattr(ac_thermo.cfg, 'pos_hysteresis', 0.0)),
             "neg_hysteresis": float(getattr(ac_thermo.cfg, 'neg_hysteresis', 0.0)),
+            "control_locations": getattr(ac_thermo.cfg, 'control_locations', None),
         })
     except Exception as e:
         logger.exception("Error reading AC status: %s", e)
@@ -483,6 +507,7 @@ def serve_tmp_file():
     # In production, you may want to sanitize `path`!
     temp_dir = tempfile.gettempdir()
     return send_from_directory(temp_dir, 'preview.jpg')
+
 
 @api_bp.route('/temphum')
 @login_required

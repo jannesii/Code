@@ -19,9 +19,7 @@
 /* Centered dialog */
 #settingsModal .dialog {
   position: relative;
-  width: 95%;
-  max-width: 400px;
-  max-height: 92dvh;
+  min-width: 400px;
   background: #1e1e1e;
   color: #fff;
   border-radius: 8px;
@@ -47,6 +45,13 @@
 #settingsModal .form-grid { display: grid; gap: 0.6rem; }
 #settingsModal .row { display:flex; align-items:center; justify-content:space-between; gap: 12px; }
 #settingsModal label { color:#bbb; min-width: 160px; }
+
+/* Sensor locations selection */
+.loc-select{ display:flex; flex-wrap:wrap; gap:8px; }
+.loc-select .loc-btn{
+  background:#2a2a2a; color:#ddd; border:1px solid #444; border-radius:999px; padding:6px 10px; cursor:pointer;
+}
+.loc-select .loc-btn.active{ background:#3a3a3a; color:#fff; border-color:#666; }
 
 #settingsModal input[type="number"],
 #settingsModal input[type="time"] {

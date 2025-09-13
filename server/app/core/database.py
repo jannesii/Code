@@ -219,6 +219,17 @@ class DatabaseManager:
         except Exception:
             pass
 
+        # Try to add weekly sleep column for thermostat_conf if missing
+        try:
+            self.cursor.execute("ALTER TABLE thermostat_conf ADD COLUMN sleep_weekly TEXT")
+        except Exception:
+            # Ignore if already exists
+            pass
+        try:
+            self.cursor.execute("ALTER TABLE thermostat_conf ADD COLUMN control_locations TEXT")
+        except Exception:
+            pass
+
         self.conn.commit()
 
     def execute_query(

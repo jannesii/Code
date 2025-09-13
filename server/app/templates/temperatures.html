@@ -64,13 +64,15 @@
               <button id="fanHigh" class="seg-btn" data-value="high">High</button>
             </div>
           </div>
-          <div class="field">
-            <label>Thermostat</label>
-            <button id="btnThermoToggle" class="btn w-100">Toggle Thermostat</button>
-          </div>
+          <label>Thermostat & Sleep</label>
+        </div>
+        <div class="settings-buttons">
+          <button id="btnThermoToggle" class="btn">Toggle Thermostat</button>
+          <button id="btnSleepToggle-main" class="btn">Toggle Sleep</button>
         </div>
 
         <div class="divider"></div>
+        <label>Settings</label>
         <div class="settings-buttons">
           <button id="openSleepSettings" class="btn">Sleep settings</button>
           <button id="openThermoSettings" class="btn">Thermostat settings</button>
@@ -81,10 +83,10 @@
     <section class="card readings-card">
       <div class="card-header">
         <div>
-          <h3 style="margin-bottom:4px;">Lämpötila ja kosteus</h3>
+          <h3 style="margin-bottom:4px;">Temperature & Humidity</h3>
         </div>
         <div class="status-row" style="gap:6px; flex-wrap:wrap;">
-          <span id="avgTempPill" class="stat-pill">Keskiarvo: —</span>
+          <span id="avgTempPill" class="stat-pill">AVG: —</span>
           <span id="minTempPill" class="stat-pill">Min: —</span>
           <span id="maxTempPill" class="stat-pill">Max: —</span>
         </div>
@@ -94,12 +96,12 @@
           <input id="filterInput" class="search" type="text" placeholder="Suodata sijainteja..." aria-label="Suodata sijainteja">
           <div class="sort">
             <div class="segmented" role="group" aria-label="Järjestä">
-              <button id="sortName" class="seg-btn" data-key="name">Nimi</button>
-              <button id="sortTemp" class="seg-btn" data-key="temp">Lämpötila</button>
-              <button id="sortHum"  class="seg-btn" data-key="hum">Kosteus</button>
-              <button id="sortUpdated" class="seg-btn" data-key="updated">Aika</button>
+              <button id="sortName" class="seg-btn" data-key="name">Name</button>
+              <button id="sortTemp" class="seg-btn" data-key="temp">Temperature</button>
+              <button id="sortHum"  class="seg-btn" data-key="hum">Humidity</button>
+              <button id="sortUpdated" class="seg-btn" data-key="updated">Time</button>
             </div>
-            <button id="sortDir" class="btn" title="Lajittelusuunta" aria-label="Lajittelusuunta">↑</button>
+            <button id="sortDir" class="btn" title="Sort Direction" aria-label="Sort Direction">↑</button>
           </div>
         </div>
         <div id="locationsGrid" class="locations-grid"></div>

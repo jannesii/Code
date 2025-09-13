@@ -309,6 +309,13 @@ class SocketEventHandler:
                     return
                 ac_thermo.set_hysteresis_split(pos, neg)
                 return
+            if action == 'set_control_locations':
+                locs = data.get('locations')
+                if not isinstance(locs, (list, tuple)):
+                    self.socketio.emit('error', {'message': 'Invalid control locations'})
+                    return
+                ac_thermo.set_control_locations(list(locs))
+                return
             if action == 'status':
                 # Re-emit current statuses to requester(s)
                 self.emit_to_views(
@@ -329,16 +336,24 @@ class SocketEventHandler:
                 self.emit_to_views(
                     'ac_state', {'mode': mode, 'fan_speed': fan})
                 # Emit current sleep configuration as well
-                self.emit_to_views('sleep_status', {
+                payload = {
                     'sleep_enabled': bool(getattr(ac_thermo.cfg, 'sleep_active', True)),
-                    'sleep_start': ac_thermo.cfg.sleep_start,
-                    'sleep_stop': ac_thermo.cfg.sleep_stop,
-                })
+                    'sleep_start': getattr(ac_thermo.cfg, 'sleep_start', None),
+                    'sleep_stop': getattr(ac_thermo.cfg, 'sleep_stop', None),
+                    'sleep_time_active': bool(ac_thermo._is_sleep_time_window_now),
+                }
+                try:
+                    payload['sleep_schedule'] = getattr(
+                        ac_thermo.cfg, 'sleep_weekly', None)
+                except Exception:
+                    pass
+                self.emit_to_views('sleep_status', payload)
                 # Emit thermostat configuration
                 self.emit_to_views('thermo_config', {
                     'setpoint_c': float(getattr(ac_thermo.cfg, 'target_temp', 0.0)),
                     'pos_hysteresis': float(getattr(ac_thermo.cfg, 'pos_hysteresis', 0.0)),
                     'neg_hysteresis': float(getattr(ac_thermo.cfg, 'neg_hysteresis', 0.0)),
+                    'control_locations': getattr(ac_thermo.cfg, 'control_locations', None),
                 })
                 return
             if action == 'set_sleep_enabled':
@@ -349,6 +364,14 @@ class SocketEventHandler:
                 start = (data.get('start') or '').strip() or None
                 stop = (data.get('stop') or '').strip() or None
                 ac_thermo.set_sleep_times(start, stop)
+                return
+            if action == 'set_sleep_schedule':
+                sched = data.get('schedule')
+                if not isinstance(sched, dict):
+                    self.socketio.emit(
+                        'error', {'message': 'Invalid sleep schedule'})
+                    return
+                ac_thermo.set_sleep_schedule(sched)
                 return
             self.socketio.emit(
                 'error', {'message': f'Invalid AC control action: {action}'})

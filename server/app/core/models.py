@@ -82,6 +82,10 @@ class ThermostatConf:
     sleep_active: bool = True
     sleep_start: str | None = None
     sleep_stop: str | None = None
+    # Optional weekly schedule as JSON string mapping days → {start, stop}
+    sleep_weekly: str | None = None
+    # Optional list of sensor locations used to compute control temperature (JSON string)
+    control_locations: str | None = None
     target_temp: float = 24.5
     pos_hysteresis: float = 0.5
     neg_hysteresis: float = 0.5

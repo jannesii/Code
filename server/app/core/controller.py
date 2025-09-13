@@ -613,7 +613,7 @@ class Controller:
     def get_thermostat_conf(self) -> ThermostatConf | None:
         row = self.db.fetchone(
             """
-            SELECT id, sleep_active, sleep_start, sleep_stop, target_temp, pos_hysteresis, neg_hysteresis, thermo_active,
+            SELECT id, sleep_active, sleep_start, sleep_stop, sleep_weekly, control_locations, target_temp, pos_hysteresis, neg_hysteresis, thermo_active,
                    total_on_s, total_off_s,
                    min_on_s, min_off_s, poll_interval_s, smooth_window, max_stale_s,
                    current_phase, phase_started_at
@@ -628,6 +628,8 @@ class Controller:
             sleep_active=bool(row['sleep_active']),
             sleep_start=row['sleep_start'],
             sleep_stop=row['sleep_stop'],
+            sleep_weekly=(row['sleep_weekly'] if 'sleep_weekly' in row.keys() else None),
+            control_locations=(row['control_locations'] if 'control_locations' in row.keys() else None),
             target_temp=float(row['target_temp']),
             pos_hysteresis=float(row['pos_hysteresis']),
             neg_hysteresis=float(row['neg_hysteresis']),
@@ -654,6 +656,8 @@ class Controller:
         sleep_active: bool,
         sleep_start: str | None,
         sleep_stop: str | None,
+        sleep_weekly: str | None = None,
+        control_locations: str | None = None,
         target_temp: float,
         pos_hysteresis: float,
         neg_hysteresis: float,
@@ -671,14 +675,16 @@ class Controller:
     ) -> ThermostatConf:
         self.db.execute_query(
             """
-            INSERT INTO thermostat_conf (id, sleep_active, sleep_start, sleep_stop, target_temp, pos_hysteresis, neg_hysteresis, thermo_active,
+            INSERT INTO thermostat_conf (id, sleep_active, sleep_start, sleep_stop, sleep_weekly, control_locations, target_temp, pos_hysteresis, neg_hysteresis, thermo_active,
                                          total_on_s, total_off_s, min_on_s, min_off_s, poll_interval_s, smooth_window, max_stale_s,
                                          current_phase, phase_started_at)
-            VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 sleep_active = excluded.sleep_active,
                 sleep_start = excluded.sleep_start,
                 sleep_stop = excluded.sleep_stop,
+                sleep_weekly = excluded.sleep_weekly,
+                control_locations = excluded.control_locations,
                 target_temp = excluded.target_temp,
                 pos_hysteresis = excluded.pos_hysteresis,
                 neg_hysteresis = excluded.neg_hysteresis,
@@ -697,6 +703,8 @@ class Controller:
                 1 if sleep_active else 0,
                 sleep_start,
                 sleep_stop,
+                sleep_weekly,
+                control_locations,
                 float(target_temp),
                 float(pos_hysteresis),
                 float(neg_hysteresis),
