@@ -1,0 +1,60 @@
+{# Settings modal: uses a similar style to chart modal, but separate assets #}
+{{ assets.style(url_for('static', filename='css/settings_modal.css')) if assets is defined else '' }}
+{{ assets.script(url_for('static', filename='js/settings_modal.js')) if assets is defined else '' }}
+
+<div id="settingsModal">
+  <div class="dialog">
+    <div class="header">
+      <h3 id="settingsTitle">Settings</h3>
+      <button id="closeSettings" aria-label="Close">✕</button>
+    </div>
+
+    <div class="content">
+      <!-- Sleep Settings Panel -->
+      <div id="sleepPanel" class="panel" hidden>
+        <h4>Sleep</h4>
+        <div class="form-grid">
+          <div class="row">
+            <label>Enabled</label>
+            <button id="btnSleepToggle" class="btn">Enable Sleep</button>
+          </div>
+          <div class="row">
+            <label for="sleepStart">Start</label>
+            <input id="sleepStart" type="time" />
+          </div>
+          <div class="row">
+            <label for="sleepStop">Stop</label>
+            <input id="sleepStop" type="time" />
+          </div>
+          <div class="actions">
+            <button id="btnSleepSave" class="btn">Save</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Thermostat Settings Panel -->
+      <div id="thermoPanel" class="panel" hidden>
+        <h4>Thermostat</h4>
+        <div class="form-grid">
+          <div class="row">
+            <label for="modalSetpointC">Target (°C)</label>
+            <input class="field-input" id="modalSetpointC" type="number" step="0.1" min="5" max="35" />
+          </div>
+          <div class="row">
+            <label for="modalHysteresisNeg">-Hysteresis (°C)</label>
+            <input class="field-input" id="modalHysteresisNeg" type="number" step="0.1" min="0.1" max="10" />
+          </div>
+          <div class="row">
+            <label for="modalHysteresisPos">+Hysteresis (°C)</label>
+            <input class="field-input" id="modalHysteresisPos" type="number" step="0.1" min="0.1" max="10" />
+          </div>
+          <div class="actions">
+            <button id="btnThermoSave" class="btn">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="backdrop" aria-hidden="true"></div>
+</div>
+
