@@ -465,6 +465,7 @@ function setSleepUI(data){
   if (!pill) return;
   const enabled = ('sleep_enabled' in data) ? !!data.sleep_enabled : null;
   const activeNow = ('sleep_time_active' in data) ? !!data.sleep_time_active : null;
+  const sleepOverrideUntil = ('sleep_override_until' in data) ? data.sleep_override_until : null;
 
   const btnSleepToggleMain = document.getElementById('btnSleepToggle-main');
   const btnSleepToggle = document.getElementById('btnSleepToggle');
@@ -487,7 +488,7 @@ function setSleepUI(data){
     } else if (activeNow === false){
       // Enabled but not in window -> yellow
       pill.classList.add('ac-idle');
-      pill.textContent = 'Sleep Enabled';
+      pill.textContent = 'Sleep Enabled' + (sleepOverrideUntil ? ` - ${asTimeValue(sleepOverrideUntil)}` : '');
     } else {
       pill.classList.add('ac-unknown');
       pill.textContent = 'Sleep —';

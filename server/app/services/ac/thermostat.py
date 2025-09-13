@@ -217,6 +217,13 @@ class ACThermostat:
             return h * 60 + m
         except Exception:
             return None
+        
+    def _parse_epoch_to_hhmm(self, epoch: float) -> str:
+        try:
+            dt = datetime.fromtimestamp(epoch, tz=self.tz)
+            return dt.strftime("%H:%M")
+        except Exception:
+            return "??:??"
 
     def _now_minutes_local(self) -> int:
         lt = time.localtime()
@@ -413,6 +420,11 @@ class ACThermostat:
                             weekly) if isinstance(weekly, str) else weekly
                     except Exception:
                         payload["sleep_schedule"] = None
+                # Attach temporary override info if active
+                if self._sleep_override_until is not None:
+                    payload["sleep_override_until"] = self._parse_epoch_to_hhmm(
+                        float(self._sleep_override_until))
+                        
                 self.notify('sleep_status', payload)
         except Exception as e:
             logger.debug("thermo: notify sleep failed: %s", e)
@@ -680,7 +692,6 @@ class ACThermostat:
         return True
 
     def step_on_off_check(self) -> None:
-        start = time.perf_counter()
         temp = self._read_external_temp()
         if temp is None:
             logger.warning(

@@ -215,7 +215,7 @@ def esp32_test():
 @login_required
 def get_ac_status():
     """Return current AC on/off status from the running thermostat."""
-    ac_thermo = getattr(current_app, 'ac_thermostat', None)  # type: ignore
+    ac_thermo: ACThermostat = getattr(current_app, 'ac_thermostat', None)  # type: ignore
     if ac_thermo is None:
         logger.warning(
             "API /ac/status requested but thermostat not initialized")
@@ -249,7 +249,7 @@ def get_ac_status():
             "sleep_enabled": bool(getattr(ac_thermo.cfg, 'sleep_active', True)),
             "sleep_start": getattr(ac_thermo.cfg, 'sleep_start', None),
             "sleep_stop": getattr(ac_thermo.cfg, 'sleep_stop', None),
-            "sleep_time_active": bool(ac_thermo._is_sleep_time_window_now()),
+            "sleep_time_active": bool(ac_thermo._is_sleep_time),
             "sleep_schedule": getattr(ac_thermo.cfg, 'sleep_weekly', None),
             "setpoint_c": float(getattr(ac_thermo.cfg, 'target_temp', 0.0)),
             "pos_hysteresis": float(getattr(ac_thermo.cfg, 'pos_hysteresis', 0.0)),
