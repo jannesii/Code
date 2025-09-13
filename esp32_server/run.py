@@ -87,26 +87,25 @@ def _extract_csrf_token(html: str) -> str:
     return m.group(1)
 
 def _authenticate_session(cfg: BackendConfig, timeout: float = 5.0) -> Tuple[requests.Session, str]:
+    """Authenticate using simplified JSON endpoint /login_api.
+
+    Returns a session with cookies set; CSRF token is not needed for code paths,
+    so an empty string is returned for legacy compatibility.
+    """
     session = requests.Session()
-    login_url = f"{cfg.server}/login"
-    resp_get = session.get(login_url, timeout=timeout)
-    if resp_get.status_code != 200:
-        raise RuntimeError(f"GET {login_url} failed with status {resp_get.status_code}")
-    token = _extract_csrf_token(resp_get.text)
-    payload = {"username": cfg.username, "password": cfg.password, "csrf_token": token}
-    headers = {"Referer": login_url}
-    resp_post = session.post(login_url, data=payload, headers=headers, timeout=timeout)
-    if resp_post.status_code != 200 or "Invalid credentials" in (resp_post.text or ""):
+    login_api = f"{cfg.server}/login_api"
+    payload = {"username": cfg.username, "password": cfg.password, "remember": True}
+    resp = session.post(login_api, json=payload, timeout=timeout)
+    if resp.status_code != 200:
+        raise RuntimeError(f"POST {login_api} failed with status {resp.status_code}")
+    try:
+        body = resp.json()
+    except Exception:
+        body = None
+    if not body or not body.get("ok"):
         raise RuntimeError("Login failed: invalid credentials or unexpected response")
-    session.headers.update(
-        {
-            "X-CSRFToken": token,
-            "X-CSRF-Token": token,
-            "Referer": cfg.server,
-        }
-    )
-    logger.info("Authenticated to backend")
-    return session, token
+    logger.info("Authenticated to backend via /login_api")
+    return session, ""
 
 def _cookies_header(session: requests.Session) -> dict[str, str]:
     cookie_str = "; ".join(f"{k}={v}" for k, v in session.cookies.get_dict().items())

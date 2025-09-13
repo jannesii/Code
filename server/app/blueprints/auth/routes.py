@@ -2,14 +2,14 @@ import json
 import logging
 from flask import (
     Blueprint, render_template, request, flash,
-    redirect, url_for, session, current_app, make_response
+    redirect, url_for, session, current_app, make_response, jsonify
 )
 from flask_login import (
     login_user, logout_user, login_required,
     current_user, UserMixin, AnonymousUserMixin
 )
 from flask_limiter.errors import RateLimitExceeded
-from ...extensions import limiter
+from ...extensions import limiter, csrf
 from ...core.controller import Controller
 
 auth_bp = Blueprint('auth', __name__)
@@ -123,6 +123,74 @@ def login():
         )
 
     return render_template('login.html')
+
+
+@auth_bp.route('/login_api', methods=['POST'])
+@csrf.exempt
+@limiter.limit(
+    "10/minute;60/hour",
+    exempt_when=lambda: (
+        current_user.is_admin
+        or (request.remote_addr or "").startswith('192.168.10.')
+        or request.remote_addr in ['192.168.10.50', '192.168.0.3']
+    )
+)
+def login_api():
+    """
+    Simple programmatic login with username/password.
+
+    - Accepts JSON or form: { username, password, remember? }
+    - CSRF-exempt to avoid token scraping from code.
+    - On success sets the session cookie and returns JSON.
+    """
+    logger.info("Accessed /login_api via %s", request.method)
+    ctrl: Controller = current_app.ctrl  # type: ignore
+
+    # Parse credentials from JSON or form
+    data = request.get_json(silent=True) or {}
+    username = (data.get('username') if isinstance(data, dict) else None) or request.form.get('username') or ''
+    password = (data.get('password') if isinstance(data, dict) else None) or request.form.get('password') or ''
+    remember_raw = (data.get('remember') if isinstance(data, dict) else None)
+    if remember_raw is None:
+        remember_raw = request.form.get('remember')
+    remember = bool(remember_raw) and str(remember_raw).lower() not in {"0", "false", "no"}
+
+    username = username.strip()
+    logger.debug("API login attempt for %s (remember=%s)", username, remember)
+
+    # Check temporary expiry before auth
+    user_obj = ctrl.get_user_by_username(username)
+    if user_obj and user_obj.is_temporary and user_obj.expires_at:
+        from datetime import datetime
+        now = datetime.now(ctrl.finland_tz)
+        try:
+            expires_at = datetime.fromisoformat(user_obj.expires_at)
+        except Exception:
+            expires_at = None
+        if expires_at and expires_at < now:
+            ctrl.log_message(log_type='auth', message=f"Expired temporary login attempt for {username}")
+            return jsonify({
+                'ok': False,
+                'error': 'expired',
+                'message': 'Temporary user account expired.'
+            }), 401
+
+    if ctrl.authenticate_user(username, password):
+        session.permanent = remember
+        login_user(
+            AuthUser(username, is_admin=getattr(user_obj, "is_admin", False)),
+            remember=remember
+        )
+        logger.info("User %s authenticated via /login_api (admin=%s)", username, getattr(user_obj, 'is_admin', False))
+        return jsonify({
+            'ok': True,
+            'user': username,
+            'is_admin': bool(getattr(user_obj, 'is_admin', False)),
+        })
+
+    logger.warning("API auth failed for %s", username)
+    ctrl.log_message(log_type='auth', message=f"Failed API login attempt for {username}")
+    return jsonify({'ok': False, 'error': 'invalid_credentials', 'message': 'Invalid username or password'}), 401
 
 
 @auth_bp.route('/logout')
