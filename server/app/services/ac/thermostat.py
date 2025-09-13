@@ -41,7 +41,7 @@ class ACThermostat:
         self._fan_speed: Optional[str] = ac_status.get(
             "fan_speed_enum") if isinstance(ac_status, dict) else None
         self._enabled: bool = bool(getattr(cfg, 'thermo_active', True))
-        self.is_sleep_time = self._is_sleep_time()
+        self._is_sleep_time = self._is_sleep_time_window_now()
         self._last_change_ts: float = 0.0
         logger.debug(
             f"thermo: init {cfg} is_on={self._is_on} mode={self._mode} fan={self._fan_speed}")
@@ -110,7 +110,7 @@ class ACThermostat:
         return time.time()
 
     def _can_turn_on(self) -> bool:
-        ok = (self._now() - self._last_change_ts) >= self.cfg.min_off_s
+        ok = (self._now() - self._last_change_ts) >= self.cfg.min_off_s and not self._is_sleep_time_window_now()
         logger.debug("thermo: _can_turn_on=%s", ok)
         return ok
 
@@ -220,13 +220,14 @@ class ACThermostat:
     def _now_minutes_local(self) -> int:
         lt = time.localtime()
         return lt.tm_hour * 60 + lt.tm_min
-        
 
     def _is_sleep_time_window_now(self) -> bool:
         """Return True if current local time falls within configured sleep window.
         Supports optional weekly schedule; falls back to single start/stop."""
         # Weekly schedule JSON in cfg.sleep_weekly, expected shape:
         # { mon: {start:"HH:MM", stop:"HH:MM"}, tue: {...}, ... }
+        if not getattr(self.cfg, 'sleep_active', True):
+            return False
         try:
             weekly = getattr(self.cfg, 'sleep_weekly', None)
             if weekly:
@@ -280,12 +281,6 @@ class ACThermostat:
             in_sleep,
         )
         return in_sleep
-
-    def _is_sleep_time(self) -> bool:
-        # Enforced sleep time only when feature is enabled
-        if not getattr(self.cfg, 'sleep_active', True):
-            return False
-        return self._is_sleep_time_window_now()
 
     def _read_external_temp(self) -> Optional[float]:
         """Read latest temperature from selected control locations and apply smoothing.
@@ -425,7 +420,8 @@ class ACThermostat:
                     "max_stale_s": None if self.cfg.max_stale_s is None else int(self.cfg.max_stale_s),
                 }
                 try:
-                    payload["control_locations"] = getattr(self.cfg, 'control_locations', None)
+                    payload["control_locations"] = getattr(
+                        self.cfg, 'control_locations', None)
                 except Exception:
                     pass
                 self.notify('thermo_config', payload)
@@ -530,7 +526,7 @@ class ACThermostat:
         self._persist_conf()
         self._emit_sleep_status()
         self.step_sleep_check()
-        
+
     # Thermostat parameters
 
     def set_setpoint(self, celsius: float) -> None:
@@ -613,7 +609,7 @@ class ACThermostat:
         self._persist_conf()
         self._emit_config()
 
-    def set_max_stale_s(self, seconds: Optional[int]) -> None:
+    def set_max_stale_s(self, seconds: Optional[int]) -> bool:
         try:
             if seconds is None:
                 self.cfg.max_stale_s = None
@@ -627,15 +623,15 @@ class ACThermostat:
 
     def step_sleep_check(self) -> None:
         logger.debug("thermo: step_sleep_check: sleep_active=%s is_sleep_time=%s is_on=%s",
-                     getattr(self.cfg, 'sleep_active', True), self._is_sleep_time(), self._is_on)
-        
-        new_sleep = self._is_sleep_time()
-        if new_sleep != self.is_sleep_time:
+                     getattr(self.cfg, 'sleep_active', True), self._is_sleep_time_window_now(), self._is_on)
+
+        new_sleep = self._is_sleep_time_window_now()
+        if new_sleep != self._is_sleep_time:
             s = "ENTERING" if new_sleep else "EXITING"
             logger.info(f"thermo: {s} sleep time window")
-            self.is_sleep_time = new_sleep
+            self._is_sleep_time = new_sleep
             self._emit_sleep_status()
-            
+
         if new_sleep:
             if self._is_on:
                 if self._can_turn_off():
@@ -653,7 +649,8 @@ class ACThermostat:
             logger.debug("thermo: sleeping %ss (sleep mode)",
                          self.cfg.poll_interval_s)
             time.sleep(self.cfg.poll_interval_s)
-            return
+            return False
+        return True
 
     def step_on_off_check(self) -> None:
         start = time.perf_counter()
@@ -723,7 +720,6 @@ class ACThermostat:
                     reasons.append(f"min-on {wait:.0f}s")
                 if reasons:
                     logger.debug("thermo: staying ON: %s", ", ".join(reasons))
-        logger.debug
 
     def step(self):
         """One control step using external temperature."""
@@ -758,8 +754,8 @@ class ACThermostat:
             return
 
         # Sleep mode: don't allow turning ON; if currently ON, try to turn OFF respecting min_on
-        self.step_sleep_check()
-        self.step_on_off_check()
+        resume = self.step_sleep_check()
+        self.step_on_off_check() if resume else None
 
         logger.debug("thermo: sleeping %ss", self.cfg.poll_interval_s)
         time.sleep(self.cfg.poll_interval_s)
