@@ -67,7 +67,7 @@ class Controller:
         )
         if row is None:
             # This really should never happen
-            logger.error(
+            logger.exception(
                 f"After INSERT OR IGNORE, no row for '{username}' found.")
             raise RuntimeError(f"Failed to retrieve user '{username}'")
 

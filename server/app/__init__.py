@@ -8,6 +8,7 @@ import logging
 import signal
 
 from .extensions import csrf, login_manager, socketio
+from .logging_handlers import DBLogHandler
 
 
 def create_app():
@@ -41,6 +42,16 @@ def create_app():
         raise RuntimeError("DB_PATH is missing – add to environment.")
     app.ctrl = Controller(db_path)  # type: ignore
     logger.info("Controller init: %s", db_path)
+    
+    # ─── Route all ERROR+ logs into DB ───
+    try:
+        db_handler = DBLogHandler(app.ctrl)
+        db_handler.setLevel(logging.ERROR)
+        # Include exception tracebacks in the stored message
+        db_handler.setFormatter(logging.Formatter('%(levelname)s %(name)s: %(message)s'))
+        logging.getLogger().addHandler(db_handler)
+    except Exception as e:
+        logger.warning("Failed to install DBLogHandler: %s", e)
     
     # ─── Seed admin user (Root-Admin) ───
     try:

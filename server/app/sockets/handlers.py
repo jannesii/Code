@@ -253,7 +253,7 @@ class SocketEventHandler:
         if ac_thermo is None:
             self.socketio.emit(
                 'error', {'message': 'AC thermostat not initialized'})
-            self.logger.error("ac_control: thermostat missing")
+            self.logger.exception("ac_control: thermostat missing")
             return
         try:
             if action == 'power_on':

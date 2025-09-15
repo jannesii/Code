@@ -171,7 +171,7 @@ def delete_user():
                                 u, current_user.get_id())
                 except Exception as e:
                     flash(f"Poisto epäonnistui: {e}", "error")
-                    logger.error("Error deleting %s: %s", u, e)
+                    logger.error("Error deleting user %s: %s", u, e)
                     return render_template('delete_user.html', users=users)
         return redirect(url_for('web.get_settings_page'))
 
