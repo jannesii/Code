@@ -112,7 +112,7 @@ class DatabaseManager:
             self.cursor.execute(f"CREATE TABLE IF NOT EXISTS {name} ({schema})")
 
         # Clean up test data if present
-        self.cursor.execute("DELETE FROM esp32_temphum WHERE location='Test'")
+        self.cursor.execute("DELETE FROM esp32_temphum WHERE location='Test' OR location='test'")
 
         # Insert default values for status and timelapse_conf if they don't exist
         self.cursor.execute("""

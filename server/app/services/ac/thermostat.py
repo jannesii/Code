@@ -35,9 +35,9 @@ class ACThermostat:
         self._is_on: bool = bool(ac_status.get(
             "switch", False)) if ac_status else False
         # Track last-known mode/fan to inform UI
-        self._mode: Optional[str] = ac_status.get(
+        self.mode: Optional[str] = ac_status.get(
             "mode") if isinstance(ac_status, dict) else None
-        self._fan_speed: Optional[str] = ac_status.get(
+        self.fan_speed: Optional[str] = ac_status.get(
             "fan_speed_enum") if isinstance(ac_status, dict) else None
         self._enabled: bool = bool(getattr(cfg, 'thermo_active', True))
         self._is_sleep_time = self._is_sleep_time_window_now()
@@ -45,7 +45,7 @@ class ACThermostat:
         self._sleep_override_until: Optional[float] = None
         self._last_change_ts: float = 0.0
         logger.debug(
-            f"thermo: init {cfg} is_on={self._is_on} mode={self._mode} fan={self._fan_speed}")
+            f"thermo: init {cfg} is_on={self._is_on} mode={self.mode} fan={self.fan_speed}")
         # Track persisted start ISO for the current phase
         self._phase_started_at_iso: str | None = getattr(
             cfg, 'phase_started_at', None)
@@ -111,7 +111,8 @@ class ACThermostat:
         return time.time()
 
     def _can_turn_on(self) -> bool:
-        ok = (self._now() - self._last_change_ts) >= self.cfg.min_off_s and not self._is_sleep_time_window_now()
+        ok = (self._now(
+        ) - self._last_change_ts) >= self.cfg.min_off_s and not self._is_sleep_time_window_now()
         logger.debug("thermo: _can_turn_on=%s", ok)
         return ok
 
@@ -217,7 +218,7 @@ class ACThermostat:
             return h * 60 + m
         except Exception:
             return None
-        
+
     def _parse_epoch_to_hhmm(self, epoch: float) -> str:
         try:
             dt = datetime.fromtimestamp(epoch, tz=self.tz)
@@ -424,7 +425,7 @@ class ACThermostat:
                 if self._sleep_override_until is not None:
                     payload["sleep_override_until"] = self._parse_epoch_to_hhmm(
                         float(self._sleep_override_until))
-                        
+
                 self.notify('sleep_status', payload)
         except Exception as e:
             logger.debug("thermo: notify sleep failed: %s", e)
@@ -473,7 +474,7 @@ class ACThermostat:
         try:
             if self.notify:
                 self.notify(
-                    'ac_state', {"mode": self._mode, "fan_speed": self._fan_speed})
+                    'ac_state', {"mode": self.mode, "fan_speed": self.fan_speed})
         except Exception as e:
             logger.debug("thermo: notify ac_state failed: %s", e)
 
@@ -481,14 +482,14 @@ class ACThermostat:
         """Set AC mode immediately and update thermostat config for future ON events."""
         mode_l = str(mode).strip().lower()
         self.ac.set_mode(mode_l)
-        self._mode = mode_l
+        self.mode = mode_l
         self._emit_ac_state()
 
     def set_fan_speed(self, speed: str) -> None:
         """Set AC fan speed immediately and update thermostat config for future ON events."""
         speed_l = str(speed).strip().lower()
         self.ac.set_fan_speed(speed_l)
-        self._fan_speed = speed_l
+        self.fan_speed = speed_l
         self._emit_ac_state()
 
     def enable(self) -> None:
@@ -510,7 +511,8 @@ class ACThermostat:
         else:
             self.turn_off()
             self._is_on = False
-        self._last_change_ts = self._now
+        # record timestamp of the manual power change
+        self._last_change_ts = self._now()
         self._emit_status()
 
     def set_sleep_enabled(self, enabled: bool) -> None:
@@ -561,7 +563,8 @@ class ACThermostat:
         if m <= 0:
             return
         self._sleep_override_until = time.time() + (m * 60)
-        logger.info("thermo: sleep override enabled for %d minutes (until %s)", m, (datetime.now() + timedelta(minutes=m)).strftime("%H:%M"))
+        logger.info("thermo: sleep override enabled for %d minutes (until %s)",
+                    m, (datetime.now() + timedelta(minutes=m)).strftime("%H:%M"))
         # Re-evaluate sleep state and inform listeners
         self._emit_sleep_status()
         self.step_sleep_check()

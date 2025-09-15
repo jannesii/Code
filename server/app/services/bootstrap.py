@@ -10,7 +10,7 @@ import threading
 import logging
 from typing import Any, Dict
 
-from tuya_iot import TuyaOpenAPI
+import tinytuya
 
 from .ac.thermostat import ACThermostat
 from .ac.controller import ACController
@@ -49,19 +49,15 @@ def init_services(app) -> Dict[str, Any]:
     app.sio_handler = SocketEventHandler(socketio, app.ctrl)  # type: ignore[attr-defined]
 
     # --- AC / Thermostat ---
-    ACCESS_ID = os.getenv("TUYA_ACCESS_ID")
-    ACCESS_KEY = os.getenv("TUYA_ACCESS_KEY")
-    API_ENDPOINT = os.getenv("TUYA_API_ENDPOINT")
-    USERNAME = os.getenv("TUYA_USERNAME")
-    PASSWORD = os.getenv("TUYA_PASSWORD")
-    COUNTRY_CODE = os.getenv("TUYA_COUNTRY_CODE")
-    SCHEMA = os.getenv("TUYA_SCHEMA")
-    DEVICE_ID = os.getenv("TUYA_DEVICE_ID")
+    AC_DEVICE_ID = os.getenv("AC_DEV_ID")
+    AC_IP = os.getenv("AC_IP")
+    AC_LOCAL_KEY = os.getenv("AC_LOCAL_KEY")
 
     try:
-        api = TuyaOpenAPI(API_ENDPOINT, ACCESS_ID, ACCESS_KEY)
-        api.connect(USERNAME, PASSWORD, COUNTRY_CODE, SCHEMA)
-        ac_controller = ACController(device_id=DEVICE_ID, api=api)
+        if not all([AC_DEVICE_ID, AC_IP, AC_LOCAL_KEY]):
+            raise ValueError("Missing one of AC_DEV_ID, AC_IP, or AC_LOCAL_KEY environment variables")
+        tinytuya_device = tinytuya.Device(AC_DEVICE_ID, AC_IP, AC_LOCAL_KEY)
+        ac_controller = ACController(tinytuya_device=tinytuya_device)
         THERMOSTAT_LOCATION = os.getenv("THERMOSTAT_LOCATION", "Tietokonepöytä")
         # Load thermostat configuration from DB (seed default if missing)
         try:
@@ -87,7 +83,7 @@ def init_services(app) -> Dict[str, Any]:
         t = threading.Thread(target=ac_thermostat.run_forever, daemon=True)
         t.start()
         services["ac_thermostat"] = ac_thermostat
-        logger.info("Tuya AC controller started for device %s", DEVICE_ID)
+        logger.info("Tuya AC controller started for device %s", AC_DEVICE_ID)
     except Exception as e:
         logger.exception("Failed to initialize AC thermostat: %s", e)
 

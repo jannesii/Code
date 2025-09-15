@@ -2,8 +2,11 @@ async-timeout==5.0.1
 bidict==0.23.1
 blinker==1.9.0
 certifi==2025.8.3
+cffi==2.0.0
 charset-normalizer==3.4.3
 click==8.1.8
+colorama==0.4.6
+cryptography==45.0.7
 Deprecated==1.2.18
 dnspython==2.7.0
 eventlet==0.39.1
@@ -25,6 +28,7 @@ mdurl==0.1.2
 ordered-set==4.1.0
 packaging==25.0
 paho-mqtt==2.1.0
+pycparser==2.23
 pycryptodome==3.23.0
 Pygments==2.19.1
 python-dotenv==1.1.1
@@ -35,6 +39,7 @@ redis==5.2.1
 requests==2.32.5
 rich==13.9.4
 simple-websocket==1.1.0
+tinytuya==1.17.4
 tuya-iot-py-sdk==0.6.6
 typing_extensions==4.13.2
 urllib3==2.5.0

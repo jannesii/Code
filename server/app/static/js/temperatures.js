@@ -378,13 +378,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // Prefer modal fields when present
-  const sp = document.getElementById('modalSetpointC') || document.getElementById('setpointC');
+  const sp = document.getElementById('modalSetpointC')
+  const spMain = document.getElementById('setpointC');
   const hy = document.getElementById('hysteresis') || document.getElementById('modalHysteresis');
   const hyPos = document.getElementById('modalHysteresisPos') || document.getElementById('hysteresisPos');
   const hyNeg = document.getElementById('modalHysteresisNeg') || document.getElementById('hysteresisNeg');
   const btnThermoSave = document.getElementById('btnThermoSave');
   const btnSpDec = document.getElementById('btnSetpointDec');
   const btnSpInc = document.getElementById('btnSetpointInc');
+  if (spMain) {
+    spMain.addEventListener('change', () => {
+      const v = parseFloat(spMain.value);
+      if (!Number.isNaN(v)) socket.emit('ac_control', { action: 'set_setpoint', value: v });
+    });
+
+  }
   if (btnThermoSave && sp){
     btnThermoSave.addEventListener('click', () => {
       const setpoint = parseFloat(sp.value);
@@ -421,12 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   if (btnSpDec) btnSpDec.addEventListener('click', () => stepSetpoint(-1));
   if (btnSpInc) btnSpInc.addEventListener('click', () => stepSetpoint(+1));
-  if (sp){
-    sp.addEventListener('change', () => {
-      const v = parseFloat(sp.value);
-      if (!Number.isNaN(v)) socket.emit('ac_control', { action: 'set_setpoint', value: v });
-    });
-  }
+
 });
 
 function setSelectValue(id, value){
