@@ -778,11 +778,11 @@ class ACThermostat:
                 changed = False
                 m = status.get('mode')
                 f = status.get('fan_speed_enum')
-                if m is not None and m != self._mode:
-                    self._mode = m
+                if m is not None and m != self.mode:
+                    self.mode = m
                     changed = True
-                if f is not None and f != self._fan_speed:
-                    self._fan_speed = f
+                if f is not None and f != self.fan_speed:
+                    self.fan_speed = f
                     changed = True
                 if changed:
                     self._emit_ac_state()
@@ -791,6 +791,7 @@ class ACThermostat:
 
         # If thermostat is disabled, skip any control actions
         if not self._enabled:
+            logger.debug("thermo: disabled, skipping control")
             time.sleep(self.cfg.poll_interval_s)
             return
 

@@ -121,7 +121,7 @@ def post_esp32_temphum():
     if ac_check_flag:
         ac_check_flag = False
         # Wait a second to make sure all sensors have reported
-        threading.Timer(1, ac_thermo.step_on_off_check).start() if ac_thermo else None
+        threading.Timer(1, ac_thermo.step_on_off_check).start() if ac_thermo._enabled else None
         # Reset flag after 10 seconds
         threading.Timer(10, reset_flag).start()
         
