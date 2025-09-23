@@ -1,0 +1,297 @@
+"""Connected devices watcher for AdGuard Home DHCP.
+
+Detects new devices appearing in the DHCP lease list and publishes
+notifications via a pluggable notifier (e.g. Socket.IO broadcast) and/or
+an optional webhook.
+
+This module is written in the same service style as the rest of the
+codebase: logging via the app logger, type hints, and an explicit class
+that can be started from the app's bootstrap if desired.
+"""
+
+from __future__ import annotations
+
+import os
+import subprocess
+import time
+import json
+import logging
+import tempfile
+import re
+from datetime import datetime, timezone
+from typing import Callable, Dict, List, Optional, Set, Tuple, Any
+import dotenv
+
+dotenv.load_dotenv("/etc/jannenkoti.env")  # take environment variables from .env if available
+
+logging.basicConfig(level=logging.INFO)
+
+logger = logging.getLogger(__name__)
+
+
+# Optional: try to import PyYAML to read AdGuardHome.yaml for static leases
+try:  # pragma: no cover - best-effort optional dependency
+    import yaml  # type: ignore
+    HAVE_YAML = True
+except Exception:  # pragma: no cover
+    HAVE_YAML = False
+
+
+def _load_static_from_yaml(cfg_path: str) -> Tuple[Set[str], Set[str]]:
+    """Return (static_macs, static_ips) gathered from AdGuard YAML config.
+
+    MACs are normalized to lowercase.
+    """
+    static_macs: Set[str] = set()
+    static_ips: Set[str] = set()
+    if not HAVE_YAML:
+        logger.warning(
+            "PyYAML not installed; static leases from YAML will not be read"
+        )
+        return static_macs, static_ips
+    try:
+        with open(cfg_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        dhcp = data.get("clients", {})
+        stat = dhcp.get("persistent", [])
+        for entry in stat:
+            mac = entry.get("ids", [""])[0].strip().lower()
+            ip = entry.get("ip", "").strip()
+            if mac:
+                static_macs.add(mac)
+            if ip:
+                static_ips.add(ip)
+    except Exception as e:
+        logger.warning("Failed to parse static leases from %s: %s", cfg_path, e)
+    return static_macs, static_ips
+
+
+def _parse_json_leases(leases_path: str) -> Optional[Dict[str, Dict[str, str]]]:
+    """Best-effort JSON leases parser (AdGuard variants).
+
+    Attempts to parse common shapes found in AdGuard Home data directories.
+    Returns None if the file is not JSON or an error occurs.
+    """
+    try:
+        with open(leases_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        logger.exception("Failed to read JSON leases: %s", e)
+        return None
+
+    out: Dict[str, Dict[str, str]] = {}
+    try:
+        if isinstance(data, dict) and "leases" in data and isinstance(data["leases"], list):
+            for item in data["leases"]:
+                ip = str(item.get("ip", "")).strip()
+                mac = str(item.get("mac", "")).strip().lower()
+                host = str(item.get("hostname", "")).strip()
+                if ip and mac:
+                    out[ip] = {"mac": mac, "hostname": host, "expiry": ""}
+            return out
+    except Exception as e:
+        logger.exception("JSON leases parsing error: %s", e)
+    return None
+
+
+def _host_reverse(ip: str) -> str:
+    try:
+        cmd = ['dig', '-x', ip, '@127.0.0.1', '+short']
+
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+
+        result = proc.stdout.strip()
+        return result
+    except Exception:
+        return ""
+
+
+def _load_state(path: str) -> Dict[str, dict]:
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_state(path: str, state: Dict[str, dict]) -> None:
+    try:
+        d = os.path.dirname(path)
+        if d:
+            os.makedirs(d, exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(state, f, indent=2, sort_keys=True)
+        os.replace(tmp, path)
+    except Exception as e:
+        logger.warning("Failed to save presence watcher state: %s", e)
+
+
+class ConnectedDevicesWatcher:
+    """Poll AdGuard Home DHCP leases and detect newly observed devices.
+
+    - Emits notifications via `notify(event, payload)` if provided (e.g., to Socket.IO views)
+    - Optionally posts to a simple JSON webhook `{ "text": "..." }`
+    - Persists a small JSON state of seen devices to avoid duplicate alerts
+    """
+
+    def __init__(
+        self,
+        *,
+        adguard_config_file: str = None,
+        leases_file: str = None,
+        state_file: Optional[str] = None,
+        interval_s: int = 15,
+        webhook_url: Optional[str] = None,
+        notify: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+    ) -> None:
+
+        # Default to tmp to avoid permission issues; can be overridden via env
+        self.state_file = state_file
+        self.interval_s = max(1, int(interval_s))
+        self.webhook_url = webhook_url or None
+        self.notify = notify
+
+        # Derived/loaded state
+        self._leases_path = adguard_config_file
+        self._cfg_path = leases_file
+        self._static_macs: Set[str] = set()
+        self._static_ips: Set[str] = set()
+        self._seen: Dict[str, dict] = {}
+
+    # --- Public API -----------------------------------------------------
+
+    def start(self) -> None:
+        """Blocking run loop. Intended to be executed in a background thread."""
+        self._bootstrap()
+        if not self._leases_path:
+            logger.error("Presence watcher: no leases file found in candidates: %s", self.leases_candidates)
+            return
+        logger.info("Presence watcher: monitoring leases at %s (interval %ss)", self._leases_path, self.interval_s)
+        while True:
+            try:
+                new_entries = self.scan_once()
+                for e in new_entries:
+                    msg = (
+                        f"[NEW DEVICE] IP={e['ip']} MAC={e['mac']} "
+                        f"hostname={e.get('hostname') or 'n/a'} rdns={e.get('rdns') or 'n/a'}"
+                    )
+                    logger.info(msg)
+                    self._send_webhook(msg)
+                    if self.notify:
+                        try:
+                            self.notify("presence_new_device", e)
+                        except Exception:
+                            # Don’t let notify failures break the loop
+                            logger.debug("Presence watcher notify failed", exc_info=True)
+                if new_entries:
+                    _save_state(self.state_file, self._seen)
+            except Exception:
+                logger.exception("Presence watcher tick failed")
+            time.sleep(self.interval_s)
+
+    def scan_once(self) -> List[Dict[str, Any]]:
+        """Poll the leases file once and return a list of newly seen devices.
+
+        Each item is a dict with keys: ip, mac, hostname, rdns, first_seen
+        """
+        leases = self._load_leases()
+        new_entries: List[Dict[str, Any]] = []
+        for ip, info in leases.items():
+            mac = info.get("mac", "").lower()
+            if not mac:
+                continue
+            hostname = info.get("hostname") or ""
+            key = f"{mac}|{ip}"
+            # Consider it "known static" if MAC or IP is in static lists
+            is_static = (mac in self._static_macs) or (ip in self._static_ips)
+            if is_static or key in self._seen:
+                continue
+            rdns = _host_reverse(ip)  # best-effort
+            entry = {
+                "ip": ip,
+                "mac": mac,
+                "hostname": hostname,
+                "rdns": rdns,
+                "first_seen": datetime.now(timezone.utc).isoformat(),
+            }
+            self._seen[key] = entry
+            new_entries.append(entry)
+        return new_entries
+
+    # --- Internals ------------------------------------------------------
+
+    def _bootstrap(self) -> None:
+        # Load static leases if YAML exists
+        if self._cfg_path:
+            sm, si = _load_static_from_yaml(self._cfg_path)
+            
+            self._static_macs |= sm
+            self._static_ips |= si
+            if self._static_macs or self._static_ips:
+                logger.info(
+                    "Presence watcher: loaded static leases: %d MACs, %d IPs",
+                    len(self._static_macs),
+                    len(self._static_ips),
+                )
+            else:
+                logger.warning("Presence watcher: no static leases found in %s", self._cfg_path)
+        else:
+            logger.debug("Presence watcher: AdGuard YAML not found; static MAC/IP matching disabled")
+
+        # Load persisted state
+        self._seen = _load_state(self.state_file)
+
+    def _load_leases(self) -> Dict[str, Dict[str, str]]:
+        # Prefer JSON if parseable; fallback to text format
+        if not self._leases_path:
+            return {}
+        parsed = _parse_json_leases(self._leases_path)
+        if parsed is not None:
+            return parsed
+
+    def _send_webhook(self, msg: str) -> None:
+        if not self.webhook_url:
+            return
+        try:  # use stdlib to avoid extra deps
+            import urllib.request
+            data = json.dumps({"text": msg}).encode("utf-8")
+            req = urllib.request.Request(
+                self.webhook_url,
+                data=data,
+                headers={"Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=5):
+                pass
+        except Exception as e:
+            logger.warning("Presence watcher webhook send failed: %s", e)
+
+
+def _from_env_defaults() -> ConnectedDevicesWatcher:
+    """Build a watcher using single-path environment variables."""
+    cfg_file = (os.getenv("PRESENCE_ADGUARD_CONFIG_FILE") or "").strip() or None
+    leases_file = (os.getenv("PRESENCE_LEASES_FILE") or "").strip() or None
+    interval = int(os.getenv("PRESENCE_INTERVAL_S", "15") or 15)
+    state = os.getenv("PRESENCE_STATE_FILE")
+    webhook = os.getenv("PRESENCE_WEBHOOK_URL")
+
+    cfgs = [cfg_file] if cfg_file else None
+    leases = [leases_file] if leases_file else None
+
+    return ConnectedDevicesWatcher(
+        adguard_config_file=cfgs,
+        leases_file=leases,
+        state_file=state,
+        interval_s=interval,
+        webhook_url=webhook,
+    )
+
+
+def main() -> None:  # pragma: no cover - manual/CLI usage helper
+    """Run watcher in foreground using environment variables for config."""
+    watcher = _from_env_defaults()
+    watcher.start()
+
+
+if __name__ == "__main__":  # pragma: no cover
+    main()
