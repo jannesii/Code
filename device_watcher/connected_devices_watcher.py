@@ -22,9 +22,9 @@ from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional, Set, Tuple, Any
 import dotenv
 
-dotenv.load_dotenv("/etc/jannenkoti.env")  # take environment variables from .env if available
+dotenv.load_dotenv("/etc/device_watcher.env")  # take environment variables from .env if available
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 logger = logging.getLogger(__name__)
 
@@ -56,11 +56,8 @@ def _load_static_from_yaml(cfg_path: str) -> Tuple[Set[str], Set[str]]:
         stat = dhcp.get("persistent", [])
         for entry in stat:
             mac = entry.get("ids", [""])[0].strip().lower()
-            ip = entry.get("ip", "").strip()
             if mac:
                 static_macs.add(mac)
-            if ip:
-                static_ips.add(ip)
     except Exception as e:
         logger.warning("Failed to parse static leases from %s: %s", cfg_path, e)
     return static_macs, static_ips
@@ -76,7 +73,7 @@ def _parse_json_leases(leases_path: str) -> Optional[Dict[str, Dict[str, str]]]:
         with open(leases_path, "r", encoding="utf-8") as f:
             data = json.load(f)
     except Exception as e:
-        logger.exception("Failed to read JSON leases: %s", e)
+        logger.exception("Failed to read JSON leases from %s: %s", leases_path, e)
         return None
 
     out: Dict[str, Dict[str, str]] = {}
@@ -153,8 +150,8 @@ class ConnectedDevicesWatcher:
         self.notify = notify
 
         # Derived/loaded state
-        self._leases_path = adguard_config_file
-        self._cfg_path = leases_file
+        self._leases_path = leases_file
+        self._cfg_path = adguard_config_file
         self._static_macs: Set[str] = set()
         self._static_ips: Set[str] = set()
         self._seen: Dict[str, dict] = {}
@@ -164,9 +161,6 @@ class ConnectedDevicesWatcher:
     def start(self) -> None:
         """Blocking run loop. Intended to be executed in a background thread."""
         self._bootstrap()
-        if not self._leases_path:
-            logger.error("Presence watcher: no leases file found in candidates: %s", self.leases_candidates)
-            return
         logger.info("Presence watcher: monitoring leases at %s (interval %ss)", self._leases_path, self.interval_s)
         while True:
             try:
@@ -204,8 +198,10 @@ class ConnectedDevicesWatcher:
             hostname = info.get("hostname") or ""
             key = f"{mac}|{ip}"
             # Consider it "known static" if MAC or IP is in static lists
-            is_static = (mac in self._static_macs) or (ip in self._static_ips)
-            if is_static or key in self._seen:
+            is_static = (mac in self._static_macs)
+            existing = key in self._seen
+            if is_static or existing:
+                logger.debug("Presence watcher: skipping known device %s (static=%s, existing=%s)", key, is_static, existing)
                 continue
             rdns = _host_reverse(ip)  # best-effort
             entry = {
@@ -227,12 +223,10 @@ class ConnectedDevicesWatcher:
             sm, si = _load_static_from_yaml(self._cfg_path)
             
             self._static_macs |= sm
-            self._static_ips |= si
             if self._static_macs or self._static_ips:
                 logger.info(
-                    "Presence watcher: loaded static leases: %d MACs, %d IPs",
+                    "Presence watcher: loaded static leases: %d MACs",
                     len(self._static_macs),
-                    len(self._static_ips),
                 )
             else:
                 logger.warning("Presence watcher: no static leases found in %s", self._cfg_path)
@@ -254,33 +248,28 @@ class ConnectedDevicesWatcher:
         if not self.webhook_url:
             return
         try:  # use stdlib to avoid extra deps
-            import urllib.request
-            data = json.dumps({"text": msg}).encode("utf-8")
-            req = urllib.request.Request(
-                self.webhook_url,
-                data=data,
-                headers={"Content-Type": "application/json"},
-            )
-            with urllib.request.urlopen(req, timeout=5):
-                pass
+            import requests
+            data = {
+                "content": f"@everyone {msg}",
+                "username": "Device Watcher",
+            }
+            response = requests.post(self.webhook_url, json=data)
+            response.raise_for_status()
         except Exception as e:
             logger.warning("Presence watcher webhook send failed: %s", e)
 
 
 def _from_env_defaults() -> ConnectedDevicesWatcher:
     """Build a watcher using single-path environment variables."""
-    cfg_file = (os.getenv("PRESENCE_ADGUARD_CONFIG_FILE") or "").strip() or None
-    leases_file = (os.getenv("PRESENCE_LEASES_FILE") or "").strip() or None
-    interval = int(os.getenv("PRESENCE_INTERVAL_S", "15") or 15)
-    state = os.getenv("PRESENCE_STATE_FILE")
-    webhook = os.getenv("PRESENCE_WEBHOOK_URL")
-
-    cfgs = [cfg_file] if cfg_file else None
-    leases = [leases_file] if leases_file else None
+    cfg_file = (os.getenv("ADGUARD_CONFIG_FILE") or "").strip() or None
+    leases_file = (os.getenv("LEASES_FILE") or "").strip() or None
+    interval = int(os.getenv("INTERVAL_S", "15") or 15)
+    state = os.getenv("STATE_FILE")
+    webhook = os.getenv("WEBHOOK_URL")
 
     return ConnectedDevicesWatcher(
-        adguard_config_file=cfgs,
-        leases_file=leases,
+        adguard_config_file=cfg_file,
+        leases_file=leases_file,
         state_file=state,
         interval_s=interval,
         webhook_url=webhook,
