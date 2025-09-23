@@ -26,8 +26,8 @@ import dotenv
 dotenv.load_dotenv("/etc/device_watcher.env")  # take environment variables from .env if available
 
 logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    level=logging.INFO,
+    format="%(levelname)s: %(message)s",
 )
 
 logger = logging.getLogger(__name__)
@@ -296,6 +296,11 @@ class ConnectedDevicesWatcher:
                 # Nmap-based discovery of non-DHCP devices (cadenced)
                 now = time.time()
                 if (self._nmap_subnets or self._nmap6_subnets) and (now - self._last_nmap_run >= self._nmap_interval_s):
+                    logger.info(
+                        "Triggering nmap sweeps: v4_subnets=%d v6_subnets=%d",
+                        len(self._nmap_subnets),
+                        len(self._nmap6_subnets),
+                    )
                     if self._nmap_subnets:
                         new_entries.extend(self.nmap_scan_once())
                     if self._nmap6_subnets:
@@ -318,6 +323,12 @@ class ConnectedDevicesWatcher:
                             # Don’t let notify failures break the loop
                             logger.debug("Presence watcher notify failed", exc_info=True)
                 if new_entries or self._updates_made:
+                    logger.info(
+                        "Saving state: total=%d new=%d updated=%d",
+                        len(self._seen),
+                        len(new_entries),
+                        getattr(self, "_updates_count", 0),
+                    )
                     _save_state(self.state_file, self._seen)
             except Exception:
                 logger.exception("Presence watcher tick failed")
@@ -330,6 +341,7 @@ class ConnectedDevicesWatcher:
         """
         # Reset dirty flag for this tick
         self._updates_made = False
+        self._updates_count = 0
         leases = self._load_leases()
         new_entries: List[Dict[str, Any]] = []
         for ip, info in leases.items():
@@ -371,6 +383,7 @@ class ConnectedDevicesWatcher:
                 if updated:
                     logger.info("Presence watcher: updated device info for %s -> hostname=%s rdns=%s", key, seen.get("hostname"), seen.get("rdns"))
                     self._updates_made = True
+                    self._updates_count += 1
                 continue
 
             # Consider it "known static" if MAC is in static list from YAML
@@ -390,6 +403,13 @@ class ConnectedDevicesWatcher:
             }
             self._seen[key] = entry
             new_entries.append(entry)
+        if new_entries or self._updates_count:
+            logger.info(
+                "DHCP scan: leases=%d new=%d updated=%d",
+                len(leases),
+                len(new_entries),
+                self._updates_count,
+            )
         return new_entries
 
     def nmap_scan_once(self) -> List[Dict[str, Any]]:
@@ -439,6 +459,8 @@ class ConnectedDevicesWatcher:
             }
             self._seen[key] = entry
             new_entries.append(entry)
+        logger.info("nmap v4 sweep: discovered=%d new=%d", len(discovered), len(new_entries))
+        logger.info("nmap v6 sweep: discovered=%d new=%d", len(discovered), len(new_entries))
         return new_entries
 
     # --- Internals ------------------------------------------------------
@@ -461,6 +483,10 @@ class ConnectedDevicesWatcher:
 
         # Load persisted state
         self._seen = _load_state(self.state_file)
+        if self._seen:
+            logger.info("Presence watcher: loaded state entries: %d", len(self._seen))
+        else:
+            logger.info("Presence watcher: no previous state; starting fresh")
 
     def _load_leases(self) -> Dict[str, Dict[str, str]]:
         # Prefer JSON if parseable; fallback to text format
@@ -583,10 +609,12 @@ class ConnectedDevicesWatcher:
             return []
         out = proc.stdout or ""
         new_entries: List[Dict[str, Any]] = []
+        total_lines = 0
         for raw in out.splitlines():
             line = raw.strip()
             if not line:
                 continue
+            total_lines += 1
             parts = line.split()
             if not parts:
                 continue
@@ -612,6 +640,10 @@ class ConnectedDevicesWatcher:
             }
             self._seen[key] = entry
             new_entries.append(entry)
+        if new_entries:
+            logger.info("IPv6 neighbors: entries=%d new=%d", total_lines, len(new_entries))
+        else:
+            logger.debug("IPv6 neighbors: entries=%d new=0", total_lines)
         return new_entries
 
     # rDNS cache ---------------------------------------------------------
