@@ -12,7 +12,9 @@ from ...services.ac.thermostat import ACThermostat
 from typing import Any, Dict
 from datetime import timedelta
 from ...extensions import csrf
+from ...services.novpn.config import list_devices as novpn_list_devices, update_device_flags as novpn_update_device_flags
 from ...security import require_api_key
+from ...utils import require_admin_or_redirect, require_root_admin_or_redirect
 from datetime import timezone
 
 # In-memory state for ESP32 test telemetry (no DB persistence)
@@ -209,6 +211,49 @@ def esp32_test():
     if wants_json:
         return jsonify(_status_json())
     return render_template('esp32_test.html')
+
+
+# ─── NoVPN device management (Root-Admin only) ───
+
+
+@api_bp.route('/novpn/devices', methods=['GET'])
+@login_required
+def novpn_devices():
+    guard = require_root_admin_or_redirect("Root-Admin required", json=True)
+    if guard:
+        return guard
+    try:
+        devices = novpn_list_devices()
+        return jsonify({'ok': True, 'devices': devices})
+    except Exception as e:
+        logger.exception("Failed to read novpn devices: %s", e)
+        return jsonify({'ok': False, 'error': 'read_failed', 'message': str(e)}), 500
+
+
+@api_bp.route('/novpn/update', methods=['POST'])
+@login_required
+def novpn_update():
+    guard = require_root_admin_or_redirect("Root-Admin required", json=True)
+    if guard:
+        return guard
+    data = request.get_json(silent=True) or {}
+    mac = (data.get('mac') or '').strip()
+    if not mac:
+        return jsonify({'ok': False, 'error': 'invalid_payload', 'message': 'mac required'}), 400
+    novpn = data.get('novpn')
+    nodns = data.get('nodns')
+    if novpn is not None and not isinstance(novpn, bool):
+        return jsonify({'ok': False, 'error': 'invalid_payload', 'message': 'novpn must be boolean'}), 400
+    if nodns is not None and not isinstance(nodns, bool):
+        return jsonify({'ok': False, 'error': 'invalid_payload', 'message': 'nodns must be boolean'}), 400
+    try:
+        ok, updated = novpn_update_device_flags(mac, novpn=novpn, nodns=nodns)
+        if not ok or not updated:
+            return jsonify({'ok': False, 'error': 'not_found', 'message': 'Device not found'}), 404
+        return jsonify({'ok': True, 'device': updated})
+    except Exception as e:
+        logger.exception("Failed to update novpn device: %s", e)
+        return jsonify({'ok': False, 'error': 'write_failed', 'message': str(e)}), 500
 
 
 @api_bp.route('/ac/status')

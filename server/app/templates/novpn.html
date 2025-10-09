@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block title %}Network Bypass (VPN/DNS){% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/flash.css') }}">
+  <style>
+    .nv-table { width: 100%; max-width: 900px; margin: 10px auto 30px; border-collapse: collapse; }
+    .nv-table th, .nv-table td { padding: 10px 12px; border-bottom: 1px solid #ddd; text-align: left; }
+    .nv-table th { background: #f7f7f7; }
+    .nv-mac { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.95em; }
+    .nv-hint { max-width: 900px; margin: 10px auto; color: #555; }
+    .nv-error { color: #b00020; }
+    .nv-success { color: #0a7f3f; }
+    .nv-status { margin-left: 8px; font-size: 0.9em; }
+  </style>
+{% endblock %}
+
+{% block content %}
+  {% include 'settings_flash.html' %}
+
+  <div class="container" style="max-width:900px; margin: 0 auto;">
+    <h2>Network Bypass (VPN/DNS)</h2>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <p class="nv-hint">
+      Manage per-device VPN and DNS bypass. Changes update
+      <code>~/.config/novpn/devices.conf</code> immediately.
+    </p>
+
+    {% if not devices %}
+      <p class="nv-hint nv-error">No devices found in configuration.</p>
+    {% else %}
+      <table class="nv-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>MAC</th>
+            <th>Bypass VPN</th>
+            <th>Bypass DNS</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for d in devices %}
+          <tr data-mac="{{ d.mac }}">
+            <td>{{ d.name }}</td>
+            <td class="nv-mac">{{ d.mac }}</td>
+            <td>
+              <label class="checkbox">
+                <input type="checkbox" class="nv-toggle" data-field="novpn" {% if d.novpn %}checked{% endif %}>
+                <span class="nv-status"></span>
+              </label>
+            </td>
+            <td>
+              <label class="checkbox">
+                <input type="checkbox" class="nv-toggle" data-field="nodns" {% if d.nodns %}checked{% endif %}>
+                <span class="nv-status"></span>
+              </label>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+
+    <div style="margin: 10px 0;">
+      <a class="btn secondary" href="{{ url_for('web.get_settings_page') }}">Takaisin</a>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/novpn.js') }}"></script>
+{% endblock %}

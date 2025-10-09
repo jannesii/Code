@@ -1,5 +1,5 @@
 import logging
-from flask import session, flash, current_app, redirect, url_for
+from flask import jsonify, session, flash, current_app, redirect, url_for
 from flask_login import current_user
 from typing import Optional, Tuple
 from datetime import datetime
@@ -45,6 +45,25 @@ def require_admin_or_redirect(message: str, redirect_endpoint: str):
     if not getattr(current_user, 'is_admin', False):
         flash(message, 'error')
         logger.warning("Non-admin user %s blocked: %s", current_user.get_id(), message)
+        return redirect(url_for(redirect_endpoint))
+    return None
+
+
+def require_root_admin_or_redirect(message: str, redirect_endpoint: str = None, json: bool = False):
+    """If current user is not root-admin, flash and redirect.
+    Caller should check and return this value if not None.
+    """
+    ctrl: Controller = get_ctrl()
+    me = ctrl.get_user_by_username(current_user.get_id(), include_pw=False)
+    if me and not getattr(me, 'is_root_admin', False):
+        flash(message, 'error')
+        logger.warning("Non-root-admin user %s blocked: %s", current_user.get_id(), message)
+        if json:
+            return jsonify({
+                'ok': False,
+                'error': 'forbidden',
+                'message': message
+            }), 403
         return redirect(url_for(redirect_endpoint))
     return None
 

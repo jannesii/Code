@@ -6,11 +6,14 @@ from flask_login import login_required, current_user
 from dataclasses import asdict
 import time
 from ...utils import (
-    check_vals, get_ctrl, require_admin_or_redirect, combine_local_date_time,
-    can_edit_user, can_delete_user, flash_error, flash_success, flash_info,
+    check_vals, get_ctrl,
+    require_admin_or_redirect, require_root_admin_or_redirect,
+    combine_local_date_time,can_edit_user, can_delete_user,
+    flash_error, flash_success, flash_info,
     get_new_password_pair, validate_password_pair,
 )
 from ...core.controller import Controller
+from ...services.novpn.config import list_devices as novpn_list_devices
 
 
 web_bp = Blueprint('web', __name__)
@@ -379,3 +382,20 @@ def api_keys():
 
     keys = ctrl.list_api_keys()
     return render_template('api_keys.html', keys=keys, created_key=created_token)
+
+
+@web_bp.route('/settings/network_bypass', methods=['GET'])
+@login_required
+def novpn_settings():
+    """Per-device VPN/DNS bypass settings backed by ~/.config/novpn/devices.conf.
+    Root-Admin only.
+    """
+    guard = require_root_admin_or_redirect("Sinulla ei ole oikeuksia muuttaa NoVPN asetuksia.", 'web.get_settings_page')
+    if guard:
+        return guard
+    try:
+        devices = novpn_list_devices()
+    except Exception as e:
+        devices = []
+        flash_error(f'Laitteiden lukeminen epäonnistui: {e}')
+    return render_template('novpn.html', devices=devices)
