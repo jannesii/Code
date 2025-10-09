@@ -16,6 +16,7 @@ from ...core.controller import Controller
 from ...services.novpn.config import (
     list_devices as novpn_list_devices,
     update_device_flags as novpn_update_device_flags,
+    add_device as novpn_add_device,
 )
 
 
@@ -398,19 +399,35 @@ def novpn_settings():
         return guard
     try:
         if request.method == 'POST':
-            devices = novpn_list_devices()
-            errors = []
-            for d in devices:
-                mac = str(d.get('mac'))
-                novpn_val = bool(request.form.get(f'novpn_{mac}'))
-                nodns_val = bool(request.form.get(f'nodns_{mac}'))
-                ok, _ = novpn_update_device_flags(mac, novpn=novpn_val, nodns=nodns_val)
-                if not ok:
-                    errors.append(mac)
-            if errors:
-                flash_error('Tallennus epäonnistui joillekin laitteille: ' + ', '.join(errors))
+            if 'add_device' in request.form:
+                # Handle adding a new device
+                name = (request.form.get('new_name') or '').strip()
+                mac = (request.form.get('new_mac') or '').strip()
+                try:
+                    ok, _ = novpn_add_device(name=name, mac=mac, novpn=False, nodns=False)
+                    if ok:
+                        flash_success('Laite lisätty.')
+                    else:
+                        flash_error('Laitteen lisäys epäonnistui.')
+                except ValueError as ve:
+                    flash_error(str(ve))
+                except Exception as e:
+                    flash_error(f'Laitteen lisäys epäonnistui: {e}')
             else:
-                flash_success('Asetukset tallennettu.')
+                # Handle updates to existing devices
+                devices = novpn_list_devices()
+                errors = []
+                for d in devices:
+                    mac = str(d.get('mac'))
+                    novpn_val = bool(request.form.get(f'novpn_{mac}'))
+                    nodns_val = bool(request.form.get(f'nodns_{mac}'))
+                    ok, _ = novpn_update_device_flags(mac, novpn=novpn_val, nodns=nodns_val)
+                    if not ok:
+                        errors.append(mac)
+                if errors:
+                    flash_error('Tallennus epäonnistui joillekin laitteille: ' + ', '.join(errors))
+                else:
+                    flash_success('Asetukset tallennettu.')
         devices = novpn_list_devices()
     except Exception as e:
         devices = []

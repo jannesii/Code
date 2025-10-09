@@ -24,6 +24,19 @@ def _format_bool(val: bool) -> str:
     return "true" if bool(val) else "false"
 
 
+def _normalize_mac(mac: str) -> str:
+    mac = (mac or "").strip().lower().replace('-', ':')
+    # zero-pad segments and ensure colon-separated
+    parts = [p for p in mac.split(':') if p]
+    if len(parts) == 6:
+        try:
+            parts = [f"{int(p, 16):02x}" for p in parts]
+        except Exception:
+            pass
+        return ":".join(parts)
+    return mac
+
+
 def _parse_device_line(line: str) -> Optional[Dict[str, object]]:
     """Parse one device line; returns dict with name, mac, novpn, nodns or None.
 
@@ -147,7 +160,7 @@ def update_device_flags(mac: str, *, novpn: Optional[bool] = None, nodns: Option
 
     Preserves comments and unrelated lines. Creates the file if missing.
     """
-    mac_norm = mac.lower().strip()
+    mac_norm = _normalize_mac(mac)
     _ensure_parent_dir(path)
 
     try:
@@ -186,3 +199,62 @@ def update_device_flags(mac: str, *, novpn: Optional[bool] = None, nodns: Option
             updated = d
             break
     return True, updated
+
+
+def add_device(name: str, mac: str, *, novpn: bool = False, nodns: bool = False,
+               path: str = NOVPN_CONFIG_PATH) -> Tuple[bool, Optional[Dict[str, object]]]:
+    """Append a new device entry to the config file.
+
+    Returns (ok, device). On failure, returns (False, None).
+    """
+    nm = (name or "").strip()
+    if not nm:
+        raise ValueError("Nimi on pakollinen.")
+    # Disallow quotes to keep a simple line format
+    if '"' in nm:
+        nm = nm.replace('"', '')
+
+    mac_norm = _normalize_mac(mac)
+    if not mac_norm or not re.match(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$", mac_norm):
+        raise ValueError("Virheellinen MAC-osoite.")
+
+    _ensure_parent_dir(path)
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+    except FileNotFoundError:
+        lines = []
+
+    # Prevent duplicate by MAC
+    for ln in lines:
+        d = _parse_device_line(ln)
+        if d and d.get('mac') == mac_norm:
+            raise ValueError("Laite samalla MAC-osoitteella on jo olemassa.")
+
+    # Compose line
+    line = (
+        f"{_DEVICE_CMD} -name \"{nm}\" -mac {mac_norm} "
+        f"-novpn {_format_bool(novpn)} -nodns {_format_bool(nodns)}\n"
+    )
+
+    new_lines = list(lines)
+    # Ensure file ends with a newline before appending (cosmetic)
+    if new_lines and not new_lines[-1].endswith('\n'):
+        new_lines[-1] = new_lines[-1] + '\n'
+    new_lines.append(line)
+
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, 'w', encoding='utf-8') as f:
+        f.writelines(new_lines)
+    os.replace(tmp_path, path)
+
+    if not _restart_novpn_master():
+        logger.warning("Warning: novpn-master restart failed after adding device.")
+
+    device = {
+        'name': nm,
+        'mac': mac_norm,
+        'novpn': bool(novpn),
+        'nodns': bool(nodns),
+    }
+    return True, device

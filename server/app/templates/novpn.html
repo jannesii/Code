@@ -16,6 +16,21 @@
       <h2>VPN/DNS ohitus</h2>
       <p class="nv-hint">Muokkaa laitekohtaiset VPN- ja DNS-ohitukset. Tallennus päivittää tiedoston <code>~/.config/novpn/devices.conf</code>.</p>
 
+      <form method="post" style="margin-bottom:16px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-row">
+          <label for="new_name">Nimi</label>
+          <input type="text" id="new_name" name="new_name" placeholder="Esim. PlayStation" required>
+        </div>
+        <div class="form-row">
+          <label for="new_mac">MAC</label>
+          <input type="text" id="new_mac" name="new_mac" placeholder="aa:bb:cc:dd:ee:ff" pattern="^([0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}$" required>
+        </div>
+        <div class="actions">
+          <button type="submit" name="add_device" value="1" class="btn primary">Lisää laite</button>
+        </div>
+      </form>
+
       {% if not devices %}
         <p class="nv-hint">Asetustiedostossa ei ole laitteita.</p>
       {% else %}
