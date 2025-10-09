@@ -13,7 +13,10 @@ from ...utils import (
     get_new_password_pair, validate_password_pair,
 )
 from ...core.controller import Controller
-from ...services.novpn.config import list_devices as novpn_list_devices
+from ...services.novpn.config import (
+    list_devices as novpn_list_devices,
+    update_device_flags as novpn_update_device_flags,
+)
 
 
 web_bp = Blueprint('web', __name__)
@@ -384,7 +387,7 @@ def api_keys():
     return render_template('api_keys.html', keys=keys, created_key=created_token)
 
 
-@web_bp.route('/settings/network_bypass', methods=['GET'])
+@web_bp.route('/settings/network_bypass', methods=['GET', 'POST'])
 @login_required
 def novpn_settings():
     """Per-device VPN/DNS bypass settings backed by ~/.config/novpn/devices.conf.
@@ -394,8 +397,22 @@ def novpn_settings():
     if guard:
         return guard
     try:
+        if request.method == 'POST':
+            devices = novpn_list_devices()
+            errors = []
+            for d in devices:
+                mac = str(d.get('mac'))
+                novpn_val = bool(request.form.get(f'novpn_{mac}'))
+                nodns_val = bool(request.form.get(f'nodns_{mac}'))
+                ok, _ = novpn_update_device_flags(mac, novpn=novpn_val, nodns=nodns_val)
+                if not ok:
+                    errors.append(mac)
+            if errors:
+                flash_error('Tallennus epäonnistui joillekin laitteille: ' + ', '.join(errors))
+            else:
+                flash_success('Asetukset tallennettu.')
         devices = novpn_list_devices()
     except Exception as e:
         devices = []
-        flash_error(f'Laitteiden lukeminen epäonnistui: {e}')
+        flash_error(f'Laitteiden käsittely epäonnistui: {e}')
     return render_template('novpn.html', devices=devices)

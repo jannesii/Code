@@ -1,7 +1,10 @@
 import os
 import re
 from typing import List, Dict, Optional, Tuple
+import subprocess
+import logging
 
+logger = logging.getLogger(__name__)
 
 NOVPN_CONFIG_PATH = os.path.expanduser("~/.config/novpn/devices.conf")
 _DEVICE_CMD = "/usr/local/bin/novpn-device.sh"
@@ -71,6 +74,39 @@ def _parse_device_line(line: str) -> Optional[Dict[str, object]]:
     }
 
 
+def _restart_novpn_master() -> bool:
+    """Restart the novpn-master service via systemctl.
+
+    Returns True if restart succeeded, False otherwise.
+    """
+    try:
+        cmd: List[str] = ["/usr/bin/systemctl", "restart", "novpn-master"]
+        # Use sudo if not running as root
+        if os.geteuid() != 0:
+            cmd.insert(0, "/usr/bin/sudo")
+
+        logger.debug("Restarting novpn-master: %s", " ".join(cmd))
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=float(os.getenv("NOVPN_RESTART_TIMEOUT_S", "10")),
+        )
+        if proc.returncode != 0:
+            logger.warning(
+                "Failed to restart novpn-master (returncode=%s): %s",
+                proc.returncode,
+                (proc.stderr or proc.stdout).strip(),
+            )
+            return False
+        logger.info("Successfully restarted novpn-master.")
+        return True
+    except Exception as e:
+        logger.warning("Exception while restarting novpn-master: %s", e)
+        return False
+
+
 def list_devices(path: str = NOVPN_CONFIG_PATH) -> List[Dict[str, object]]:
     """Return devices from config file; missing file yields empty list."""
     try:
@@ -136,6 +172,11 @@ def update_device_flags(mac: str, *, novpn: Optional[bool] = None, nodns: Option
     with open(tmp_path, 'w', encoding='utf-8') as f:
         f.writelines(new_lines)
     os.replace(tmp_path, path)
+
+    # Restart novpn-master to apply changes
+    if not _restart_novpn_master():
+        logger.warning(
+            "Warning: novpn-master restart failed after updating device flags.")
 
     # Return updated snapshot
     updated = None
