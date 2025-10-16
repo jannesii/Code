@@ -86,6 +86,7 @@ def init_services(app) -> Dict[str, Any]:
         logger.info("Tuya AC controller started for device %s", AC_DEVICE_ID)
     except Exception as e:
         logger.exception("Failed to initialize AC thermostat: %s", e)
+        
 
     # --- Hue time‑based routine ---
     try:
@@ -96,6 +97,13 @@ def init_services(app) -> Dict[str, Any]:
         services["hue_controller"] = hue
     except Exception as e:
         logger.exception("Failed to initialize Hue routine: %s", e)
+        
+    from .bmp_sensor.bmp_thread import start_bmp_sensor_service
+    try:
+        start_bmp_sensor_service(app.ctrl, interval=600)
+        logger.info("BMP Sensor service started")
+    except Exception as e:
+        logger.exception("Failed to initialize BMP Sensor service: %s", e)
 
     return services
 

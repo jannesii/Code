@@ -106,7 +106,14 @@ class DatabaseManager:
                 'timestamp TEXT NOT NULL, '
                 'type TEXT NOT NULL, '
                 'message TEXT NOT NULL'
-            )
+            ),
+            'bmp_sensor_data': (
+                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+                'timestamp TEXT NOT NULL, '
+                'temperature REAL NOT NULL, '
+                'pressure REAL NOT NULL, '
+                'altitude REAL NOT NULL'
+            ),
         }
         for name, schema in tables.items():
             self.cursor.execute(f"CREATE TABLE IF NOT EXISTS {name} ({schema})")
@@ -139,21 +146,14 @@ class DatabaseManager:
                     LIMIT 10
                 );
             END;
-            """,
-            'cleanup_temphum_after_insert':"""  
-            CREATE TRIGGER IF NOT EXISTS cleanup_temphum_after_insert
-            AFTER INSERT ON temphum
-            BEGIN
-                DELETE FROM temphum
-                WHERE timestamp < datetime('now', '-7 days');
-            END;
-            """,
+            """
+            ,
             'cleanup_esp32_temphum_after_insert':"""  
             CREATE TRIGGER IF NOT EXISTS cleanup_esp32_temphum_after_insert
             AFTER INSERT ON esp32_temphum
             BEGIN
                 DELETE FROM esp32_temphum
-                WHERE timestamp < datetime('now', '-7 days');
+                WHERE timestamp < datetime('now', '-30 days');
             END;
             """
             ,
@@ -163,6 +163,15 @@ class DatabaseManager:
             BEGIN
                 DELETE FROM ac_events
                 WHERE timestamp < datetime('now', '-30 days');
+            END;
+            """
+            ,
+            'cleanup_bmp_sensor_data_after_insert':"""
+            CREATE TRIGGER IF NOT EXISTS cleanup_bmp_sensor_data_after_insert
+            AFTER INSERT ON bmp_sensor_data
+            BEGIN
+                DELETE FROM bmp_sensor_data
+                WHERE timestamp < datetime('now', '-7 days');
             END;
             """
         }

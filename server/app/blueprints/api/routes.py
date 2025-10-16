@@ -27,6 +27,10 @@ _esp32_test_last: dict[str, Any] = {
 }
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
+
+from .bmp_sensor import bmp_bp
+api_bp.register_blueprint(bmp_bp)
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 

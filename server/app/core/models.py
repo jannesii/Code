@@ -110,3 +110,11 @@ class ApiKey:
     created_by: str | None
     revoked: bool
     last_used_at: str | None = None
+    
+@dataclass
+class BMPData:
+    id: int
+    timestamp: str
+    temperature: float
+    pressure: float
+    altitude: float

@@ -8,7 +8,7 @@ from flask_login import current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 
-from .models import User, TemperatureHumidity, ESP32TemperatureHumidity, Status, ImageData, TimelapseConf, ThermostatConf, ApiKey
+from .models import BMPData, User, TemperatureHumidity, ESP32TemperatureHumidity, Status, ImageData, TimelapseConf, ThermostatConf, ApiKey
 from .database import DatabaseManager
 import pytz
 import sqlite3
@@ -777,3 +777,57 @@ class Controller:
             current_phase=_getattr('current_phase', 'off'),
             phase_started_at=_getattr('phase_started_at', None),
         )
+        
+    def record_bmp_sensor_data(self, temperature: float, pressure: float, altitude: float) -> BMPData:
+        now = datetime.now(self.finland_tz).isoformat()
+        self.db.execute_query(
+            "INSERT INTO bmp_sensor_data (timestamp, temperature, pressure, altitude) VALUES (?, ?, ?, ?)",
+            (now, temperature, pressure, altitude)
+        )
+        row = self.db.fetchone(
+            "SELECT id, timestamp, temperature, pressure, altitude FROM bmp_sensor_data ORDER BY id DESC LIMIT 1"
+        )
+        if row is None:
+            raise RuntimeError("Failed to retrieve inserted bmp_sensor_data record")
+        return BMPData(
+            id=row['id'],
+            timestamp=row['timestamp'],
+            temperature=row['temperature'],
+            pressure=row['pressure'],
+            altitude=row['altitude']
+        )
+    
+    def get_last_bmp_sensor_data(self) -> Optional[BMPData]:
+        row = self.db.fetchone(
+            "SELECT id, timestamp, temperature, pressure, altitude FROM bmp_sensor_data ORDER BY id DESC LIMIT 1"
+        )
+        if row is None:
+            return None
+        return BMPData(
+            id=row['id'],
+            timestamp=row['timestamp'],
+            temperature=row['temperature'],
+            pressure=row['pressure'],
+            altitude=row['altitude']
+        )
+    
+    def get_bmp_sensor_data_for_date(self, date_str: str) -> List[BMPData]:
+        rows = self.db.fetchall(
+            """
+            SELECT id, timestamp, temperature, pressure, altitude
+              FROM bmp_sensor_data
+             WHERE date(timestamp) = ?
+             ORDER BY timestamp
+            """,
+            (date_str,)
+        )
+        return [
+            BMPData(
+                id=row['id'],
+                timestamp=row['timestamp'],
+                temperature=row['temperature'],
+                pressure=row['pressure'],
+                altitude=row['altitude']
+            )
+            for row in rows
+        ]
