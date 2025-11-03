@@ -108,20 +108,21 @@ def init_services(app) -> Dict[str, Any]:
         from .sodexo.sodexo import start_sodexo_webhook_thread
         
         webhook_url = os.getenv("SODEXO_WEBHOOK_URL")
-        if not webhook_url:
-            logger.exception("Set SODEXO_WEBHOOK_URL env var.")
-            return 2
-
+        hour = int(os.getenv("SODEXO_POST_HOUR"))
+        minute = int(os.getenv("SODEXO_POST_MINUTE"))
+        if not all([webhook_url, hour, minute]):
+            raise ValueError("Set SODEXO_WEBHOOK_URL, SODEXO_POST_HOUR, and SODEXO_POST_MINUTE env vars.")
+        skip_weekends = True
         stop_event, th = start_sodexo_webhook_thread(
             webhook_url,
             restaurant_name="Sodexo Frami",
-            hour=10,
-            minute=30,
+            hour=hour,
+            minute=minute,
             tz_name="Europe/Helsinki",
-            skip_weekends=True,
+            skip_weekends=skip_weekends,
         )
-
-        logger.info("Sodexo-Scheduler started (weekdays 10:30 Europe/Helsinki).")
+        s = "weekdays" if skip_weekends else "everyday"
+        logger.info(f"Sodexo-Scheduler started ({s} {hour}:{minute} Europe/Helsinki).")
     except Exception as e:
         logger.exception("Failed to initialize Sodexo scheduler: %s", e)
 
