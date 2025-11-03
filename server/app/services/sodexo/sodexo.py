@@ -69,12 +69,12 @@ def send_today_meals_to_discord(
     Renames & orders meals, formats a 'Tänään' message, and posts it to a Discord webhook.
     """
     mapping: Dict[str, str] = {
-        "FROM THE FIELD-VEGAN": "Vegaani",
         "FROM OUR FAVORITES": "Perussetti",
         "FROM THE SOUP BOWL": "Keittolounas",
-        "FROM THE GRILL": "Prikka?",
-        "From our bakery": "PATONKI",
         "FROM THE SWEET": "Jälkiruoka",
+        "FROM THE FIELD-VEGAN": "Vegaani",
+        "From our bakery": "PATONKI",
+        "FROM THE GRILL": "Prikka?",
     }
     # Accept both original and renamed labels for ordering
     order_index: Dict[str, int] = {}
@@ -106,6 +106,12 @@ def send_today_meals_to_discord(
         items = grouped[t]
         if not items:
             continue
+        if t == "Jälkiruoka":
+            # lines.append(f"\n**{t}**")
+            for n in items:
+                lines.append(f"• **{t}**: {n}")
+            continue
+            
         lines.append(f"\n**{t}**")
         for n in items:
             lines.append(f"• {n}")
@@ -277,6 +283,11 @@ def start_sodexo_webhook_thread(
 
 def main() -> int:
     # Prefer WEBHOOK_URL env so you don't commit secrets
+    post_today_menu(
+        webhook_url="https://canary.discord.com/api/webhooks/1434958256668938431/8ZMosz0dbxKcNJGw7NNbEaejzTnayiuCoeJH_ZUwuvSAaz8yXBYCbXY85u9zhhR5r_Ql",
+        restaurant_name="Testi Ravintola"
+    )
+    return 0
     webhook_url = os.getenv("SODEXO_WEBHOOK_URL")
     if not webhook_url:
         logger.error("Set SODEXO_WEBHOOK_URL env var.")

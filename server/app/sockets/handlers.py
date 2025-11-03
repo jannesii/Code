@@ -251,11 +251,15 @@ class SocketEventHandler:
         ac_thermo: ACThermostat | None = getattr(
             current_app, 'ac_thermostat', None)  # type: ignore
         if ac_thermo is None:
-            self.socketio.emit(
-                'error', {'message': 'AC thermostat not initialized'})
+            self.flash(
+                "AC Thermostat service is not initialized.",)
             self.logger.exception("ac_control: thermostat missing")
             return
         try:
+            if ac_thermo.winter:
+                self.flash(
+                    "AC Thermostat is in winter mode; control actions are disabled.", 'error')
+                return
             if action == 'power_on':
                 ac_thermo.set_power(True)
                 return
