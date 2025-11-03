@@ -56,8 +56,11 @@ def init_services(app) -> Dict[str, Any]:
     try:
         if not all([AC_DEVICE_ID, AC_IP, AC_LOCAL_KEY]):
             raise ValueError("Missing one of AC_DEV_ID, AC_IP, or AC_LOCAL_KEY environment variables")
-        tinytuya_device = tinytuya.Device(AC_DEVICE_ID, AC_IP, AC_LOCAL_KEY)
-        ac_controller = ACController(tinytuya_device=tinytuya_device)
+        
+        winter = True
+        
+        tinytuya_device = tinytuya.Device(AC_DEVICE_ID, AC_IP, AC_LOCAL_KEY) if not winter else None
+        ac_controller = ACController(tinytuya_device=tinytuya_device, winter=winter)
         THERMOSTAT_LOCATION = os.getenv("THERMOSTAT_LOCATION", "Tietokonepöytä")
         # Load thermostat configuration from DB (seed default if missing)
         try:
@@ -78,12 +81,14 @@ def init_services(app) -> Dict[str, Any]:
             ctrl=app.ctrl,  # type: ignore[attr-defined]
             location=THERMOSTAT_LOCATION,
             notify=_make_notify(app.ctrl),  # type: ignore[attr-defined]
+            winter=winter
         )
         app.ac_thermostat = ac_thermostat  # type: ignore[attr-defined]
-        t = threading.Thread(target=ac_thermostat.run_forever, daemon=True)
-        t.start()
-        services["ac_thermostat"] = ac_thermostat
-        logger.info("Tuya AC controller started for device %s", AC_DEVICE_ID)
+        if not winter:
+            t = threading.Thread(target=ac_thermostat.run_forever, daemon=True)
+            t.start()
+            services["ac_thermostat"] = ac_thermostat
+            logger.info("Tuya AC controller started for device %s", AC_DEVICE_ID)
     except Exception as e:
         logger.exception("Failed to initialize AC thermostat: %s", e)
         
@@ -95,15 +100,30 @@ def init_services(app) -> Dict[str, Any]:
         hue = HueController(hue_bridge_ip, hue_username)
         hue.start_time_based_routine(apply_immediately=False)
         services["hue_controller"] = hue
+        logger.info("Hue time-based routine started.")
     except Exception as e:
         logger.exception("Failed to initialize Hue routine: %s", e)
         
-    from .bmp_sensor.bmp_thread import start_bmp_sensor_service
-    try:
-        start_bmp_sensor_service(app.ctrl, interval=600)
-        logger.info("BMP Sensor service started")
+    try: 
+        from .sodexo.sodexo import start_sodexo_webhook_thread
+        
+        webhook_url = os.getenv("SODEXO_WEBHOOK_URL")
+        if not webhook_url:
+            logger.exception("Set SODEXO_WEBHOOK_URL env var.")
+            return 2
+
+        stop_event, th = start_sodexo_webhook_thread(
+            webhook_url,
+            restaurant_name="Sodexo Frami",
+            hour=10,
+            minute=30,
+            tz_name="Europe/Helsinki",
+            skip_weekends=True,
+        )
+
+        logger.info("Sodexo-Scheduler started (weekdays 10:30 Europe/Helsinki).")
     except Exception as e:
-        logger.exception("Failed to initialize BMP Sensor service: %s", e)
+        logger.exception("Failed to initialize Sodexo scheduler: %s", e)
 
     return services
 

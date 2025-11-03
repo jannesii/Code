@@ -46,8 +46,8 @@ class ACController:
         # tinytuya device credentials (if not passing an existing Device instance)
         DEV_ID: str = "",
         IP: str = "",
-        LOCALKEY: str = ""
-
+        LOCALKEY: str = "",
+        winter: bool = False
     ) -> None:
         """
         Initialize the controller.
@@ -55,6 +55,8 @@ class ACController:
         You can either pass an existing tinytuya `Device` instance via `tinytuya_device`
         OR supply the device id, ip and local key and this class will build the connection.
         """
+        if winter:
+            return
         if tinytuya_device:
             self.ac = tinytuya_device
         else:

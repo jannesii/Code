@@ -70,7 +70,7 @@ def post_esp32_temphum():
         'temperature_c'), data.get('humidity_pct'), data.get('error')
 
     if error:
-        logger.error(f'ESP32 ERROR: {error} | Location: {location}')
+        logger.warning(f'ESP32 ERROR: {error} | Location: {location}')
         return jsonify({
             'ok': False,
             'error': 'device_error',

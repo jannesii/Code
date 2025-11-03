@@ -24,21 +24,23 @@ class ACThermostat:
         ctrl: Controller,
         location: str,
         notify: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+        winter: bool = False
     ):
+        self.winter = winter
         self.ac = ac
         self.cfg = cfg
         self.ctrl = ctrl
         self.location = location
         self.notify = notify
         self._temps = deque(maxlen=max(1, cfg.smooth_window))
-        ac_status = self.ac.get_status()
+        ac_status = self.ac.get_status() if not winter else None
         self._is_on: bool = bool(ac_status.get(
             "switch", False)) if ac_status else False
         # Track last-known mode/fan to inform UI
         self.mode: Optional[str] = ac_status.get(
-            "mode") if isinstance(ac_status, dict) else None
+            "mode", "cold") if isinstance(ac_status, dict) else None
         self.fan_speed: Optional[str] = ac_status.get(
-            "fan_speed_enum") if isinstance(ac_status, dict) else None
+            "fan_speed_enum", "low") if isinstance(ac_status, dict) else None
         self._enabled: bool = bool(getattr(cfg, 'thermo_active', True))
         self._is_sleep_time = self._is_sleep_time_window_now()
         # Temporary override to suppress sleep window until given epoch seconds
