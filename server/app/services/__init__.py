@@ -1,11 +1,3 @@
-"""Service layer for external integrations (AC, Hue, etc.)."""
-
-"""Bootstrap initialization for long‑lived services (AC, Hue, Socket events).
-
-Moves heavy wiring out of the app factory to keep it lean and testable.
-"""
-
-
 import os
 import threading
 import logging
@@ -14,6 +6,13 @@ from typing import Any, Dict
 
 
 logger = logging.getLogger(__name__)
+
+"""Service layer for external integrations (AC, Hue, etc.)."""
+
+"""Bootstrap initialization for long‑lived services (AC, Hue, Socket events).
+
+Moves heavy wiring out of the app factory to keep it lean and testable.
+"""
 
 
 def _make_notify(handler) -> Any:

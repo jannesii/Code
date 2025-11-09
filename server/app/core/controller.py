@@ -772,6 +772,8 @@ class Controller:
             sleep_active=sleep_active,
             sleep_start=sleep_start,
             sleep_stop=sleep_stop,
+            total_on_s=total_on_s,
+            total_off_s=total_off_s,
             target_temp=target_temp,
             pos_hysteresis=pos_h,
             neg_hysteresis=neg_h,

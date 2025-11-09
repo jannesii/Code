@@ -129,7 +129,6 @@ def _rewrite_line_with(line: str, *, novpn: Optional[bool] = None, nodns: Option
         if pattern.search(s):
             return pattern.sub(rf"\1{_format_bool(value)}", s)
         # If flag missing, append at end
-        sep = '' if s.endswith('\n') else ''
         end_nl = '\n' if s.endswith('\n') else ''
         base = s[:-1] if end_nl else s
         return f"{base} {flag} {_format_bool(value)}{end_nl}"

@@ -170,10 +170,9 @@ def main():
 
     hue = HueController(hue_bridge_ip, hue_username)
 
-    lights = hue.get_lights()
     active_lights = hue.get_active_lights()
-    for key, l in active_lights.items():
-        print("ID", key, l)
+    for key, light in active_lights.items():
+        print("ID", key, light)
 
     hue.start_time_based_routine()
     while True:

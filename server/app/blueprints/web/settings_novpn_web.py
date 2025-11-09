@@ -113,11 +113,11 @@ def novpn_settings():
                 leases = read_static_leases()
                 merged: list[dict] = []
                 merged.extend(existing)
-                for l in leases:
-                    mac_l = str(l.get('mac', '')).lower()
+                for lease in leases:
+                    mac_l = str(lease.get('mac', '')).lower()
                     if mac_l and mac_l not in existing_by_mac:
-                        name_l = (l.get('hostname') or l.get('ip')
-                                  or l.get('mac') or '').strip()
+                        name_l = (lease.get('hostname') or lease.get('ip')
+                                  or lease.get('mac') or '').strip()
                         merged.append(
                             {'name': name_l, 'mac': mac_l, 'novpn': False, 'nodns': True})
 
@@ -134,7 +134,7 @@ def novpn_settings():
                         try:
                             ok, _ = novpn_add_device(
                                 name=str(d.get('name') or mac), mac=mac, novpn=novpn_val, nodns=nodns_val)
-                        except Exception as e:
+                        except Exception:
                             ok = False
                     if not ok:
                         errors.append(mac)
@@ -149,12 +149,12 @@ def novpn_settings():
         existing_macs = {str(d.get('mac')).lower() for d in devices}
         static_leases_all = read_static_leases()
         extra_rows = []
-        for l in static_leases_all:
-            mac_l = str(l.get('mac', '')).lower()
+        for lease in static_leases_all:
+            mac_l = str(lease.get('mac', '')).lower()
             if not mac_l or mac_l in existing_macs:
                 continue
-            name_l = (l.get('hostname') or l.get('ip')
-                      or l.get('mac') or '').strip()
+            name_l = (lease.get('hostname') or lease.get('ip')
+                      or lease.get('mac') or '').strip()
             extra_rows.append({'name': name_l, 'mac': mac_l,
                               'novpn': False, 'nodns': True, 'extra': True})
         # extend devices with static rows for rendering

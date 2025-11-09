@@ -1,23 +1,24 @@
 import eventlet
 eventlet.monkey_patch()
-from flask import Flask, send_from_directory
-import pathlib
-import logging
-import signal
 
 
 def create_app():
+    import logging
+    from pathlib import Path
+    import signal
+
     logger = logging.getLogger(__name__)
     logger.info("Starting application")
     logger.debug("Debug logging enabled")
 
     # ─── Flask app & config ───
+    from flask import Flask, send_from_directory
     app = Flask(__name__)
     from .config import load_settings
     settings = load_settings()
     app.config.update(settings)
 
-    HLS_ROOT = pathlib.Path("/srv/hls")    # parent of “printer1”
+    HLS_ROOT = Path("/srv/hls")    # parent of “printer1”
 
     @app.route("/live/<path:filename>")
     def live(filename):
@@ -28,7 +29,7 @@ def create_app():
     @app.route('/favicon.ico')
     def favicon():
         try:
-            static_path = pathlib.Path(app.static_folder or 'static')
+            static_path = Path(app.static_folder or 'static')
             return send_from_directory(static_path, 'favicon.ico')
         except Exception:
             # If not found, send 404 via Flask default

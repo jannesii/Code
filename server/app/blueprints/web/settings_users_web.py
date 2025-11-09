@@ -186,7 +186,7 @@ def edit_user(username):
                 return render_template('edit_user.html', user=user)
 
         try:
-            updated = ctrl.update_user(
+            ctrl.update_user(
                 current_username=username,
                 new_username=new_username or None,
                 password=password or None,
