@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+import argparse
 from typing import List, Tuple
 
 try:
@@ -37,15 +38,44 @@ def load_image(src_path: Path) -> Image.Image:
     return img
 
 
-def ensure_square(img: Image.Image, bg: Tuple[int, int, int, int] = (0, 0, 0, 0)) -> Image.Image:
-    """Pad to a square canvas preserving transparency."""
-    w, h = img.size
-    if w == h:
+def trim_transparent(img: Image.Image, alpha_threshold: int = 1) -> Image.Image:
+    """Trim fully transparent borders using the alpha channel.
+
+    alpha_threshold: 0-255. Pixels with alpha <= threshold are considered empty.
+    """
+    if img.mode != 'RGBA':
+        img = img.convert('RGBA')
+    alpha = img.split()[-1]
+    # Create a binary mask where > threshold
+    bbox = alpha.point(lambda a: 255 if a > alpha_threshold else 0).getbbox()
+    if not bbox:
         return img
-    side = max(w, h)
+    return img.crop(bbox)
+
+
+def pad_to_square(
+    img: Image.Image,
+    padding_ratio: float = 0.04,
+    bg: Tuple[int, int, int, int] = (0, 0, 0, 0),
+) -> Image.Image:
+    """Place the image centered on a square canvas with uniform padding.
+
+    padding_ratio defines the empty border on each side as a fraction of the
+    final square side. E.g. 0.06 = 6% padding around.
+    """
+    w, h = img.size
+    content_side = max(w, h)
+    # Compute the final square side so that content fits after padding
+    side = int(round(content_side / (1.0 - 2.0 * padding_ratio)))
+    side = max(side, content_side)
     canvas = Image.new('RGBA', (side, side), bg)
-    off = ((side - w) // 2, (side - h) // 2)
-    canvas.paste(img, off, mask=img if img.mode == 'RGBA' else None)
+    # Scale up content to fill the target, keeping aspect
+    scale = (1.0 - 2.0 * padding_ratio) * side / content_side
+    new_w = int(round(w * scale))
+    new_h = int(round(h * scale))
+    resized = img.resize((new_w, new_h), Image.LANCZOS)
+    off = ((side - new_w) // 2, (side - new_h) // 2)
+    canvas.paste(resized, off, mask=resized if resized.mode == 'RGBA' else None)
     return canvas
 
 
@@ -59,8 +89,14 @@ def save_ico(img: Image.Image, out_path: Path, sizes: List[int]) -> None:
 
 
 def main() -> None:
-    if len(sys.argv) > 1:
-        src = Path(sys.argv[1]).expanduser().resolve()
+    parser = argparse.ArgumentParser(description="Generate favicon assets from an image")
+    parser.add_argument("src", nargs="?", help="Path to source image (PNG/SVG)")
+    parser.add_argument("--padding", type=float, default=0.04,
+                        help="Padding ratio around content (default: 0.04)")
+    args = parser.parse_args()
+
+    if args.src:
+        src = Path(args.src).expanduser().resolve()
     else:
         src = STATIC_DIR / 'icon-source.png'
 
@@ -72,7 +108,10 @@ def main() -> None:
     STATIC_DIR.mkdir(parents=True, exist_ok=True)
 
     img = load_image(src)
-    img = ensure_square(img)
+    # 1) Trim away fully transparent borders, then 2) add a consistent padding
+    # to visually match typical favicon fill (crisper and not too small).
+    img = trim_transparent(img)
+    img = pad_to_square(img, padding_ratio=max(0.0, min(args.padding, 0.2)))
 
     # Export multi-size ICO
     ico_path = STATIC_DIR / 'favicon.ico'
@@ -93,4 +132,3 @@ def main() -> None:
 
 if __name__ == '__main__':
     main()
-
