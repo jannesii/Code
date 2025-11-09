@@ -14,6 +14,10 @@
   const titleHumEl     = document.getElementById('chartTitleHum');
   const avgTempEl      = document.getElementById('avgTemp');
   const avgHumEl       = document.getElementById('avgHum');
+  const minTempEl      = document.getElementById('minTemp');
+  const maxTempEl      = document.getElementById('maxTemp');
+  const minHumEl       = document.getElementById('minHum');
+  const maxHumEl       = document.getElementById('maxHum');
 
   const ctxTemp        = document.getElementById('chartCanvasTemp').getContext('2d');
   const ctxHum         = document.getElementById('chartCanvasHum').getContext('2d');
@@ -115,6 +119,25 @@
         avgTempEl.textContent = temps.length ? `Lämpötila: ${avgT.toFixed(1)}°C` : 'Lämpötila: –';
         avgHumEl.textContent  = hums.length  ? `Kosteus: ${avgH.toFixed(1)}%`    : 'Kosteus: –';
 
+        // Daily min/max from raw values (preserve extremes even if aggregation is enabled)
+        try {
+          const rawTemps = (Array.isArray(data) ? data : []).map(r => Number(r?.temperature ?? r?.temperature_c)).filter(Number.isFinite);
+          const rawHums  = (Array.isArray(data) ? data : []).map(r => Number(r?.humidity ?? r?.humidity_pct)).filter(Number.isFinite);
+          const tMin = rawTemps.length ? Math.min(...rawTemps) : NaN;
+          const tMax = rawTemps.length ? Math.max(...rawTemps) : NaN;
+          const hMin = rawHums.length  ? Math.min(...rawHums)  : NaN;
+          const hMax = rawHums.length  ? Math.max(...rawHums)  : NaN;
+          if (minTempEl) minTempEl.textContent = Number.isFinite(tMin) ? `Min: ${tMin.toFixed(1)}°C` : 'Min: –';
+          if (maxTempEl) maxTempEl.textContent = Number.isFinite(tMax) ? `Max: ${tMax.toFixed(1)}°C` : 'Max: –';
+          if (minHumEl)  minHumEl.textContent  = Number.isFinite(hMin) ? `Min: ${Math.round(hMin)}%` : 'Min: –';
+          if (maxHumEl)  maxHumEl.textContent  = Number.isFinite(hMax) ? `Max: ${Math.round(hMax)}%` : 'Max: –';
+        } catch (e) {
+          if (minTempEl) minTempEl.textContent = 'Min: –';
+          if (maxTempEl) maxTempEl.textContent = 'Max: –';
+          if (minHumEl)  minHumEl.textContent  = 'Min: –';
+          if (maxHumEl)  maxHumEl.textContent  = 'Max: –';
+        }
+
         // Create/update Temperature chart
         if (!chartTemp) {
           chartTemp = new Chart(ctxTemp, {
@@ -204,6 +227,10 @@
         console.error('❗ Error fetching/rendering data:', err);
         avgTempEl.textContent = 'Lämpötila: –';
         avgHumEl.textContent  = 'Kosteus: –';
+        if (minTempEl) minTempEl.textContent = 'Min: –';
+        if (maxTempEl) maxTempEl.textContent = 'Max: –';
+        if (minHumEl)  minHumEl.textContent  = 'Min: –';
+        if (maxHumEl)  maxHumEl.textContent  = 'Max: –';
       });
   }
 
