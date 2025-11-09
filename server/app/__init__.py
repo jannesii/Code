@@ -2,7 +2,7 @@ import threading
 import eventlet
 eventlet.monkey_patch()
 from .core.controller import Controller
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, current_app
 import pathlib
 import logging
 import signal
@@ -27,6 +27,17 @@ def create_app():
     @app.route("/live/<path:filename>")
     def live(filename):
         return send_from_directory(HLS_ROOT, filename)
+
+    # Serve /favicon.ico directly from the app static folder for browsers
+    # that request it implicitly without the <link rel="icon"> tag.
+    @app.route('/favicon.ico')
+    def favicon():
+        try:
+            static_path = pathlib.Path(app.static_folder or 'static')
+            return send_from_directory(static_path, 'favicon.ico')
+        except Exception:
+            # If not found, send 404 via Flask default
+            return ("", 404)
     
     # ─── Rate limiting ───
     from .security import configure_rate_limiting
