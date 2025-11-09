@@ -22,6 +22,7 @@ from ...services.novpn.config import (
 
 web_bp = Blueprint('web', __name__)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 @web_bp.route('/')
@@ -36,9 +37,13 @@ def get_home_page():
 def get_3d_page():
     ctrl: Controller = get_ctrl()
     logger.info("Rendering 3D page for %s", current_user.get_id())
+    from ...core.models import TemperatureHumidity
     img = ctrl.get_last_image()
-    th = ctrl.get_last_temphum()
+    th = TemperatureHumidity(
+        id=1, timestamp='', temperature=0.0, humidity=0.0
+    )
     st = ctrl.get_last_status()
+    logger.debug(f"Last image: {img.id}, Last temphum: {th}, Last status: {st}")
     return render_template(
         '3d.html',
         last_image=asdict(img) if img else None,

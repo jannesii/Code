@@ -3,45 +3,64 @@
 // Initial load
 console.log('📦 Dashboard script loaded');
 
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && hls.liveSyncPosition)
-    video.currentTime = hls.liveSyncPosition;
-});
-
 // Wait for DOM to be ready
 document.addEventListener('DOMContentLoaded', () => {
     console.log('📑 DOMContentLoaded fired');
 
     const video = document.getElementById('live');
-    const hls   = new Hls({
-      // Keep as little latency as possible (1 segment)
-      liveSyncDurationCount: 1,
-      // If we fall behind, allow 2× speed until we catch up
-      maxLiveSyncPlaybackRate: 2.0
-    });
-    hls.loadSource('/live/printer1/index.m3u8');
-    hls.attachMedia(video);
+    const imageEl = document.getElementById('image');
+    const liveVideoEl = document.getElementById('live-video');
 
-    // Auto-reseek if we drift >3 s
-    hls.on(Hls.Events.LEVEL_UPDATED, () => {
-      const lag = (hls.liveSyncPosition || 0) - video.currentTime;
-      if (lag > 3) video.currentTime = hls.liveSyncPosition;
+    // Decide what to show initially based on server-provided status
+    const preferImage = (window.preferImage === true);
+
+    let hls = null;
+    if (!preferImage) {
+      try {
+        hls = new Hls({
+          liveSyncDurationCount: 1,
+          maxLiveSyncPlaybackRate: 2.0
+        });
+        hls.loadSource('/live/printer1/index.m3u8');
+        hls.attachMedia(video);
+        // Auto-reseek if we drift >3 s
+        hls.on(Hls.Events.LEVEL_UPDATED, () => {
+          const lag = (hls.liveSyncPosition || 0) - video.currentTime;
+          if (lag > 3) video.currentTime = hls.liveSyncPosition;
+        });
+        // Ensure correct tiles visible if HLS is enabled
+        liveVideoEl.classList.remove('hidden');
+        imageEl.classList.add('hidden');
+      } catch (e) {
+        console.warn('⚠️ HLS init failed, falling back to image:', e);
+        // Fallback to image
+        liveVideoEl.classList.add('hidden');
+        imageEl.classList.remove('hidden');
+      }
+    } else {
+      // Prefer image: hide video
+      liveVideoEl.classList.add('hidden');
+      imageEl.classList.remove('hidden');
+    }
+
+    // Keep video in sync when tab becomes visible (only if HLS active)
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && hls && hls.liveSyncPosition)
+        video.currentTime = hls.liveSyncPosition;
     });
 
     socket.on('image', data => {
-      fetch('/api/previewJpg')
-        .then(response => response.blob())
-        .then(imageBlob => {
-          const imageObjectURL = URL.createObjectURL(imageBlob);
-          document.querySelector('.image-tile img').src = imageObjectURL;
-          console.log('🖼️ Image tile updated');
-        })
-        .catch(error => {
-          console.error('Error fetching image:', error);
-        });
-      /* console.log('📷 Received image event, data:', data);
-      document.querySelector('.image-tile img').src = '/api/previewJpg' //'data:image/jpeg;base64,' + data.image;
-      console.log('🖼️ Image tile updated'); */
+      // If server ever includes base64 image in payload, render it.
+      try {
+        if (data && data.image) {
+          document.querySelector('.image-tile img').src = 'data:image/jpeg;base64,' + data.image;
+          console.log('🖼️ Image tile updated from payload');
+        } else {
+          console.log('📷 Image event received without payload; no update performed');
+        }
+      } catch (e) {
+        console.warn('⚠️ Failed to update image from payload:', e);
+      }
     });
 
     // ─── Printer elements ─────────────────────────────────────────
@@ -62,8 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── Timelapse status ──
     const timelapseStatusEl = document.getElementById('timelapseStatus');
 
-    const imageEl = document.getElementById('image');
-    const liveVideoEl = document.getElementById('live-video');
+    // elements declared earlier
 
     function formatTime(minutes) {
       // use total whole minutes
@@ -115,14 +133,31 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       // ── Timelapse status ──
       if ('timelapse_status' in data) {
-        const isActive = data.timelapse_status === true      // boolean true
-                      || data.timelapse_status === 'True';   // string "True" (just in case)
+        // Boolean timelapse status from client (preferred live signal)
+        const isActive = (data.timelapse_status === true) || (data.timelapse_status === 'True');
+        // Toggle tiles
         if (isActive) {
-          liveVideoEl.classList.add('hidden');  // hide live video
-          imageEl.classList.remove('hidden');   // show static image
+          // Timelapse active -> prefer image
+          liveVideoEl.classList.add('hidden');
+          imageEl.classList.remove('hidden');
         } else {
-          liveVideoEl.classList.remove('hidden'); // show live video
-          imageEl.classList.add('hidden');        // hide static image
+          // Timelapse inactive -> try live video, else fallback to image
+          if (!hls) {
+            try {
+              hls = new Hls({ liveSyncDurationCount: 1, maxLiveSyncPlaybackRate: 2.0 });
+              hls.loadSource('/live/printer1/index.m3u8');
+              hls.attachMedia(video);
+            } catch (e) {
+              console.warn('⚠️ HLS init on status failed, staying on image:', e);
+            }
+          }
+          if (hls) {
+            liveVideoEl.classList.remove('hidden');
+            imageEl.classList.add('hidden');
+          } else {
+            liveVideoEl.classList.add('hidden');
+            imageEl.classList.remove('hidden');
+          }
         }
         timelapseStatusEl.innerHTML = isActive
           ? '<button class="control-btn-status start-btn">Active</button>'

@@ -3,6 +3,8 @@
 *.mp4
 *.crt
 *.db
+*.env
+*.service
 server.zip
 .venv/
 myenv/

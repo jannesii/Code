@@ -1,6 +1,8 @@
 # run.py
 import os
 import logging
+import dotenv
+dotenv.load_dotenv("jannenkoti.env")
 
 from app import create_app
 

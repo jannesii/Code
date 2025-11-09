@@ -201,6 +201,12 @@ class SocketEventHandler:
                 'error'
             )
             return
+        # This handler is currently disabled
+        self.flash(
+            "Printer actions are currently disabled.",
+            'error'
+        )
+        return
         self.logger.info("Received printer action data: %s", data)
         action = data.get('action', '')
         if result != '':

@@ -230,3 +230,18 @@ grid-template-columns: 1fr;
 }
 
 .hidden { display: none; }
+
+/* ─── demo banner ─────────────────────────────────────────────── */
+h1.demo-mode{
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  text-align: center;
+  color: #ffd166;              /* soft amber accent */
+  background: #1e1e1e;
+  border: 1px dashed #444;
+  border-radius: 8px;
+}
