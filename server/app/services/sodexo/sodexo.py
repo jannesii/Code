@@ -6,14 +6,13 @@ Also includes a scheduler that posts every weekday at a set local time in a back
 
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from zoneinfo import ZoneInfo
 import unicodedata
 import threading
 import requests
 import logging
-import time
 import os
 import sys
 from bs4 import BeautifulSoup

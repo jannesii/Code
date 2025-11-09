@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import os
-import sys
 import logging
 from datetime import datetime, time as dtime
 import threading

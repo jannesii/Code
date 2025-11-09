@@ -8,7 +8,6 @@ from __future__ import annotations
 import logging
 
 from flask import Blueprint, jsonify, current_app
-from flask import request  # kept for parity, not currently used
 from flask_login import login_required, current_user
 
 from ...core import Controller

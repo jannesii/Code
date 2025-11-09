@@ -9,13 +9,12 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 
 from . import (
-    User, TemperatureHumidity, ESP32TemperatureHumidity, Status,
+    User, ESP32TemperatureHumidity, Status,
     ImageData, TimelapseConf, ThermostatConf, ApiKey, BMPData
 )
 import pytz
 import sqlite3
 import secrets
-import hashlib
 
 logger = logging.getLogger(__name__)
 

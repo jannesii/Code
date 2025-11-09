@@ -1,5 +1,5 @@
 import logging
-from flask import request, flash, current_app
+from flask import request, current_app
 from flask_socketio import SocketIO
 from typing import Set, Any
 from flask_login import current_user

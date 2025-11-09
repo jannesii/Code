@@ -83,7 +83,7 @@ def create_app():
     from .extensions import login_manager
     login_manager.login_view = "auth.login"  # type: ignore
     login_manager.init_app(app)
-    from .blueprints.auth.routes import load_user, AuthAnonymous, kick_if_expired
+    from .blueprints.auth.auth import load_user, AuthAnonymous, kick_if_expired
     app.before_request(kick_if_expired)
     login_manager.user_loader(load_user)
     login_manager.anonymous_user = AuthAnonymous

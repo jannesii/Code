@@ -9,7 +9,6 @@ from __future__ import annotations
 import logging
 import os
 from datetime import datetime
-from typing import Any
 
 import pytz
 from flask import Blueprint, request, jsonify, current_app

@@ -1,5 +1,5 @@
 import logging
-from flask import jsonify, session, flash, current_app, redirect, url_for
+from flask import jsonify, flash, current_app, redirect, url_for
 from flask_login import current_user
 from typing import Optional, Tuple
 from datetime import datetime
