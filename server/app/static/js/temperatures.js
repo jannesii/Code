@@ -2,6 +2,7 @@ console.log('🧊 temperatures.js loaded');
 
 const STALE_MINUTES = 10; // mark readings stale when older than this
 const STALE_MS = STALE_MINUTES * 60 * 1000;
+const OUTSIDE_LOCATION_NAME = 'Parveke'; // treated as outside sensor
 
 const state = {
   items: [],  // { name, temp, hum, ts }
@@ -104,11 +105,13 @@ function extractNameTempHum(entry){
 
 function renderItems(locations){
   const grid = document.getElementById('locationsGrid');
+  const outGrid = document.getElementById('outsideGrid');
   if(!grid) return;
 
   // allow passing either raw list or using state
   const locs = Array.isArray(locations) ? locations : (state.items || []);
   grid.innerHTML = '';
+  if (outGrid) outGrid.innerHTML = '';
 
   // Apply filter
   const f = (state.filter || '').trim().toLowerCase();
@@ -135,13 +138,27 @@ function renderItems(locations){
     return (an - bn) * dir;
   });
 
-  // Render
-  for (const loc of list){
+  // Split into inside vs outside (Parveke)
+  const outsideList = list.filter(x => (x.name || '').trim() === OUTSIDE_LOCATION_NAME);
+  const insideList  = list.filter(x => (x.name || '').trim() !== OUTSIDE_LOCATION_NAME);
+
+  // Render inside tiles to main grid
+  for (const loc of insideList){
     const { name, temp, hum, ts } = loc;
     const id = 'loc-' + slugify(name || 'default');
     const tile = createTile(id, name, temp, hum, ts);
     applyFreshness(tile, ts);
     grid.appendChild(tile);
+  }
+  // Render outside tiles (if any) to outside grid
+  if (outGrid){
+    for (const loc of outsideList){
+      const { name, temp, hum, ts } = loc;
+      const id = 'loc-' + slugify(name || 'default');
+      const tile = createTile(id, name, temp, hum, ts);
+      applyFreshness(tile, ts);
+      outGrid.appendChild(tile);
+    }
   }
 }
 
@@ -180,6 +197,10 @@ function updateTile(data){
   // Re-render grid and summary to respect sorting/filtering
   renderItems(state.items);
   updateSummary(state.items);
+  // If outside updated, refresh outside stats as well
+  if ((name || '').trim() === OUTSIDE_LOCATION_NAME){
+    refreshOutsideStatsSoon();
+  }
 }
 
 function initSIO(){
@@ -297,8 +318,10 @@ document.addEventListener('DOMContentLoaded', () => {
   initSIO();
   fetchACStatus();
   fetchAvgRates();
+  fetchOutsideToday();
   // Periodic refresh every 5 minutes
   setInterval(fetchAvgRates, 5 * 60 * 1000);
+  setInterval(fetchOutsideToday, 5 * 60 * 1000);
 
   // Wire control buttons
   const btnAc = document.getElementById('btnAcPowerToggle');
@@ -618,7 +641,13 @@ function updateSummary(items){
   const maxEl = document.getElementById('maxTempPill');
   if (!avgEl || !minEl || !maxEl) return;
 
-  const vals = (Array.isArray(items) ? items : []).map(x => Number(x.temp)).filter(Number.isFinite);
+  // Exclude outside sensor from summary
+  const inItems = (Array.isArray(items) ? items : []).filter(it => {
+    const n = String(it.name || it.location || '').trim();
+    return n !== OUTSIDE_LOCATION_NAME;
+  });
+
+  const vals = inItems.map(x => Number(x.temp)).filter(Number.isFinite);
   if (!vals.length){
     avgEl.textContent = 'AVG: —';
     minEl.textContent = 'Min: —';
@@ -627,7 +656,7 @@ function updateSummary(items){
   }
   const avg = vals.reduce((a,b)=>a+b,0) / vals.length;
   let minV = Infinity, maxV = -Infinity, minN='—', maxN='—';
-  for (const it of (items||[])){
+  for (const it of inItems){
     const t = Number(it.temp);
     if (Number.isFinite(t)){
       if (t < minV){ minV = t; minN = it.name || it.location || '—'; }
@@ -661,4 +690,58 @@ function applyTempColor(el, temp){
   else if (n <= 24) el.classList.add('temp-good');
   else if (n <= 27) el.classList.add('temp-warm');
   else el.classList.add('temp-hot');
+}
+
+// --- Outside (Parveke) daily stats ---
+let _outsideTimer = null;
+function refreshOutsideStatsSoon(){
+  if (_outsideTimer) return;
+  _outsideTimer = setTimeout(() => { _outsideTimer = null; fetchOutsideToday(); }, 2000);
+}
+
+async function fetchOutsideToday(){
+  try{
+    const url = `/api/esp32_temphum?location=${encodeURIComponent(OUTSIDE_LOCATION_NAME)}`;
+    const resp = await fetch(url);
+    if(!resp.ok){
+      console.warn('outside stats fetch failed:', resp.status);
+      setOutsideStats(null);
+      return;
+    }
+    const data = await resp.json();
+    setOutsideStats(data);
+  }catch(err){
+    console.error('outside stats error:', err);
+    setOutsideStats(null);
+  }
+}
+
+function setOutsideStats(rows){
+  const tEl = document.getElementById('outsideTempRange');
+  const hEl = document.getElementById('outsideHumRange');
+  if (!tEl || !hEl) return;
+
+  if (!Array.isArray(rows) || rows.length === 0){
+    tEl.textContent = 'Temp: —';
+    hEl.textContent = 'Hum: —';
+    return;
+  }
+  let tMin = +Infinity, tMax = -Infinity;
+  let hMin = +Infinity, hMax = -Infinity;
+  for (const r of rows){
+    const t = Number(r && (r.temperature_c ?? r.temperature));
+    const h = Number(r && (r.humidity_pct ?? r.humidity));
+    if (Number.isFinite(t)){
+      if (t < tMin) tMin = t;
+      if (t > tMax) tMax = t;
+    }
+    if (Number.isFinite(h)){
+      if (h < hMin) hMin = h;
+      if (h > hMax) hMax = h;
+    }
+  }
+  const tOk = Number.isFinite(tMin) && Number.isFinite(tMax);
+  const hOk = Number.isFinite(hMin) && Number.isFinite(hMax);
+  tEl.textContent = tOk ? `Temp: ${tMin.toFixed(1)} - ${tMax.toFixed(1)}°C` : 'Temp: —';
+  hEl.textContent = hOk ? `Hum: ${Math.round(hMin)} - ${Math.round(hMax)}%` : 'Hum: —';
 }
