@@ -15,8 +15,8 @@ import pytz
 from flask import Blueprint, request, jsonify, current_app
 from flask_login import login_required
 
-from ...core.controller import Controller
-from ...services.ac.thermostat import ACThermostat
+from ...core import Controller
+from ...services.ac import ACThermostat
 
 
 hvac_bp = Blueprint("api_hvac", __name__, url_prefix="")

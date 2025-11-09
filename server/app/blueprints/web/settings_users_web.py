@@ -14,9 +14,9 @@ from ...utils import (
     flash_error, flash_success,
     get_new_password_pair, validate_password_pair,
 )
-from ...core.controller import Controller
+from ...core import Controller
 
-from .routes import web_bp
+from . import web_bp
 
 
 logger = logging.getLogger(__name__)
@@ -201,4 +201,3 @@ def edit_user(username):
         except Exception as e:
             flash_error(f"Päivitys epäonnistui: {e}")
     return render_template('edit_user.html', user=user)
-

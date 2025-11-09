@@ -4,8 +4,8 @@ from flask_socketio import SocketIO
 from typing import Set, Any
 from flask_login import current_user
 
-from ..core.controller import Controller
-from ..services.ac.thermostat import ACThermostat
+from ..core import Controller
+from ..services.ac import ACThermostat
 
 
 class SocketEventHandler:
@@ -329,7 +329,8 @@ class SocketEventHandler:
                 try:
                     v = int(data.get('value'))
                 except Exception:
-                    self.socketio.emit('error', {'message': 'Invalid min_on_s'})
+                    self.socketio.emit(
+                        'error', {'message': 'Invalid min_on_s'})
                     return
                 ac_thermo.set_min_on_s(v)
                 return
@@ -337,7 +338,8 @@ class SocketEventHandler:
                 try:
                     v = int(data.get('value'))
                 except Exception:
-                    self.socketio.emit('error', {'message': 'Invalid min_off_s'})
+                    self.socketio.emit(
+                        'error', {'message': 'Invalid min_off_s'})
                     return
                 ac_thermo.set_min_off_s(v)
                 return
@@ -345,7 +347,8 @@ class SocketEventHandler:
                 try:
                     v = int(data.get('value'))
                 except Exception:
-                    self.socketio.emit('error', {'message': 'Invalid poll_interval_s'})
+                    self.socketio.emit(
+                        'error', {'message': 'Invalid poll_interval_s'})
                     return
                 ac_thermo.set_poll_interval_s(v)
                 return
@@ -353,7 +356,8 @@ class SocketEventHandler:
                 try:
                     v = int(data.get('value'))
                 except Exception:
-                    self.socketio.emit('error', {'message': 'Invalid smooth_window'})
+                    self.socketio.emit(
+                        'error', {'message': 'Invalid smooth_window'})
                     return
                 ac_thermo.set_smooth_window(v)
                 return
@@ -365,14 +369,16 @@ class SocketEventHandler:
                     try:
                         v = int(raw)
                     except Exception:
-                        self.socketio.emit('error', {'message': 'Invalid max_stale_s'})
+                        self.socketio.emit(
+                            'error', {'message': 'Invalid max_stale_s'})
                         return
                 ac_thermo.set_max_stale_s(v)
                 return
             if action == 'set_control_locations':
                 locs = data.get('locations')
                 if not isinstance(locs, (list, tuple)):
-                    self.socketio.emit('error', {'message': 'Invalid control locations'})
+                    self.socketio.emit(
+                        'error', {'message': 'Invalid control locations'})
                     return
                 ac_thermo.set_control_locations(list(locs))
                 return
@@ -437,7 +443,8 @@ class SocketEventHandler:
                 try:
                     minutes = int(data.get('minutes'))
                 except Exception:
-                    self.socketio.emit('error', {'message': 'Invalid minutes for sleep override'})
+                    self.socketio.emit(
+                        'error', {'message': 'Invalid minutes for sleep override'})
                     return
                 ac_thermo.disable_sleep_for(minutes)
                 return

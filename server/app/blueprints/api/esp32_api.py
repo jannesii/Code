@@ -15,10 +15,10 @@ import pytz
 from flask import Blueprint, request, jsonify, current_app, render_template
 from flask_login import login_required, current_user
 
-from ...core.controller import Controller
+from ...core import Controller
 from ...extensions import csrf
 from ...security import require_api_key
-from ...services.ac.thermostat import ACThermostat
+from ...services.ac import ACThermostat
 
 
 esp32_bp = Blueprint("api_esp32", __name__, url_prefix="")

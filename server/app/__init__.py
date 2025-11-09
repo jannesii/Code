@@ -1,14 +1,10 @@
-import threading
 import eventlet
 eventlet.monkey_patch()
-from .core.controller import Controller
-from flask import Flask, send_from_directory, current_app
-import pathlib
-import logging
 import signal
-
-from .extensions import csrf, login_manager, socketio
-from .logging_handlers import DBLogHandler
+import logging
+import pathlib
+from flask import Flask, send_from_directory, current_app
+import threading
 
 
 def create_app():
@@ -21,7 +17,7 @@ def create_app():
     from .config import load_settings
     settings = load_settings()
     app.config.update(settings)
-    
+
     HLS_ROOT = pathlib.Path("/srv/hls")    # parent of “printer1”
 
     @app.route("/live/<path:filename>")
@@ -38,12 +34,13 @@ def create_app():
         except Exception:
             # If not found, send 404 via Flask default
             return ("", 404)
-    
+
     # ─── Rate limiting ───
     from .security import configure_rate_limiting
     configure_rate_limiting(app)
 
     # ─── CSRF protection ───
+    from .extensions import csrf
     csrf.init_app(app)
     logger.info("CSRF protection enabled (1 h token lifetime)")
 
@@ -51,19 +48,22 @@ def create_app():
     db_path = app.config.get("DB_PATH")
     if not db_path:
         raise RuntimeError("DB_PATH is missing – add to environment.")
+    from .core import Controller
     app.ctrl = Controller(db_path)  # type: ignore
     logger.info("Controller init: %s", db_path)
-    
+
     # ─── Route all ERROR+ logs into DB ───
     try:
+        from .logging_handlers import DBLogHandler
         db_handler = DBLogHandler(app.ctrl)
         db_handler.setLevel(logging.ERROR)
         # Include exception tracebacks in the stored message
-        db_handler.setFormatter(logging.Formatter('%(levelname)s %(name)s: %(message)s'))
+        db_handler.setFormatter(logging.Formatter(
+            '%(levelname)s %(name)s: %(message)s'))
         logging.getLogger().addHandler(db_handler)
     except Exception as e:
         logger.warning("Failed to install DBLogHandler: %s", e)
-    
+
     # ─── Seed admin user (Root-Admin) ───
     try:
         app.ctrl.register_user(  # type: ignore
@@ -77,9 +77,11 @@ def create_app():
     except ValueError:
         app.ctrl.set_user_as_admin(
             app.config["WEB_USERNAME"], True)  # type: ignore
-        logger.info("Ensured %s has is_admin=True (existing)", app.config["WEB_USERNAME"])
+        logger.info("Ensured %s has is_admin=True (existing)",
+                    app.config["WEB_USERNAME"])
 
     # ─── Flask-Login ───
+    from .extensions import login_manager
     login_manager.login_view = "auth.login"  # type: ignore
     login_manager.init_app(app)
     from .blueprints.auth.routes import load_user, AuthAnonymous, kick_if_expired
@@ -89,6 +91,7 @@ def create_app():
     logger.info("Login manager ready")
 
     # ─── Socket.IO ───
+    from .extensions import socketio
     allowed_ws_origins = app.config.get('ALLOWED_WS_ORIGINS', [])
     logger.info("Allowed WebSocket origins: %s", allowed_ws_origins)
 
@@ -101,15 +104,18 @@ def create_app():
         ping_interval=10,
         ping_timeout=20,
     )
+
     def _shutdown_tasks():
         """Run best-effort shutdown side effects outside hub mainloop.
 
         Avoid doing blocking work directly in the eventlet hub signal context.
         """
         try:
-            app.ctrl.log_message("Server shutting down", "system")  # type: ignore
+            app.ctrl.log_message("Server shutting down",
+                                 "system")  # type: ignore
         except Exception as e:
-            logging.getLogger(__name__).warning("Shutdown log_message failed: %s", e)
+            logging.getLogger(__name__).warning(
+                "Shutdown log_message failed: %s", e)
         try:
             socketio.emit('server_shutdown')
             socketio.stop()
@@ -129,11 +135,10 @@ def create_app():
     signal.signal(signal.SIGINT, exit_signal)
     app.socketio = socketio  # type: ignore
     logger.info("Socket.IO ready (origins: %s)", allowed_ws_origins)
-    
-    # ─── Services (AC thermostat, Hue, Socket events) ───
-    from .services.bootstrap import init_services
-    init_services(app)
 
+    # ─── Services (AC thermostat, Hue, Socket events) ───
+    from .services import init_services
+    init_services(app)
 
     # ─── Blueprints ───
     from .blueprints import register_blueprints

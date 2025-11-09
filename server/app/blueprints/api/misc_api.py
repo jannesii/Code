@@ -15,7 +15,7 @@ import pytz
 from flask import Blueprint, jsonify, current_app, send_from_directory, request
 from flask_login import login_required, current_user
 
-from ...core.controller import Controller
+from ...core import Controller
 
 
 misc_bp = Blueprint("api_misc", __name__, url_prefix="")

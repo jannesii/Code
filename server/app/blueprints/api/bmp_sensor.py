@@ -3,7 +3,7 @@ from datetime import datetime, date
 from typing import Any, Dict
 import logging
 from flask import Blueprint, request, jsonify, current_app
-from ...core.controller import Controller
+from ...core import Controller
 from ...extensions import csrf
 
 bmp_bp = Blueprint('bmp_bp', __name__, url_prefix='/bmp')

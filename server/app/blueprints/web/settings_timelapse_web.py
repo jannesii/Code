@@ -10,9 +10,9 @@ from ...utils import (
     check_vals,
     flash_error, flash_success,
 )
-from ...core.controller import Controller
+from ...core import Controller
 
-from .routes import web_bp
+from . import web_bp
 
 
 logger = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ def timelapse_conf():
                 ctrl.update_timelapse_conf(**vals)
                 # Emit only to connected timelapse clients (not to views)
                 try:
-                    from ...sockets.handlers import SocketEventHandler
+                    from ...sockets import SocketEventHandler
                     handler = SocketEventHandler(
                         current_app.socketio, ctrl)  # type: ignore
                     handler.emit_to_clients('timelapse_conf', vals)
@@ -58,7 +58,8 @@ def timelapse_conf():
                     # Fallback to broadcast if handler unavailable
                     current_app.socketio.emit(
                         'timelapse_conf', vals)  # type: ignore
-                flash_success("Timelapsen konfiguraatio päivitetty onnistuneesti.")
+                flash_success(
+                    "Timelapsen konfiguraatio päivitetty onnistuneesti.")
                 logger.info("Timelapse updated %s by %s",
                             vals, current_user.get_id())
                 return redirect(url_for('web.get_settings_page'))

@@ -30,11 +30,11 @@ HEADERS = {
 # ----- Helpers for scraping -----
 
 
-def nfc_lower(s: str) -> str:
+def _nfc_lower(s: str) -> str:
     return unicodedata.normalize("NFC", s).strip().lower()
 
 
-def find_today_tab_id(soup: BeautifulSoup) -> Optional[str]:
+def _find_today_tab_id(soup: BeautifulSoup) -> Optional[str]:
     # The tab bar has class "meal-date-tabs …"
     ul = soup.select_one("ul.meal-date-tabs")
     if not ul:
@@ -42,7 +42,7 @@ def find_today_tab_id(soup: BeautifulSoup) -> Optional[str]:
 
     # Look for an <a> whose text is "Tänään"
     for a in ul.select("li > a"):
-        label = nfc_lower(a.get_text(strip=True))
+        label = _nfc_lower(a.get_text(strip=True))
         if "tänään" == label or label.startswith("tänään"):
             href = a.get("href", "").strip()
             if href.startswith("#"):
@@ -58,7 +58,7 @@ class Meal:
 # ----- Discord formatting & sending -----
 
 
-def send_today_meals_to_discord(
+def _send_today_meals_to_discord(
     meals: List[Meal],
     webhook_url: str,
     restaurant_name: str = "Ravintola Frami",
@@ -147,12 +147,12 @@ def send_today_meals_to_discord(
 # ----- One-shot fetch & post -----
 
 
-def fetch_today_meals() -> List[Meal]:
+def _fetch_today_meals() -> List[Meal]:
     resp = requests.get(URL, headers=HEADERS, timeout=20)
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "lxml")
 
-    tab_id = find_today_tab_id(soup)
+    tab_id = _find_today_tab_id(soup)
     if not tab_id:
         raise RuntimeError('Could not find the "Tänään" tab.')
 
@@ -175,10 +175,10 @@ def fetch_today_meals() -> List[Meal]:
     return meals
 
 
-def post_today_menu(webhook_url: str, restaurant_name: str = "Sodexo Frami") -> bool:
+def _post_today_menu(webhook_url: str, restaurant_name: str = "Sodexo Frami") -> bool:
     try:
-        meals = fetch_today_meals()
-        send_today_meals_to_discord(
+        meals = _fetch_today_meals()
+        _send_today_meals_to_discord(
             meals, webhook_url=webhook_url, restaurant_name=restaurant_name)
         return True
     except Exception as e:
@@ -241,13 +241,13 @@ def _scheduler_loop(
         if skip_weekends and not _is_weekday(datetime.now(tz)):
             continue
 
-        ok = post_today_menu(webhook_url=webhook_url,
+        ok = _post_today_menu(webhook_url=webhook_url,
                              restaurant_name=restaurant_name)
         if not ok:
             # Optional: retry once after a brief delay
             if stop_event.wait(timeout=30):
                 break
-            post_today_menu(webhook_url=webhook_url,
+            _post_today_menu(webhook_url=webhook_url,
                             restaurant_name=restaurant_name)
 
         # Compute next target (typically tomorrow; Monday if Fri and skipping weekends)
@@ -283,7 +283,7 @@ def start_sodexo_webhook_thread(
 
 def main() -> int:
     # Prefer WEBHOOK_URL env so you don't commit secrets
-    post_today_menu(
+    _post_today_menu(
         webhook_url="https://canary.discord.com/api/webhooks/1434958256668938431/8ZMosz0dbxKcNJGw7NNbEaejzTnayiuCoeJH_ZUwuvSAaz8yXBYCbXY85u9zhhR5r_Ql",
         restaurant_name="Testi Ravintola"
     )

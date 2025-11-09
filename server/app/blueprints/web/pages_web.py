@@ -8,9 +8,9 @@ from flask import render_template
 from flask_login import login_required, current_user
 
 from ...utils import get_ctrl
-from ...core.controller import Controller
+from ...core import Controller
 
-from .routes import web_bp
+from . import web_bp
 
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ def get_home_page():
 def get_3d_page():
     ctrl: Controller = get_ctrl()
     logger.info("Rendering 3D page for %s", current_user.get_id())
-    from ...core.models import TemperatureHumidity
+    from ...core import TemperatureHumidity
     img = ctrl.get_last_image()
     th = TemperatureHumidity(
         id=1, timestamp='', temperature=0.0, humidity=0.0
@@ -52,4 +52,3 @@ def get_temperatures_page():
     locations = ctrl.get_unique_locations()
     logger.info("Rendering temperatures page for %s", current_user.get_id())
     return render_template('temperatures.html', locations=locations)
-

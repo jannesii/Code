@@ -10,16 +10,16 @@ from ...utils import (
     require_root_admin_or_redirect,
     flash_error, flash_success,
 )
-from ...services.novpn.config import (
+from ...services.novpn import (
     list_devices as novpn_list_devices,
     update_device_flags as novpn_update_device_flags,
     add_device as novpn_add_device,
     update_device_meta as novpn_update_device_meta,
     delete_device as novpn_delete_device,
 )
-from ...services.dhcp.leases import read_static_leases
+from ...services.dhcp import read_static_leases
 
-from .routes import web_bp
+from . import web_bp
 
 
 logger = logging.getLogger(__name__)
@@ -163,4 +163,3 @@ def novpn_settings():
         devices = []
         flash_error(f'Failed to process devices: {e}')
     return render_template('novpn.html', devices=devices)
-

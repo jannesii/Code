@@ -4,9 +4,9 @@ import time
 from typing import Any, Dict, List, Optional, Callable
 from datetime import datetime, timedelta
 import pytz
-from ...core.controller import Controller
-from .controller import ACController
-from ...core.models import ThermostatConf
+from ...core import Controller
+from . import ACController
+from ...core import ThermostatConf
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

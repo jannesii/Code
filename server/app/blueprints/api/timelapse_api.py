@@ -11,7 +11,7 @@ from flask import Blueprint, jsonify, current_app
 from flask import request  # kept for parity, not currently used
 from flask_login import login_required, current_user
 
-from ...core.controller import Controller
+from ...core import Controller
 
 
 timelapse_bp = Blueprint("api_timelapse", __name__, url_prefix="")

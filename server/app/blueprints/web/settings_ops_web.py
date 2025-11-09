@@ -12,7 +12,7 @@ from ...utils import (
     flash_error, flash_success,
 )
 
-from .routes import web_bp
+from . import web_bp
 
 
 logger = logging.getLogger(__name__)
@@ -75,4 +75,3 @@ def api_keys():
 
     keys = ctrl.list_api_keys()
     return render_template('api_keys.html', keys=keys, created_key=created_token)
-

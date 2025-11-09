@@ -16,7 +16,7 @@ from flask_login import login_required
 
 from ...extensions import csrf
 from ...utils import require_root_admin_or_redirect
-from ...services.novpn.config import (
+from ...services.novpn import (
     list_devices as novpn_list_devices,
     update_device_flags as novpn_update_device_flags,
     add_device as novpn_add_device,

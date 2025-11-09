@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from logging import LogRecord
 
-from .core.controller import Controller
+from .core import Controller
 
 
 class DBLogHandler(logging.Handler):
@@ -40,4 +40,3 @@ class DBLogHandler(logging.Handler):
                 )
             except Exception:
                 pass
-

@@ -120,21 +120,6 @@ def _restart_novpn_master() -> bool:
         return False
 
 
-def list_devices(path: str = NOVPN_CONFIG_PATH) -> List[Dict[str, object]]:
-    """Return devices from config file; missing file yields empty list."""
-    try:
-        with open(path, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
-    except FileNotFoundError:
-        return []
-    devices: List[Dict[str, object]] = []
-    for ln in lines:
-        d = _parse_device_line(ln)
-        if d:
-            devices.append(d)
-    return devices
-
-
 def _rewrite_line_with(line: str, *, novpn: Optional[bool] = None, nodns: Optional[bool] = None) -> str:
     """Rewrite the -novpn/-nodns flags in a device line, preserving other parts."""
     def _replace_flag(s: str, flag: str, value: Optional[bool]) -> str:
@@ -179,6 +164,21 @@ def _rewrite_line_meta(line: str, *, name: Optional[str] = None, mac: Optional[s
     out = _replace_token(line, '-name', name, quoted=True)
     out = _replace_token(out, '-mac', mac, quoted=False)
     return out
+
+
+def list_devices(path: str = NOVPN_CONFIG_PATH) -> List[Dict[str, object]]:
+    """Return devices from config file; missing file yields empty list."""
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+    except FileNotFoundError:
+        return []
+    devices: List[Dict[str, object]] = []
+    for ln in lines:
+        d = _parse_device_line(ln)
+        if d:
+            devices.append(d)
+    return devices
 
 
 def update_device_flags(mac: str, *, novpn: Optional[bool] = None, nodns: Optional[bool] = None,
@@ -276,7 +276,8 @@ def add_device(name: str, mac: str, *, novpn: bool = False, nodns: bool = False,
     os.replace(tmp_path, path)
 
     if not _restart_novpn_master():
-        logger.warning("Warning: novpn-master restart failed after adding device.")
+        logger.warning(
+            "Warning: novpn-master restart failed after adding device.")
 
     device = {
         'name': nm,
@@ -335,7 +336,8 @@ def update_device_meta(original_mac: str, *, name: Optional[str] = None, new_mac
     os.replace(tmp_path, path)
 
     if not _restart_novpn_master():
-        logger.warning("Warning: novpn-master restart failed after editing device.")
+        logger.warning(
+            "Warning: novpn-master restart failed after editing device.")
 
     # Return updated snapshot
     updated = None
@@ -378,6 +380,7 @@ def delete_device(mac: str, *, path: str = NOVPN_CONFIG_PATH) -> Tuple[bool, Opt
     os.replace(tmp_path, path)
 
     if not _restart_novpn_master():
-        logger.warning("Warning: novpn-master restart failed after deleting device.")
+        logger.warning(
+            "Warning: novpn-master restart failed after deleting device.")
 
     return True, removed

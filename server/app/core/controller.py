@@ -8,8 +8,10 @@ from flask_login import current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 
-from .models import BMPData, User, TemperatureHumidity, ESP32TemperatureHumidity, Status, ImageData, TimelapseConf, ThermostatConf, ApiKey
-from .database import DatabaseManager
+from . import (
+    User, TemperatureHumidity, ESP32TemperatureHumidity, Status,
+    ImageData, TimelapseConf, ThermostatConf, ApiKey, BMPData
+)
 import pytz
 import sqlite3
 import secrets
@@ -20,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 class Controller:
     def __init__(self, db_path: str = os.getenv("DB_PATH", os.path.join(tempfile.gettempdir(), "timelapse.db"))):
+        from . import DatabaseManager
         self.db = DatabaseManager(db_path)
         self.finland_tz = pytz.timezone('Europe/Helsinki')
 

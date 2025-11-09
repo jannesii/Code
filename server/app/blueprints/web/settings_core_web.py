@@ -11,9 +11,9 @@ from ...utils import (
     flash_error, flash_success,
     get_new_password_pair, validate_password_pair,
 )
-from ...core.controller import Controller
+from ...core import Controller
 
-from .routes import web_bp
+from . import web_bp
 
 
 logger = logging.getLogger(__name__)
@@ -69,4 +69,3 @@ def change_password():
             return render_template('change_password.html')
 
     return render_template('change_password.html')
-

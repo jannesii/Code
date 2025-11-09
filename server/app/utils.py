@@ -5,14 +5,16 @@ from typing import Optional, Tuple
 from datetime import datetime
 import pytz
 
-from .core.controller import Controller
+from .core import Controller
 
 logger = logging.getLogger(__name__)
 
+
 def check_vals(image_delay: int, temphum_delay: int, status_delay: int):
     """Check if the values are valid."""
-    logger.debug("Checking values: image_delay=%s, temphum_delay=%s, status_delay=%s", image_delay, temphum_delay, status_delay)
-    
+    logger.debug("Checking values: image_delay=%s, temphum_delay=%s, status_delay=%s",
+                 image_delay, temphum_delay, status_delay)
+
     ret = []
     try:
         if (image_delay <= 0):
@@ -27,7 +29,7 @@ def check_vals(image_delay: int, temphum_delay: int, status_delay: int):
     except ValueError as ve:
         msg, cat = "Virheellinen syöte: " + str(ve), "error"
         ret.append({"msg": msg, "cat": cat})
-    
+
     return ret
 
 
@@ -44,7 +46,8 @@ def require_admin_or_redirect(message: str, redirect_endpoint: str):
     """
     if not getattr(current_user, 'is_admin', False):
         flash(message, 'error')
-        logger.warning("Non-admin user %s blocked: %s", current_user.get_id(), message)
+        logger.warning("Non-admin user %s blocked: %s",
+                       current_user.get_id(), message)
         return redirect(url_for(redirect_endpoint))
     return None
 
@@ -57,7 +60,8 @@ def require_root_admin_or_redirect(message: str, redirect_endpoint: str = None, 
     me = ctrl.get_user_by_username(current_user.get_id(), include_pw=False)
     if me and not getattr(me, 'is_root_admin', False):
         flash(message, 'error')
-        logger.warning("Non-root-admin user %s blocked: %s", current_user.get_id(), message)
+        logger.warning("Non-root-admin user %s blocked: %s",
+                       current_user.get_id(), message)
         if json:
             return jsonify({
                 'ok': False,

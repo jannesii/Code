@@ -1,7 +1,7 @@
 import json
 import logging
 from flask import (
-    Blueprint, render_template, request, flash,
+    render_template, request, flash,
     redirect, url_for, session, current_app, make_response, jsonify
 )
 from flask_login import (
@@ -9,10 +9,10 @@ from flask_login import (
     current_user, UserMixin, AnonymousUserMixin
 )
 from flask_limiter.errors import RateLimitExceeded
+from . import auth_bp
 from ...extensions import limiter, csrf
-from ...core.controller import Controller
+from ...core import Controller
 
-auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +30,7 @@ class AuthAnonymous(AnonymousUserMixin):
     def is_admin(self):
         return False
 
+
 def kick_if_expired():
     """Check if the user is temporary and expired."""
     ctrl: Controller = current_app.ctrl
@@ -38,6 +39,7 @@ def kick_if_expired():
         logout_user()
         flash("Istuntosi on vanhentunut.", "warning")
         return redirect(url_for("auth.login"))
+
 
 def load_user(user_id: str):
     ctrl: Controller = current_app.ctrl  # type: ignore
@@ -103,7 +105,8 @@ def login():
                     user_obj, "is_admin", False)),
                 remember=remember
             )
-            logger.info("User %s authenticated, is admin: %s", username, user_obj.is_admin)
+            logger.info("User %s authenticated, is admin: %s",
+                        username, user_obj.is_admin)
 
             next_page = request.args.get(
                 'next') or url_for('web.get_home_page')
@@ -148,12 +151,15 @@ def login_api():
 
     # Parse credentials from JSON or form
     data = request.get_json(silent=True) or {}
-    username = (data.get('username') if isinstance(data, dict) else None) or request.form.get('username') or ''
-    password = (data.get('password') if isinstance(data, dict) else None) or request.form.get('password') or ''
+    username = (data.get('username') if isinstance(data, dict)
+                else None) or request.form.get('username') or ''
+    password = (data.get('password') if isinstance(data, dict)
+                else None) or request.form.get('password') or ''
     remember_raw = (data.get('remember') if isinstance(data, dict) else None)
     if remember_raw is None:
         remember_raw = request.form.get('remember')
-    remember = bool(remember_raw) and str(remember_raw).lower() not in {"0", "false", "no"}
+    remember = bool(remember_raw) and str(
+        remember_raw).lower() not in {"0", "false", "no"}
 
     username = username.strip()
     logger.debug("API login attempt for %s (remember=%s)", username, remember)
@@ -168,7 +174,8 @@ def login_api():
         except Exception:
             expires_at = None
         if expires_at and expires_at < now:
-            ctrl.log_message(log_type='auth', message=f"Expired temporary login attempt for {username}")
+            ctrl.log_message(
+                log_type='auth', message=f"Expired temporary login attempt for {username}")
             return jsonify({
                 'ok': False,
                 'error': 'expired',
@@ -181,7 +188,8 @@ def login_api():
             AuthUser(username, is_admin=getattr(user_obj, "is_admin", False)),
             remember=remember
         )
-        logger.info("User %s authenticated via /login_api (admin=%s)", username, getattr(user_obj, 'is_admin', False))
+        logger.info("User %s authenticated via /login_api (admin=%s)",
+                    username, getattr(user_obj, 'is_admin', False))
         return jsonify({
             'ok': True,
             'user': username,
@@ -189,7 +197,8 @@ def login_api():
         })
 
     logger.warning("API auth failed for %s", username)
-    ctrl.log_message(log_type='auth', message=f"Failed API login attempt for {username}")
+    ctrl.log_message(
+        log_type='auth', message=f"Failed API login attempt for {username}")
     return jsonify({'ok': False, 'error': 'invalid_credentials', 'message': 'Invalid username or password'}), 401
 
 
