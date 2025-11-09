@@ -29,4 +29,3 @@ login_manager = LoginManager()
 
 # Socket.IO — parameters provided in app.init via init_app
 socketio = SocketIO(logger=True)
-

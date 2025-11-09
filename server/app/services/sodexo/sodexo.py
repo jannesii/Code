@@ -111,7 +111,7 @@ def _send_today_meals_to_discord(
             for n in items:
                 lines.append(f"• **{t}**: {n}")
             continue
-            
+
         lines.append(f"\n**{t}**")
         for n in items:
             lines.append(f"• {n}")
@@ -242,13 +242,13 @@ def _scheduler_loop(
             continue
 
         ok = _post_today_menu(webhook_url=webhook_url,
-                             restaurant_name=restaurant_name)
+                              restaurant_name=restaurant_name)
         if not ok:
             # Optional: retry once after a brief delay
             if stop_event.wait(timeout=30):
                 break
             _post_today_menu(webhook_url=webhook_url,
-                            restaurant_name=restaurant_name)
+                             restaurant_name=restaurant_name)
 
         # Compute next target (typically tomorrow; Monday if Fri and skipping weekends)
         # Loop repeats and calculates again.
@@ -303,7 +303,8 @@ def main() -> int:
         skip_weekends=True,
     )
 
-    logger.info("Scheduler started (weekdays 10:30 Europe/Helsinki). Press Ctrl+C to stop.")
+    logger.info(
+        "Scheduler started (weekdays 10:30 Europe/Helsinki). Press Ctrl+C to stop.")
     try:
         while th.is_alive():
             th.join(timeout=1.0)

@@ -564,10 +564,12 @@ class Controller:
         ]
 
     def delete_api_key(self, key_id: str) -> None:
-        self.db.execute_query("DELETE FROM api_keys WHERE key_id = ?", (key_id,))
+        self.db.execute_query(
+            "DELETE FROM api_keys WHERE key_id = ?", (key_id,))
 
     def revoke_api_key(self, key_id: str) -> None:
-        self.db.execute_query("UPDATE api_keys SET revoked = 1 WHERE key_id = ?", (key_id,))
+        self.db.execute_query(
+            "UPDATE api_keys SET revoked = 1 WHERE key_id = ?", (key_id,))
 
     def verify_api_key_token(self, token: str) -> dict | None:
         """Verify a presented API key token and return key metadata on success.
@@ -599,7 +601,8 @@ class Controller:
         # Update last_used_at best-effort
         try:
             now = datetime.now(self.finland_tz).isoformat()
-            self.db.execute_query("UPDATE api_keys SET last_used_at = ? WHERE id = ?", (now, row['id']))
+            self.db.execute_query(
+                "UPDATE api_keys SET last_used_at = ? WHERE id = ?", (now, row['id']))
         except Exception:
             pass
         return {
@@ -631,8 +634,10 @@ class Controller:
             sleep_active=bool(row['sleep_active']),
             sleep_start=row['sleep_start'],
             sleep_stop=row['sleep_stop'],
-            sleep_weekly=(row['sleep_weekly'] if 'sleep_weekly' in row.keys() else None),
-            control_locations=(row['control_locations'] if 'control_locations' in row.keys() else None),
+            sleep_weekly=(row['sleep_weekly']
+                          if 'sleep_weekly' in row.keys() else None),
+            control_locations=(
+                row['control_locations'] if 'control_locations' in row.keys() else None),
             target_temp=float(row['target_temp']),
             pos_hysteresis=float(row['pos_hysteresis']),
             neg_hysteresis=float(row['neg_hysteresis']),
@@ -780,7 +785,7 @@ class Controller:
             current_phase=_getattr('current_phase', 'off'),
             phase_started_at=_getattr('phase_started_at', None),
         )
-        
+
     def record_bmp_sensor_data(self, temperature: float, pressure: float, altitude: float) -> BMPData:
         now = datetime.now(self.finland_tz).isoformat()
         self.db.execute_query(
@@ -791,7 +796,8 @@ class Controller:
             "SELECT id, timestamp, temperature, pressure, altitude FROM bmp_sensor_data ORDER BY id DESC LIMIT 1"
         )
         if row is None:
-            raise RuntimeError("Failed to retrieve inserted bmp_sensor_data record")
+            raise RuntimeError(
+                "Failed to retrieve inserted bmp_sensor_data record")
         return BMPData(
             id=row['id'],
             timestamp=row['timestamp'],
@@ -799,7 +805,7 @@ class Controller:
             pressure=row['pressure'],
             altitude=row['altitude']
         )
-    
+
     def get_last_bmp_sensor_data(self) -> Optional[BMPData]:
         row = self.db.fetchone(
             "SELECT id, timestamp, temperature, pressure, altitude FROM bmp_sensor_data ORDER BY id DESC LIMIT 1"
@@ -813,7 +819,7 @@ class Controller:
             pressure=row['pressure'],
             altitude=row['altitude']
         )
-    
+
     def get_bmp_sensor_data_for_date(self, date_str: str) -> List[BMPData]:
         rows = self.db.fetchall(
             """

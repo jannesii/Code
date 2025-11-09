@@ -40,8 +40,10 @@ def read_static_leases(
 
     Output list entries have keys: ip, mac, hostname.
     """
-    primary = (leases_path or os.getenv("LEASES_FILE") or DEFAULT_ADGUARD_LEASES).strip()
-    fallback = (cache_path or os.getenv("STATIC_LEASES_CACHE") or DEFAULT_STATIC_CACHE).strip()
+    primary = (leases_path or os.getenv("LEASES_FILE")
+               or DEFAULT_ADGUARD_LEASES).strip()
+    fallback = (cache_path or os.getenv("STATIC_LEASES_CACHE")
+                or DEFAULT_STATIC_CACHE).strip()
 
     data = _read_json(primary)
     if data is None and fallback:
@@ -82,4 +84,3 @@ def read_static_leases(
         seen.add(m)
         dedup.append(e)
     return dedup
-

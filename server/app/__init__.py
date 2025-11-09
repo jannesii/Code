@@ -1,10 +1,9 @@
 import eventlet
 eventlet.monkey_patch()
-import signal
-import logging
+from flask import Flask, send_from_directory
 import pathlib
-from flask import Flask, send_from_directory, current_app
-import threading
+import logging
+import signal
 
 
 def create_app():

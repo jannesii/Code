@@ -44,6 +44,7 @@ class TemperatureHumidity:
     temperature: float
     humidity: float
 
+
 @dataclass
 class ESP32TemperatureHumidity:
     id: int
@@ -52,6 +53,7 @@ class ESP32TemperatureHumidity:
     temperature: float
     humidity: float
     ac_on: bool | None = None
+
 
 @dataclass
 class Status:
@@ -110,7 +112,8 @@ class ApiKey:
     created_by: str | None
     revoked: bool
     last_used_at: str | None = None
-    
+
+
 @dataclass
 class BMPData:
     id: int

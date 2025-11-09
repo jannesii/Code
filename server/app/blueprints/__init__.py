@@ -17,4 +17,3 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(auth_bp)
     app.register_blueprint(web_bp)
     app.register_blueprint(api_bp)
-

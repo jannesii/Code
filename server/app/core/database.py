@@ -5,6 +5,7 @@ from sqlite3 import Connection, Cursor
 import threading
 from typing import Any, List, Optional, Tuple
 
+
 class DatabaseManager:
     _instance = None
     _lock = threading.Lock()
@@ -21,7 +22,8 @@ class DatabaseManager:
             return
         self._initialized = True
         self.db_path = db_path
-        self.conn: Connection = sqlite3.connect(self.db_path, check_same_thread=False)
+        self.conn: Connection = sqlite3.connect(
+            self.db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.cursor: Cursor = self.conn.cursor()
         self._create_tables()
@@ -116,10 +118,12 @@ class DatabaseManager:
             ),
         }
         for name, schema in tables.items():
-            self.cursor.execute(f"CREATE TABLE IF NOT EXISTS {name} ({schema})")
+            self.cursor.execute(
+                f"CREATE TABLE IF NOT EXISTS {name} ({schema})")
 
         # Clean up test data if present
-        self.cursor.execute("DELETE FROM esp32_temphum WHERE location='Test' OR location='test'")
+        self.cursor.execute(
+            "DELETE FROM esp32_temphum WHERE location='Test' OR location='test'")
 
         # Insert default values for status and timelapse_conf if they don't exist
         self.cursor.execute("""
@@ -146,27 +150,24 @@ class DatabaseManager:
                     LIMIT 10
                 );
             END;
-            """
-            ,
-            'cleanup_esp32_temphum_after_insert':"""  
+            """,
+            'cleanup_esp32_temphum_after_insert': """  
             CREATE TRIGGER IF NOT EXISTS cleanup_esp32_temphum_after_insert
             AFTER INSERT ON esp32_temphum
             BEGIN
                 DELETE FROM esp32_temphum
                 WHERE timestamp < datetime('now', '-30 days');
             END;
-            """
-            ,
-            'cleanup_ac_events_after_insert':"""
+            """,
+            'cleanup_ac_events_after_insert': """
             CREATE TRIGGER IF NOT EXISTS cleanup_ac_events_after_insert
             AFTER INSERT ON ac_events
             BEGIN
                 DELETE FROM ac_events
                 WHERE timestamp < datetime('now', '-30 days');
             END;
-            """
-            ,
-            'cleanup_bmp_sensor_data_after_insert':"""
+            """,
+            'cleanup_bmp_sensor_data_after_insert': """
             CREATE TRIGGER IF NOT EXISTS cleanup_bmp_sensor_data_after_insert
             AFTER INSERT ON bmp_sensor_data
             BEGIN
@@ -230,12 +231,14 @@ class DatabaseManager:
 
         # Try to add weekly sleep column for thermostat_conf if missing
         try:
-            self.cursor.execute("ALTER TABLE thermostat_conf ADD COLUMN sleep_weekly TEXT")
+            self.cursor.execute(
+                "ALTER TABLE thermostat_conf ADD COLUMN sleep_weekly TEXT")
         except Exception:
             # Ignore if already exists
             pass
         try:
-            self.cursor.execute("ALTER TABLE thermostat_conf ADD COLUMN control_locations TEXT")
+            self.cursor.execute(
+                "ALTER TABLE thermostat_conf ADD COLUMN control_locations TEXT")
         except Exception:
             pass
 

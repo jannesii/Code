@@ -36,4 +36,3 @@ def register_assets(app) -> None:
         if not hasattr(g, "_assets"):
             g._assets = AssetRegistry()
         return {"assets": g._assets}
-

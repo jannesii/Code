@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-def read_bmp_sensor(ctrl: Controller):
+def _read_bmp_sensor(ctrl: Controller):
     url = "http://192.168.10.123/bmp"
     try:
         response = requests.get(url, timeout=5)
@@ -27,14 +27,14 @@ def read_bmp_sensor(ctrl: Controller):
         return None
 
 
-def bmp_sensor_thread(ctrl: Controller, interval: int):
+def _bmp_sensor_thread(ctrl: Controller, interval: int):
     logger.debug(f"BMP Sensor thread started with interval {interval}s")
     while True:
-        read_bmp_sensor(ctrl)
+        _read_bmp_sensor(ctrl)
         time.sleep(interval)
 
 
 def start_bmp_sensor_service(ctrl: Controller, interval: int):
-    thread = threading.Thread(target=bmp_sensor_thread,
+    thread = threading.Thread(target=_bmp_sensor_thread,
                               args=(ctrl, interval), daemon=True)
     thread.start()

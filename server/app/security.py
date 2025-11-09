@@ -27,7 +27,8 @@ def configure_rate_limiting(app) -> None:
 
     def _rate_limit_whitelist_filter() -> bool:
         try:
-            addr_raw = request.headers.get('X-Forwarded-For', request.remote_addr)
+            addr_raw = request.headers.get(
+                'X-Forwarded-For', request.remote_addr)
             if not addr_raw:
                 return False
             addr = str(addr_raw).split(',')[0].strip()
@@ -54,7 +55,8 @@ def configure_rate_limiting(app) -> None:
             return False
 
     try:
-        limiter.request_filter(_rate_limit_whitelist_filter)  # type: ignore[attr-defined]
+        # type: ignore[attr-defined]
+        limiter.request_filter(_rate_limit_whitelist_filter)
     except Exception:
         pass
 
