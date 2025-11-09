@@ -24,7 +24,7 @@ from ...services.ac.thermostat import ACThermostat
 esp32_bp = Blueprint("api_esp32", __name__, url_prefix="")
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 # In-memory state for ESP32 test telemetry (no DB persistence)
@@ -132,7 +132,8 @@ def post_esp32_temphum():
     if ac_check_flag:
         ac_check_flag = False
         # Wait a second to make sure all sensors have reported
-        threading.Timer(1, ac_thermo.step_on_off_check).start() if ac_thermo._enabled else None
+        threading.Timer(1, ac_thermo.step_on_off_check).start(
+        ) if ac_thermo._enabled else None
         # Reset flag after 10 seconds
         threading.Timer(10, reset_flag).start()
 
@@ -220,4 +221,3 @@ def esp32_test():
     if wants_json:
         return jsonify(_status_json())
     return render_template('esp32_test.html')
-

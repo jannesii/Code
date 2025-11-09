@@ -17,7 +17,7 @@ from ...core.controller import Controller
 timelapse_bp = Blueprint("api_timelapse", __name__, url_prefix="")
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 @timelapse_bp.route('/timelapse_config')
@@ -35,4 +35,3 @@ def get_timelapse_config():
         current_user.get_id()
     )
     return jsonify(vals)
-

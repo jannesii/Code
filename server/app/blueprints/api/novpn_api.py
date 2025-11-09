@@ -27,7 +27,7 @@ from ...services.novpn.config import (
 novpn_bp = Blueprint("api_novpn", __name__, url_prefix="/novpn")
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 @novpn_bp.route('/devices', methods=['GET'])
@@ -67,7 +67,8 @@ def novpn_update():
         if not ok or not updated:
             # If device not found, allow creating it when a name is provided
             if name:
-                ok_add, dev = novpn_add_device(name=name, mac=mac, novpn=bool(novpn) if novpn is not None else False, nodns=bool(nodns) if nodns is not None else False)
+                ok_add, dev = novpn_add_device(name=name, mac=mac, novpn=bool(
+                    novpn) if novpn is not None else False, nodns=bool(nodns) if nodns is not None else False)
                 if not ok_add:
                     return jsonify({'ok': False, 'error': 'write_failed', 'message': 'Failed to add device'}), 500
                 return jsonify({'ok': True, 'device': dev})
@@ -102,7 +103,8 @@ def novpn_temp_bypass():
         # Snapshot existing state (if any)
         existing = {d.get('mac'): d for d in novpn_list_devices()}
         existed = mac in existing
-        original_novpn = bool(existing.get(mac, {}).get('novpn')) if existed else False
+        original_novpn = bool(existing.get(
+            mac, {}).get('novpn')) if existed else False
 
         if existed:
             ok, _ = novpn_update_device_flags(mac, novpn=True, nodns=None)
@@ -110,7 +112,8 @@ def novpn_temp_bypass():
                 return jsonify({'ok': False, 'error': 'write_failed', 'message': 'failed to set novpn'}), 500
         else:
             # Create ephemeral entry with nodns=False per requirement
-            ok, _ = novpn_add_device(name=name, mac=mac, novpn=True, nodns=False)
+            ok, _ = novpn_add_device(
+                name=name, mac=mac, novpn=True, nodns=False)
             if not ok:
                 return jsonify({'ok': False, 'error': 'write_failed', 'message': 'failed to create temp device'}), 500
 
@@ -130,9 +133,11 @@ def novpn_temp_bypass():
                 else:
                     # Only revert if still in forced state (avoid clobbering user changes)
                     cur = {d.get('mac'): d for d in novpn_list_devices()}
-                    cur_novpn = bool(cur.get(mac, {}).get('novpn')) if mac in cur else None
+                    cur_novpn = bool(cur.get(mac, {}).get(
+                        'novpn')) if mac in cur else None
                     if cur_novpn is True or cur_novpn is None:
-                        novpn_update_device_flags(mac, novpn=original_novpn, nodns=None)
+                        novpn_update_device_flags(
+                            mac, novpn=original_novpn, nodns=None)
             except Exception:
                 logger.exception("temp_bypass revert failed for %s", mac)
 
@@ -144,7 +149,8 @@ def novpn_temp_bypass():
                 import threading
                 threading.Timer(minutes * 60, _revert).start()
         except Exception:
-            logger.exception("Failed to schedule temp_bypass revert; reverting now")
+            logger.exception(
+                "Failed to schedule temp_bypass revert; reverting now")
             _revert()
 
         return jsonify({'ok': True, 'mac': mac, 'minutes': minutes})
@@ -185,9 +191,11 @@ def novpn_quick_bypass():
                     novpn_delete_device(mac)
                 else:
                     cur = {d.get('mac'): d for d in novpn_list_devices()}
-                    cur_novpn = bool(cur.get(mac, {}).get('novpn')) if mac in cur else None
+                    cur_novpn = bool(cur.get(mac, {}).get(
+                        'novpn')) if mac in cur else None
                     if cur_novpn is True or cur_novpn is None:
-                        novpn_update_device_flags(mac, novpn=original_novpn, nodns=None)
+                        novpn_update_device_flags(
+                            mac, novpn=original_novpn, nodns=None)
             except Exception:
                 logger.exception("quick_bypass revert failed for %s", mac)
 
@@ -198,7 +206,8 @@ def novpn_quick_bypass():
                 import threading
                 threading.Timer(minutes * 60, _revert).start()
         except Exception:
-            logger.exception("Failed to schedule quick_bypass revert for %s; reverting now", mac)
+            logger.exception(
+                "Failed to schedule quick_bypass revert for %s; reverting now", mac)
             _revert()
 
     for item in devices:
@@ -206,11 +215,13 @@ def novpn_quick_bypass():
         name = (item.get("name") or mac).strip()
         try:
             existed = mac in existing_map
-            original_novpn = bool(existing_map.get(mac, {}).get('novpn')) if existed else False
+            original_novpn = bool(existing_map.get(
+                mac, {}).get('novpn')) if existed else False
             if existed:
                 ok, _ = novpn_update_device_flags(mac, novpn=True, nodns=None)
             else:
-                ok, _ = novpn_add_device(name=name, mac=mac, novpn=True, nodns=False)
+                ok, _ = novpn_add_device(
+                    name=name, mac=mac, novpn=True, nodns=False)
             if ok:
                 now_utc = datetime.now(timezone.utc)
                 end_utc = now_utc + timedelta(minutes=minutes)
@@ -219,13 +230,16 @@ def novpn_quick_bypass():
                     mac, name, minutes, end_utc.isoformat()
                 )
                 schedule_revert(mac, existed, original_novpn)
-                results.append({"mac": mac, "name": name, "ok": True, "minutes": minutes})
+                results.append({"mac": mac, "name": name,
+                               "ok": True, "minutes": minutes})
             else:
-                results.append({"mac": mac, "name": name, "ok": False, "error": "write_failed"})
+                results.append({"mac": mac, "name": name,
+                               "ok": False, "error": "write_failed"})
         except Exception as e:
             logger.exception("quick_bypass failed for %s", mac)
-            results.append({"mac": mac, "name": name, "ok": False, "error": str(e)})
+            results.append({"mac": mac, "name": name,
+                           "ok": False, "error": str(e)})
 
-    overall_ok = all(r.get("ok") for r in results) and len(results) == len(devices)
+    overall_ok = all(r.get("ok")
+                     for r in results) and len(results) == len(devices)
     return render_template('novpn_quick.html', results=results, minutes=minutes, overall_ok=overall_ok)
-

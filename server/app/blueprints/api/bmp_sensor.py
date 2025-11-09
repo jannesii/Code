@@ -9,7 +9,8 @@ from ...extensions import csrf
 bmp_bp = Blueprint('bmp_bp', __name__, url_prefix='/bmp')
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
+
 
 def _serialize_entry(entry) -> Dict[str, Any]:
     """Serialize a BMP data entry to JSON-safe dict."""
@@ -25,17 +26,19 @@ def _serialize_entry(entry) -> Dict[str, Any]:
         "altitude": getattr(entry, "altitude", None),
     }
 
+
 @bmp_bp.route('/latest', methods=['GET'])
 def get_latest_bmp_data():
     """Get the latest BMP sensor data (optionally N latest with ?limit=1..100)."""
     ctrl: Controller = getattr(current_app, "ctrl", None)
     if ctrl is None:
         return jsonify({"error": "Controller not initialized"}), 500
-    
+
     data = ctrl.get_last_bmp_sensor_data()
     if data:
         return jsonify(_serialize_entry(data)), 200
     return jsonify({"error": "No data available"}), 404
+
 
 @bmp_bp.route("/date", methods=["GET"])
 def get_bmp_data_by_date():
@@ -62,7 +65,9 @@ def get_bmp_data_by_date():
         logger.debug("No BMP data found for date: %s", date_str)
         return jsonify([]), 200
 
-    logger.debug("Returning %d BMP data entries for date: %s", len(data), date_str)
+    logger.debug("Returning %d BMP data entries for date: %s",
+                 len(data), date_str)
     return jsonify([_serialize_entry(e) for e in data]), 200
+
 
 csrf.exempt(bmp_bp)

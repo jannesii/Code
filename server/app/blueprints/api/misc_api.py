@@ -21,7 +21,7 @@ from ...core.controller import Controller
 misc_bp = Blueprint("api_misc", __name__, url_prefix="")
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 @misc_bp.route('/gcode')
@@ -72,4 +72,3 @@ def get_temphum():
         }
         for d in data
     ])
-

@@ -22,14 +22,15 @@ from ...services.ac.thermostat import ACThermostat
 hvac_bp = Blueprint("api_hvac", __name__, url_prefix="")
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 @hvac_bp.route('/ac/status')
 @login_required
 def get_ac_status():
     """Return current AC on/off status from the running thermostat."""
-    ac_thermo: ACThermostat = getattr(current_app, 'ac_thermostat', None)  # type: ignore
+    ac_thermo: ACThermostat = getattr(
+        current_app, 'ac_thermostat', None)  # type: ignore
     if ac_thermo is None:
         logger.warning(
             "API /ac/status requested but thermostat not initialized")
@@ -274,4 +275,3 @@ def hvac_avg_rates_today():
         'pairs_on': pairs_on,
         'pairs_off': pairs_off,
     })
-

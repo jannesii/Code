@@ -11,8 +11,8 @@ from flask import Flask
 def register_blueprints(app: Flask) -> None:
     """Register all application blueprints."""
     from .auth.routes import auth_bp
-    from .web.routes import web_bp
-    from .api.routes import api_bp
+    from .web import web_bp
+    from .api import api_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(web_bp)
