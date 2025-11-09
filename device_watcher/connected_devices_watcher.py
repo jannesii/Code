@@ -242,6 +242,7 @@ class ConnectedDevicesWatcher:
         rdns_enabled: bool = True,
         rdns_ttl_s: int = 300,
         ignore_placeholder_dhcp: bool = True,
+        export_static_leases_path: Optional[str] = None,
     ) -> None:
 
         # Default to tmp to avoid permission issues; can be overridden via env
@@ -272,6 +273,8 @@ class ConnectedDevicesWatcher:
         self._ignore_placeholder_dhcp: bool = bool(ignore_placeholder_dhcp)
         # Tracks whether state changed during a scan (e.g., hostname/rdns refresh)
         self._updates_made: bool = False
+        # Optional export path for static leases (to share with web app)
+        self._export_static_path: Optional[str] = export_static_leases_path
 
     # --- Public API -----------------------------------------------------
 
@@ -343,6 +346,11 @@ class ConnectedDevicesWatcher:
         self._updates_made = False
         self._updates_count = 0
         leases = self._load_leases()
+        # Export static leases snapshot if configured
+        try:
+            self._maybe_export_static_leases(leases)
+        except Exception:
+            logger.debug("Presence watcher: export static leases failed", exc_info=True)
         new_entries: List[Dict[str, Any]] = []
         for ip, info in leases.items():
             mac = info.get("mac", "").lower()
@@ -497,6 +505,45 @@ class ConnectedDevicesWatcher:
             return parsed
         # Fallback: empty dict (text format not implemented yet)
         return {}
+
+    def _maybe_export_static_leases(self, leases: Dict[str, Dict[str, Any]]) -> None:
+        path = (self._export_static_path or "").strip()
+        if not path:
+            return
+        static_list: List[Dict[str, Any]] = []
+        for ip, info in leases.items():
+            try:
+                if not bool(info.get("static", False)):
+                    continue
+                mac = str(info.get("mac", "")).strip().lower()
+                if not mac or _is_placeholder_mac(mac):
+                    continue
+                static_list.append({
+                    "ip": ip,
+                    "mac": mac,
+                    "hostname": str(info.get("hostname", "")).strip(),
+                    "static": True,
+                })
+            except Exception:
+                continue
+        # Dedup by MAC
+        seen: Set[str] = set()
+        dedup: List[Dict[str, Any]] = []
+        for e in static_list:
+            m = e["mac"]
+            if m in seen:
+                continue
+            seen.add(m)
+            dedup.append(e)
+        # Write JSON in AdGuard-like format to make readers simple
+        to_write = {"version": 1, "leases": dedup}
+        d = os.path.dirname(path)
+        if d:
+            os.makedirs(d, exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(to_write, f, indent=2, sort_keys=True)
+        os.replace(tmp, path)
 
     def _run_nmap_ping_sweep(self, subnets: List[str]) -> List[Dict[str, str]]:
         """Execute nmap ping sweep on the provided subnets and parse output."""
@@ -694,6 +741,8 @@ def _from_env_defaults() -> ConnectedDevicesWatcher:
     rdns_ttl_s = int(os.getenv("RDNS_TTL_S", "300") or 300)
     ignore_placeholder_dhcp = (os.getenv("IGNORE_PLACEHOLDER_DHCP", "1").lower() in {"1", "true", "yes", "y"})
 
+    export_static_leases_path = (os.getenv("STATIC_LEASES_CACHE") or os.getenv("EXPORT_STATIC_LEASES_JSON") or "").strip() or None
+
     return ConnectedDevicesWatcher(
         adguard_config_file=cfg_file,
         leases_file=leases_file,
@@ -709,6 +758,7 @@ def _from_env_defaults() -> ConnectedDevicesWatcher:
         rdns_enabled=rdns_enabled,
         rdns_ttl_s=rdns_ttl_s,
         ignore_placeholder_dhcp=ignore_placeholder_dhcp,
+        export_static_leases_path=export_static_leases_path,
     )
 
 

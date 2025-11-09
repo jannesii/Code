@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}VPN/DNS ohitus{% endblock %}
+{% block title %}VPN/DNS Bypass{% endblock %}
 
 {% block styles %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/flash.css') }}">
@@ -13,61 +13,75 @@
 
   <div class="container">
     <div class="edit-card">
-      <h2>VPN/DNS ohitus</h2>
-      <p class="nv-hint">Muokkaa laitekohtaiset VPN- ja DNS-ohitukset. Tallennus päivittää tiedoston <code>~/.config/novpn/devices.conf</code>.</p>
-
-      <form method="post" style="margin-bottom:16px;">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="form-row">
-          <label for="new_name">Nimi</label>
-          <input type="text" id="new_name" name="new_name" placeholder="Esim. PlayStation" required>
-        </div>
-        <div class="form-row">
-          <label for="new_mac">MAC</label>
-          <input type="text" id="new_mac" name="new_mac" placeholder="aa:bb:cc:dd:ee:ff" pattern="^([0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}$" required>
-        </div>
-        <div class="actions">
-          <button type="submit" name="add_device" value="1" class="btn primary">Lisää laite</button>
-        </div>
-      </form>
+      <h2>VPN/DNS Bypass</h2>
+      <p class="nv-hint">Toggle per-device VPN and DNS bypass. Changes update <code>~/.config/novpn/devices.conf</code>.</p>
 
       {% if not devices %}
-        <p class="nv-hint">Asetustiedostossa ei ole laitteita.</p>
+        <p class="nv-hint">No devices in configuration file.</p>
       {% else %}
         <form method="post">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
+          <div class="actions" style="margin: 8px 0 12px;">
+            <button type="button" id="open-add-modal" class="btn primary">Add Device</button>
+          </div>
           <div class="nv-device-list">
             {% for d in devices %}
-            <div class="nv-device-row">
-              <div class="nv-device-info">
-                <div class="nv-device-name">{{ d.name }}</div>
-                <div class="nv-device-mac">{{ d.mac }}</div>
+            <div class="nv-device-row" data-mac="{{ d.mac }}" data-name="{{ d.name }}" data-existing="{{ 0 if d.extra|default(False) else 1 }}">
+              <div class="nv-device-left">
+                <span class="nv-fav-star" data-mac="{{ d.mac }}" role="button" aria-label="Favorite" title="Favorite">★</span>
+                <div class="nv-device-info">
+                  <div class="nv-device-name" role="button" tabindex="0" title="Edit">{{ d.name }}</div>
+                  <div class="nv-device-mac">{{ d.mac }}</div>
+                </div>
               </div>
               <div class="nv-device-toggles">
                 <label class="checkbox">
                   <input type="checkbox" name="novpn_{{ d.mac }}" {% if d.novpn %}checked{% endif %}>
-                  Ohita VPN
+                  Bypass VPN
                 </label>
                 <label class="checkbox">
                   <input type="checkbox" name="nodns_{{ d.mac }}" {% if d.nodns %}checked{% endif %}>
-                  Ohita DNS
+                  Bypass DNS
                 </label>
+                <button type="button" class="btn timer small nv-15min" data-mac="{{ d.mac }}" data-name="{{ d.name }}" title="Temporarily bypass VPN for 15 minutes">15 min</button>
               </div>
             </div>
             {% endfor %}
           </div>
 
-          <div class="actions">
-            <a class="btn secondary" href="{{ url_for('web.get_settings_page') }}">Peruuta</a>
-            <button type="submit" class="btn primary">Tallenna</button>
-          </div>
+          {# Removed global save/cancel — changes save on toggle #}
         </form>
       {% endif %}
+    </div>
+  </div>
+
+  <!-- Add/Edit modal -->
+  <div class="nv-modal-backdrop" id="nv-modal" aria-hidden="true">
+    <div class="nv-modal">
+      <h3 id="nv-modal-title">Add Device</h3>
+      <form method="post" id="nv-modal-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" id="modal_action" name="add_device" value="1">
+        <input type="hidden" id="edit_original_mac" name="edit_original_mac" value="">
+        <div class="form-row">
+          <label for="modal_name">Name</label>
+          <input type="text" id="modal_name" name="new_name" placeholder="e.g. PlayStation" required>
+        </div>
+        <div class="form-row">
+          <label for="modal_mac">MAC</label>
+          <input type="text" id="modal_mac" name="new_mac" placeholder="aa:bb:cc:dd:ee:ff" pattern="^([0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}$" required>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn danger" id="nv-delete">Delete</button>
+          <button type="button" class="btn secondary" id="nv-cancel">Cancel</button>
+          <button type="submit" class="btn primary" id="nv-submit">Save</button>
+        </div>
+      </form>
     </div>
   </div>
 {% endblock %}
 
 {% block scripts %}
+  <script src="{{ url_for('static', filename='js/flash.js') }}"></script>
   <script src="{{ url_for('static', filename='js/novpn.js') }}"></script>
 {% endblock %}

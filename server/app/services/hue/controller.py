@@ -138,7 +138,7 @@ class HueController:
                 name, func = which_slot(now_in_tz())
                 if name != last_slot:
                     try:
-                        logger.debug("Time boundary crossed, applying light setting for slot '%s'", name)
+                        logger.info("Time boundary crossed, applying light setting for slot '%s'", name)
                         apply_slot(func)
                     except Exception:
                         pass

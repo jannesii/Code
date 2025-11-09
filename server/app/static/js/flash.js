@@ -5,21 +5,11 @@ function getOrCreateFlashContainer () {
   if (container) return container;
 
   // 2.  Otherwise create one **and put it in the same spot**
-  //     where the template normally renders it: just before
-  //     the main ".container" dashboard wrapper.
+  //     as a fixed overlay at the top of the viewport.
   container = document.createElement('div');
   container.className = 'flash-container';
-  container.style.maxWidth = '800px';
-  container.style.margin  = '20px auto';
-
-  // insert before the dashboard so the visual order stays identical
-  const dashboard = document.querySelector('.container');
-  if (dashboard && dashboard.parentNode) {
-    dashboard.parentNode.insertBefore(container, dashboard);
-  } else {
-    // (fallback) append to body—shouldn’t normally happen
-    document.body.appendChild(container);
-  }
+  // append to body; CSS positions it fixed at the top center
+  document.body.appendChild(container);
   return container;
 }
 function clearFlash (flash, container) {

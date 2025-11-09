@@ -154,6 +154,33 @@ def _rewrite_line_with(line: str, *, novpn: Optional[bool] = None, nodns: Option
     return out
 
 
+def _rewrite_line_meta(line: str, *, name: Optional[str] = None, mac: Optional[str] = None) -> str:
+    """Rewrite the -name and/or -mac tokens, preserving other parts."""
+    def _replace_token(s: str, flag: str, value: Optional[str], quoted: bool = False) -> str:
+        if value is None:
+            return s
+        val = value
+        if quoted:
+            # strip quotes within and wrap again
+            val = str(val).replace('"', '')
+            repl = f'"{val}"'
+        else:
+            repl = str(val)
+        pattern = re.compile(rf"({flag}\s+)(\"[^\"]*\"|\S+)")
+        if pattern.search(s):
+            # Use a function replacement to avoid backreference ambiguity like \14 when repl starts with a digit
+            return pattern.sub(lambda m: m.group(1) + repl, s)
+        # If flag missing, append
+        end_nl = '\n' if s.endswith('\n') else ''
+        base = s[:-1] if end_nl else s
+        sep = '' if base.endswith(' ') else ' '
+        return f"{base}{sep}{flag} {repl}{end_nl}"
+
+    out = _replace_token(line, '-name', name, quoted=True)
+    out = _replace_token(out, '-mac', mac, quoted=False)
+    return out
+
+
 def update_device_flags(mac: str, *, novpn: Optional[bool] = None, nodns: Optional[bool] = None,
                         path: str = NOVPN_CONFIG_PATH) -> Tuple[bool, Optional[Dict[str, object]]]:
     """Update -novpn/-nodns for the device (by MAC). Returns (ok, updated_device).
@@ -209,14 +236,14 @@ def add_device(name: str, mac: str, *, novpn: bool = False, nodns: bool = False,
     """
     nm = (name or "").strip()
     if not nm:
-        raise ValueError("Nimi on pakollinen.")
+        raise ValueError("Name is required.")
     # Disallow quotes to keep a simple line format
     if '"' in nm:
         nm = nm.replace('"', '')
 
     mac_norm = _normalize_mac(mac)
     if not mac_norm or not re.match(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$", mac_norm):
-        raise ValueError("Virheellinen MAC-osoite.")
+        raise ValueError("Invalid MAC address.")
 
     _ensure_parent_dir(path)
     try:
@@ -229,7 +256,7 @@ def add_device(name: str, mac: str, *, novpn: bool = False, nodns: bool = False,
     for ln in lines:
         d = _parse_device_line(ln)
         if d and d.get('mac') == mac_norm:
-            raise ValueError("Laite samalla MAC-osoitteella on jo olemassa.")
+            raise ValueError("A device with the same MAC already exists.")
 
     # Compose line
     line = (
@@ -258,3 +285,99 @@ def add_device(name: str, mac: str, *, novpn: bool = False, nodns: bool = False,
         'nodns': bool(nodns),
     }
     return True, device
+
+
+def update_device_meta(original_mac: str, *, name: Optional[str] = None, new_mac: Optional[str] = None,
+                       path: str = NOVPN_CONFIG_PATH) -> Tuple[bool, Optional[Dict[str, object]]]:
+    """Update device name and/or MAC, preserving flags. Returns (ok, updated_device).
+
+    - If new_mac duplicates another device, raises ValueError.
+    - If device not found, returns (False, None).
+    """
+    om = _normalize_mac(original_mac)
+    nm_mac = _normalize_mac(new_mac) if new_mac else None
+    nm_name = None if name is None else str(name).replace('"', '')
+    if nm_name is not None and not nm_name.strip():
+        raise ValueError("Name cannot be empty.")
+    if nm_mac is not None and not re.match(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$", nm_mac):
+        raise ValueError("Invalid MAC address.")
+
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+    except FileNotFoundError:
+        return False, None
+
+    # Duplicate MAC check (if changing MAC)
+    if nm_mac:
+        for ln in lines:
+            d = _parse_device_line(ln)
+            if not d:
+                continue
+            if d.get('mac') == nm_mac and d.get('mac') != om:
+                raise ValueError("A device with the same MAC already exists.")
+
+    found = False
+    new_lines: List[str] = []
+    for ln in lines:
+        d = _parse_device_line(ln)
+        if d and d.get('mac') == om:
+            found = True
+            ln = _rewrite_line_meta(ln, name=nm_name, mac=nm_mac)
+        new_lines.append(ln)
+
+    if not found:
+        return False, None
+
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, 'w', encoding='utf-8') as f:
+        f.writelines(new_lines)
+    os.replace(tmp_path, path)
+
+    if not _restart_novpn_master():
+        logger.warning("Warning: novpn-master restart failed after editing device.")
+
+    # Return updated snapshot
+    updated = None
+    for ln in new_lines:
+        d = _parse_device_line(ln)
+        if d and (d.get('mac') == (nm_mac or om)):
+            updated = d
+            break
+    return True, updated
+
+
+def delete_device(mac: str, *, path: str = NOVPN_CONFIG_PATH) -> Tuple[bool, Optional[Dict[str, object]]]:
+    """Delete a device line by MAC. Returns (ok, removed_device).
+
+    If device not found, returns (False, None).
+    """
+    mac_norm = _normalize_mac(mac)
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+    except FileNotFoundError:
+        return False, None
+
+    removed: Optional[Dict[str, object]] = None
+    new_lines: List[str] = []
+    for ln in lines:
+        d = _parse_device_line(ln)
+        if d and d.get('mac') == mac_norm:
+            removed = d
+            # skip this line (delete)
+            continue
+        new_lines.append(ln)
+
+    if removed is None:
+        return False, None
+
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, 'w', encoding='utf-8') as f:
+        f.writelines(new_lines)
+    os.replace(tmp_path, path)
+
+    if not _restart_novpn_master():
+        logger.warning("Warning: novpn-master restart failed after deleting device.")
+
+    return True, removed

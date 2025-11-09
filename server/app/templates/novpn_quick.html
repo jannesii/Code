@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block title %}Quick VPN Bypass{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/flash.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/edit_user.css') }}">
+{% endblock %}
+
+{% block content %}
+  <div class="container">
+    <div class="edit-card">
+      <h2>Quick VPN Bypass</h2>
+      {% if overall_ok %}
+        <p class="nv-hint">Bypass enabled for {{ minutes }} minutes.</p>
+      {% else %}
+        <p class="nv-hint">Some operations failed. See details below.</p>
+      {% endif %}
+
+      <div class="nv-device-list">
+        {% for r in results %}
+          <div class="nv-device-row" style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #333;">
+            <div>
+              <div class="nv-device-name" style="font-weight:600;">{{ r.name }}</div>
+              <div class="nv-device-mac" style="color:#bdbdbd;">{{ r.mac }}</div>
+            </div>
+            <div>
+              {% if r.ok %}
+                <span class="flash success" style="display:inline-block;margin:0;">OK</span>
+              {% else %}
+                <span class="flash error" style="display:inline-block;margin:0;">Failed</span>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="actions">
+        <a class="btn secondary" href="{{ url_for('web.novpn_settings') }}">Go to NoVPN settings</a>
+        <a class="btn primary" href="{{ url_for('web.get_settings_page') }}">Back to Settings</a>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+

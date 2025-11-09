@@ -29,8 +29,21 @@
 }
 .nv-device-row:last-child { border-bottom: none; }
 
+.nv-device-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+
+.nv-fav-star {
+  cursor: pointer;
+  color: #666;
+  font-size: 18px;
+  user-select: none;
+  line-height: 1;
+}
+.nv-fav-star.fav { color: #ffd54f; }
+.nv-fav-star:focus { outline: 1px dashed #888; outline-offset: 2px; }
+
 .nv-device-info { display: grid; gap: 2px; min-width: 0; }
 .nv-device-name { font-weight: 600; color: #fff; }
+.nv-device-name[role="button"] { cursor: pointer; text-decoration: underline dotted; }
 .nv-device-mac {
   color: #bdbdbd;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -44,8 +57,37 @@
   flex-wrap: wrap;
 }
 
+/* Small button + timer style */
+.btn.small { padding: 6px 10px; font-size: 0.88em; }
+.btn.timer { background: #3B4A5E; color: #a0a0a0; border: 1px solid #2d5588; }
+.btn.timer:hover { background: #2d5588; }
+
 @media (max-width: 640px) {
   .nv-device-row { flex-direction: column; align-items: flex-start; }
   .nv-device-toggles { width: 100%; justify-content: flex-start; }
 }
 
+/* Modal */
+.nv-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.nv-modal-backdrop.open { display: flex; }
+.nv-modal {
+  background: #1f1f1f;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 16px;
+  width: min(520px, 92vw);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.nv-modal h3 { margin-top: 0; margin-bottom: 12px; }
+
+/* Danger button for destructive actions */
+.btn.danger { background: #b00020; color: #fff; }
+.btn.danger:hover { background: #7f0016; }
