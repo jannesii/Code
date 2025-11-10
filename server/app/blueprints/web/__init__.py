@@ -6,4 +6,16 @@ handlers via `@web_bp.route`.
 
 from flask import Blueprint
 
+# Define the web blueprint. Route modules below will attach handlers to this.
 web_bp = Blueprint('web', __name__)
+
+# Import route modules so that their @web_bp.route handlers register.
+# These imports are intentional for side effects.
+from . import (
+    pages_web,
+    settings_core_web,
+    settings_novpn_web,
+    settings_ops_web,
+    settings_timelapse_web,
+    settings_users_web,
+)
