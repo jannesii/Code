@@ -27,8 +27,15 @@
   let currentLocation  = null;
   let chartTemp        = null;
   let chartHum         = null;
-  // Averaging window in minutes. Set to 0 or 1 for raw values.
-  const DEFAULT_AVG_MINUTES = 0; // change default to 10 if you always want 10‑min bins
+
+  // — Configuration toggles (hard-coded values) —
+  const AGGREGATION_ENABLED      = true;  // set to false to render raw 1-minute points
+  const AGGREGATION_MINUTES      = 10;    // averaging window in minutes when aggregation is enabled
+  const TEMP_RANGE_LIMIT_ENABLED = true;  // clamp temperature y-axis to a fixed range
+  const TEMP_RANGE_MIN          = 18;     // ºC lower bound when range limit is applied
+  const TEMP_RANGE_MAX          = 26;     // ºC upper bound when range limit is applied
+
+  const DEFAULT_AVG_MINUTES = AGGREGATION_ENABLED ? AGGREGATION_MINUTES : 0;
   let averagingMinutes = Number(window?.CHART_AVG_MINUTES ?? DEFAULT_AVG_MINUTES) || 0;
 
   // — Utils —
@@ -89,6 +96,15 @@
     return { labels, temps, hums };
   }
 
+  function getTempYAxisConfig() {
+    const axis = { beginAtZero: false };
+    if (TEMP_RANGE_LIMIT_ENABLED) {
+      axis.min = TEMP_RANGE_MIN;
+      axis.max = TEMP_RANGE_MAX;
+    }
+    return axis;
+  }
+
   function openModal()  { modal.style.display = 'flex'; }
   function closeModal() { modal.style.display = 'none'; }
 
@@ -108,7 +124,8 @@
       .then(r => r.json())
       .then(data => {
         // Expected shape: [{ temperature:Number, humidity:Number, timestamp:ISO }, ...]
-        const { labels, temps, hums } = aggregateByMinutes(data, averagingMinutes);
+        const effectiveAggregationMinutes = AGGREGATION_ENABLED ? averagingMinutes : 0;
+        const { labels, temps, hums } = aggregateByMinutes(data, effectiveAggregationMinutes);
 
         // Overall daily averages (raw from returned series after aggregation)
         const finiteT = temps.filter(Number.isFinite);
@@ -169,7 +186,7 @@
               },
               scales: {
                 x: { display: true, title: { display: true, text: 'Aika' } },
-                y: { beginAtZero: false }
+                y: getTempYAxisConfig()
               }
             }
           });
