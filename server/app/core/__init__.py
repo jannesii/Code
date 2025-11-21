@@ -9,7 +9,7 @@ from .models import (
     TimelapseConf,
     ThermostatConf,
     ApiKey,
-    BMPData
+    BMPData,
 )
 from .controller import Controller
 from .database import DatabaseManager

@@ -101,18 +101,16 @@ class VillenkotiController:
         location: str | None,
         temperature: float | None,
         humidity: float | None,
-        metadata: dict | None = None,
     ) -> int:
         """Stores a single sensor reading."""
-        payload = json.dumps(metadata, ensure_ascii=False) if metadata else None
         timestamp = datetime.datetime.utcnow().isoformat() + "Z"
         with self._conn:
             cursor = self._conn.execute(
                 """
-                INSERT INTO sensor_readings (timestamp, location, temperature, humidity, metadata)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO sensor_readings (timestamp, location, temperature, humidity)
+                VALUES (?, ?, ?, ?)
                 """,
-                (timestamp, location, temperature, humidity, payload),
+                (timestamp, location, temperature, humidity),
             )
         return cursor.lastrowid
 

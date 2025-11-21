@@ -12,11 +12,30 @@ def create_app():
     logger.debug("Debug logging enabled")
 
     # ─── Flask app & config ───
-    from flask import Flask, send_from_directory
+    from flask import Flask, send_from_directory, request
     app = Flask(__name__)
     from .config import load_settings
     settings = load_settings()
     app.config.update(settings)
+
+    # ─── CORS for API endpoints ───
+    @app.after_request
+    def add_cors_headers(response):
+        """
+        Allow cross-origin requests (CORS) for /api/* endpoints.
+
+        Uses wildcard origin (*) as requested.
+        """
+        try:
+            path = request.path or ""
+        except Exception:
+            path = ""
+
+        if path.startswith("/api/"):
+            response.headers["Access-Control-Allow-Origin"] = "*"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, X-API-Key"
+        return response
 
     HLS_ROOT = Path("/srv/hls")    # parent of “printer1”
 

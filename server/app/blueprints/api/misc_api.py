@@ -16,6 +16,7 @@ from flask import Blueprint, jsonify, current_app, send_from_directory, request
 from flask_login import login_required, current_user
 
 from ...core import Controller
+from ...extensions import csrf
 
 
 misc_bp = Blueprint("api_misc", __name__, url_prefix="")
@@ -72,3 +73,9 @@ def get_temphum():
         }
         for d in data
     ])
+
+@misc_bp.route('test')
+@csrf.exempt
+def test_endpoint():
+    logger.info("Test endpoint accessed")
+    return "Test endpoint is working!"

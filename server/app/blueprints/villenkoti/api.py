@@ -45,13 +45,13 @@ def require_api_key(func: Any) -> Any:
 def post_sensor_reading() -> tuple[Any, int]:
     payload = request.get_json(silent=True) or {}
     location = payload.get('location')
-    temperature = payload.get('temperature')
-    humidity = payload.get('humidity')
-    metadata = payload.get('metadata')
+    temperature = payload.get('temperature_c')
+    humidity = payload.get('humidity_pct')
     
     logger.debug('Received Villenkoti sensor reading: %s', payload)
 
     if location is None or temperature is None or humidity is None:
+        logger.debug('Invalid Villenkoti sensor reading payload: %s', payload)
         return jsonify({
             'ok': False,
             'error': 'invalid_payload',
@@ -62,6 +62,7 @@ def post_sensor_reading() -> tuple[Any, int]:
         temp_value = float(temperature)
         humidity_value = float(humidity)
     except (TypeError, ValueError):
+        logger.debug('Non-numeric temperature or humidity in payload: %s', payload)
         return jsonify({
             'ok': False,
             'error': 'invalid_payload',
@@ -72,7 +73,6 @@ def post_sensor_reading() -> tuple[Any, int]:
         location=location,
         temperature=temp_value,
         humidity=humidity_value,
-        metadata=metadata if isinstance(metadata, dict) else None,
     )
 
     return jsonify({'ok': True, 'reading_id': reading_id}), 201
