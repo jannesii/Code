@@ -122,6 +122,9 @@ def post_esp32_temphum():
         'humidity':    saved.humidity,
         'ac_on':       saved.ac_on
     })
+    
+    logger.debug("Recorded ESP32 temphum: loc=%s temp=%.2f hum=%.2f",
+                 saved.location, saved.temperature, saved.humidity)
 
     def reset_flag():
         global ac_check_flag

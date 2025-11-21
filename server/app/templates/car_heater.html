@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block title %}Car Heater{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/car_heater.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flash.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container car-heater-page">
+  <div class="page-header">
+    <h2>Car Heater</h2>
+    <p class="subtitle">Live status and controls for the car heater relay.</p>
+  </div>
+
+  <div class="page-grid">
+    <section class="card status-card">
+      <div class="card-header">
+        <div>
+          <h3>Status</h3>
+          <div class="pill-row">
+            <span id="heaterStatePill" class="pill pill-unknown">Unknown</span>
+            <span id="powerPill" class="pill pill-muted">Power: —</span>
+            <span id="ambientPill" class="pill pill-muted">Ambient: —</span>
+          </div>
+        </div>
+        <div class="pill-row secondary">
+          <span id="deviceTempPill" class="pill pill-muted">Device: —</span>
+          <span id="voltagePill" class="pill pill-muted">U: —</span>
+          <span id="currentPill" class="pill pill-muted">I: —</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="status-grid">
+          <div class="field">
+            <label>Last update</label>
+            <div id="tsValue" class="value value-ts">—</div>
+          </div>
+          <div class="field">
+            <label>Instant power</label>
+            <div id="instantPowerValue" class="value">—</div>
+          </div>
+          <div class="field">
+            <label>Energy today</label>
+            <div id="energyLastMinValue" class="value">—</div>
+          </div>
+          <div class="field">
+            <label>Energy total</label>
+            <div id="energyTotalValue" class="value">—</div>
+          </div>
+          <div class="field">
+            <label>Device temperature</label>
+            <div id="deviceTempValue" class="value">—</div>
+          </div>
+          <div class="field">
+            <label>Ambient temperature</label>
+            <div id="ambientTempValue" class="value">—</div>
+          </div>
+          <div class="field">
+            <label>Source</label>
+            <div id="sourceValue" class="value value-source">—</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card control-card">
+      <div class="card-header">
+        <div>
+          <h3>Controls</h3>
+          <p class="hint">Actions are queued and executed when the car contacts the server.</p>
+        </div>
+        <div id="queueStatus" class="queue-status queue-idle">No pending actions</div>
+      </div>
+      <div class="card-body">
+        <div class="controls-grid">
+          <button id="btnTurnOn" class="btn control-btn primary">Turn ON</button>
+          <button id="btnTurnOff" class="btn control-btn danger">Turn OFF</button>
+          <button id="btnGetLogs" class="btn control-btn">Get logs</button>
+          <button id="btnEspRestart" class="btn control-btn danger">Restart ESP</button>
+          <button id="btnShellyRestart" class="btn control-btn danger">Restart Shelly</button>
+        </div>
+        <div class="divider"></div>
+        <div class="log-header">
+          <span>Actions</span>
+          <button id="btnClearLog" class="btn btn-ghost" type="button">Clear</button>
+        </div>
+        <ul id="actionLog" class="action-log" aria-live="polite" aria-label="Queued and executed actions">
+        </ul>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+  window.CAR_HEATER_LAST_STATUS = {{ last_status | tojson }};
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/init_sio.js') }}"></script>
+<script src="{{ url_for('static', filename='js/car_heater.js') }}"></script>
+<script src="{{ url_for('static', filename='js/flash.js') }}"></script>
+{% endblock %}

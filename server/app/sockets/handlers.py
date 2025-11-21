@@ -35,6 +35,8 @@ class SocketEventHandler:
         socketio.on_event('status',     self.handle_status)
         socketio.on_event('printerAction', self.handle_printer_action)
         socketio.on_event('ac_control',   self.handle_ac_control)
+        socketio.on_event('car_heater_control',
+                          self.handle_car_heater_control)
 
     def handle_connect(self, auth):
         # Use Flask-Login session cookie for auth instead of API key
@@ -454,3 +456,41 @@ class SocketEventHandler:
         except Exception as e:
             self.logger.exception("ac_control error: %s", e)
             self.socketio.emit('error', {'message': 'AC control error'})
+
+    def handle_car_heater_control(self, data):
+        """
+        Handle car heater actions from the web UI.
+
+        Actions are queued via CarHeaterService; the ESP will fetch them
+        on the next /car_heater/status POST.
+        """
+        if data is None or not isinstance(data, dict):
+            self.socketio.emit(
+                'error', {'message': 'Invalid car heater payload'})
+            self.logger.warning("Bad car_heater_control payload: %s", data)
+            return
+        action = (data.get('action') or '').strip()
+        if not action:
+            self.socketio.emit(
+                'error', {'message': 'Missing car heater action'})
+            return
+        try:
+            svc = current_app.config.get('CAR_HEATER_SERVICE')
+        except Exception:
+            svc = None
+        if svc is None:
+            self.socketio.emit(
+                'error', {'message': 'Car heater service not initialized'})
+            return
+        try:
+            cmd = {'action': action}
+            svc.queue_command(cmd)
+            self.emit_to_views('car_heater_action_result', {
+                'ok': True,
+                'action': action,
+                'label': f'Queued: {action}',
+            })
+        except Exception as e:
+            self.logger.exception("car_heater_control error: %s", e)
+            self.socketio.emit(
+                'error', {'message': 'Car heater control error'})

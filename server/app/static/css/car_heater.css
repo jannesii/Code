@@ -1,0 +1,265 @@
+.car-heater-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 12px 8px 32px;
+}
+
+.car-heater-page .page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.car-heater-page .page-header h2 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.car-heater-page .page-header .subtitle {
+  margin: 0;
+  color: var(--text-muted, #6b7280);
+  font-size: 0.95rem;
+}
+
+.car-heater-page .page-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1.5fr);
+  gap: 16px;
+}
+
+.car-heater-page .card {
+  background: #111827;
+  border-radius: 10px;
+  padding: 14px 16px 16px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.car-heater-page .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.car-heater-page .card-header h3 {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+}
+
+.car-heater-page .card-header .hint {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted, #9ca3af);
+}
+
+.pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pill-row.secondary {
+  margin-top: 6px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.pill-unknown {
+  background: rgba(107, 114, 128, 0.35);
+  color: #e5e7eb;
+}
+
+.pill-on {
+  background: rgba(16, 185, 129, 0.16);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.pill-off {
+  background: rgba(248, 113, 113, 0.16);
+  color: #fecaca;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+.pill-muted {
+  background: rgba(31, 41, 55, 0.8);
+  color: #d1d5db;
+}
+
+.pill-warm {
+  background: rgba(251, 191, 36, 0.16);
+  color: #facc15;
+}
+
+.pill-hot {
+  background: rgba(239, 68, 68, 0.16);
+  color: #fecaca;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px 14px;
+}
+
+.status-grid .field label {
+  display: block;
+  font-size: 0.78rem;
+  color: #9ca3af;
+  margin-bottom: 2px;
+}
+
+.status-grid .value {
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.value-ts {
+  font-size: 0.9rem;
+  color: #d1d5db;
+}
+
+.value-source {
+  font-size: 0.85rem;
+  color: #9ca3af;
+}
+
+.queue-status {
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.queue-idle {
+  background: rgba(31, 41, 55, 0.8);
+  color: #9ca3af;
+}
+
+.queue-pending {
+  background: rgba(37, 99, 235, 0.16);
+  color: #bfdbfe;
+  border: 1px solid rgba(59, 130, 246, 0.55);
+}
+
+.queue-sent {
+  background: rgba(16, 185, 129, 0.16);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+}
+
+.controls-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.control-btn {
+  width: 100%;
+}
+
+.btn.primary {
+  background: #2563eb;
+  color: #e5e7eb;
+}
+
+.btn.primary:hover {
+  background: #1d4ed8;
+}
+
+.btn.danger {
+  background: #b91c1c;
+  color: #fee2e2;
+}
+
+.btn.danger:hover {
+  background: #991b1b;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: #9ca3af;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.btn-ghost:hover {
+  background: rgba(31, 41, 55, 0.7);
+}
+
+.divider {
+  border-top: 1px solid rgba(55, 65, 81, 0.9);
+  margin: 12px 0;
+}
+
+.log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+}
+
+.action-log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 260px;
+  overflow-y: auto;
+  font-size: 0.85rem;
+}
+
+.action-log li {
+  padding: 6px 8px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  background: rgba(17, 24, 39, 0.9);
+}
+
+.action-log .meta {
+  color: #9ca3af;
+  font-size: 0.78rem;
+}
+
+.action-log .status {
+  font-weight: 500;
+}
+
+.status-queued {
+  color: #bfdbfe;
+}
+
+.status-sent {
+  color: #6ee7b7;
+}
+
+.status-error {
+  color: #fecaca;
+}
+
+@media (max-width: 800px) {
+  .car-heater-page {
+    padding: 8px 4px 24px;
+  }
+  .car-heater-page .page-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .car-heater-page .card {
+    padding: 12px 12px 14px;
+  }
+}
+

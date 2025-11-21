@@ -3,6 +3,7 @@ import threading
 from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 class CarHeaterService:
