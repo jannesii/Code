@@ -1,15 +1,15 @@
 import os
 import threading
 import logging
-from ..extensions import socketio
 from typing import Any, Dict
 
+from ..extensions import socketio
 
 logger = logging.getLogger(__name__)
 
 """Service layer for external integrations (AC, Hue, etc.)."""
 
-"""Bootstrap initialization for long‑lived services (AC, Hue, Socket events).
+"""Bootstrap initialization for long-lived services (AC, Hue, Socket events).
 
 Moves heavy wiring out of the app factory to keep it lean and testable.
 """
@@ -31,7 +31,7 @@ def _make_notify(handler) -> Any:
 
 
 def init_services(app) -> Dict[str, Any]:
-    """Initialize AC thermostat, Hue controller, and Socket event handlers.
+    """Initialize AC thermostat, Hue controller, car heater, and Socket events.
 
     Returns a dictionary of created service instances.
     """
@@ -39,6 +39,7 @@ def init_services(app) -> Dict[str, Any]:
 
     # Ensure Socket event handlers are registered (singleton takes care of idempotency)
     from ..sockets import SocketEventHandler
+
     app.sio_handler = SocketEventHandler(
         socketio, app.ctrl)  # type: ignore[attr-defined]
 
@@ -50,10 +51,12 @@ def init_services(app) -> Dict[str, Any]:
     try:
         if not all([AC_DEVICE_ID, AC_IP, AC_LOCAL_KEY]):
             raise ValueError(
-                "Missing one of AC_DEV_ID, AC_IP, or AC_LOCAL_KEY environment variables")
+                "Missing one of AC_DEV_ID, AC_IP, or AC_LOCAL_KEY environment variables"
+            )
 
         from .ac import ACController
         from tinytuya import Device
+
         winter = True
         tinytuya_device = Device(
             AC_DEVICE_ID, AC_IP, AC_LOCAL_KEY) if not winter else None
@@ -76,13 +79,14 @@ def init_services(app) -> Dict[str, Any]:
             except Exception:
                 pass
         from .ac import ACThermostat
+
         ac_thermostat = ACThermostat(
             ac=ac_controller,
             cfg=cfg,  # type: ignore[arg-type]
             ctrl=app.ctrl,  # type: ignore[attr-defined]
             location=THERMOSTAT_LOCATION,
             notify=_make_notify(app.sio_handler),  # type: ignore[attr-defined]
-            winter=winter
+            winter=winter,
         )
         app.ac_thermostat = ac_thermostat  # type: ignore[attr-defined]
         if not winter:
@@ -94,9 +98,10 @@ def init_services(app) -> Dict[str, Any]:
     except Exception as e:
         logger.exception("Failed to initialize AC thermostat: %s", e)
 
-    # --- Hue time‑based routine ---
+    # --- Hue time-based routine ---
     try:
         from .hue import HueController
+
         hue_bridge_ip = os.getenv("HUE_BRIDGE_IP")
         hue_username = os.getenv("HUE_USERNAME")
         hue = HueController(hue_bridge_ip, hue_username)
@@ -106,6 +111,19 @@ def init_services(app) -> Dict[str, Any]:
     except Exception as e:
         logger.exception("Failed to initialize Hue routine: %s", e)
 
+    # --- Car heater service (command queue for ESP) ---
+    try:
+        from .car_heater import CarHeaterService
+
+        car_heater_service = CarHeaterService()
+        # Expose via app.config so both API and web UI can access it
+        app.config["CAR_HEATER_SERVICE"] = car_heater_service
+        services["car_heater_service"] = car_heater_service
+        logger.info("Car heater service initialized and stored in app.config")
+    except Exception as e:
+        logger.exception("Failed to initialize car heater service: %s", e)
+
+    # --- Sodexo scheduler ---
     try:
         from .sodexo import start_sodexo_webhook_thread
 
@@ -114,7 +132,8 @@ def init_services(app) -> Dict[str, Any]:
         minute = int(os.getenv("SODEXO_POST_MINUTE"))
         if not all([webhook_url, hour, minute]):
             raise ValueError(
-                "Set SODEXO_WEBHOOK_URL, SODEXO_POST_HOUR, and SODEXO_POST_MINUTE env vars.")
+                "Set SODEXO_WEBHOOK_URL, SODEXO_POST_HOUR, and SODEXO_POST_MINUTE env vars."
+            )
         skip_weekends = True
         stop_event, th = start_sodexo_webhook_thread(
             webhook_url,
@@ -126,7 +145,8 @@ def init_services(app) -> Dict[str, Any]:
         )
         s = "weekdays" if skip_weekends else "everyday"
         logger.info(
-            f"Sodexo-Scheduler started ({s} {hour}:{minute} Europe/Helsinki).")
+            f"Sodexo-Scheduler started ({s} {hour}:{minute} Europe/Helsinki)."
+        )
     except Exception as e:
         logger.exception("Failed to initialize Sodexo scheduler: %s", e)
 

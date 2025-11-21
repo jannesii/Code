@@ -116,6 +116,21 @@ class DatabaseManager:
                 'pressure REAL NOT NULL, '
                 'altitude REAL NOT NULL'
             ),
+            'car_heater_status': (
+                'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+                'timestamp TEXT NOT NULL, '
+                'is_heater_on BOOLEAN NOT NULL, '
+                'instant_power_w REAL NOT NULL, '
+                'voltage_v REAL, '
+                'current_a REAL, '
+                'energy_total_wh REAL, '
+                'energy_last_min_wh REAL, '
+                'energy_ts INTEGER, '
+                'device_temp_c REAL, '
+                'device_temp_f REAL, '
+                'ambient_temp REAL, '
+                'source TEXT'
+            )
         }
         for name, schema in tables.items():
             self.cursor.execute(
@@ -173,6 +188,14 @@ class DatabaseManager:
             BEGIN
                 DELETE FROM bmp_sensor_data
                 WHERE timestamp < datetime('now', '-7 days');
+            END;
+            """,
+            'cleanup_car_heater_status_after_insert': """
+            CREATE TRIGGER IF NOT EXISTS cleanup_car_heater_status_after_insert
+            AFTER INSERT ON car_heater_status
+            BEGIN
+                DELETE FROM car_heater_status
+                WHERE timestamp < datetime('now', '-30 days');
             END;
             """
         }

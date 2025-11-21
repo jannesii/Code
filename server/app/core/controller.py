@@ -17,6 +17,7 @@ from . import (
     ThermostatConf,
     ApiKey,
     BMPData,
+    CarHeaterStatus,
 )
 import pytz
 import sqlite3
@@ -844,6 +845,234 @@ class Controller:
                 temperature=row['temperature'],
                 pressure=row['pressure'],
                 altitude=row['altitude']
+            )
+            for row in rows
+        ]
+
+    # --- Car Heater operations ---
+    # --- Car Heater operations ---
+
+    def record_car_heater_status(self, status: CarHeaterStatus) -> CarHeaterStatus:
+        """
+        Insert a new car heater status row and return it with id set.
+        Uses the timestamp provided in the CarHeaterStatus.
+        """
+        self.db.execute_query(
+            """
+            INSERT INTO car_heater_status (
+                timestamp,
+                is_heater_on,
+                instant_power_w,
+                voltage_v,
+                current_a,
+                energy_total_wh,
+                energy_last_min_wh,
+                energy_ts,
+                device_temp_c,
+                device_temp_f,
+                ambient_temp,
+                source
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                status.timestamp,
+                1 if status.is_heater_on else 0,
+                float(status.instant_power_w),
+                status.voltage_v,
+                status.current_a,
+                status.energy_total_wh,
+                status.energy_last_min_wh,
+                status.energy_ts,
+                status.device_temp_c,
+                status.device_temp_f,
+                status.ambient_temp,
+                status.source,
+            ),
+        )
+
+        # Fetch the just-inserted row (same pattern as other record_* helpers)
+        row = self.db.fetchone(
+            """
+            SELECT
+                id,
+                timestamp,
+                is_heater_on,
+                instant_power_w,
+                voltage_v,
+                current_a,
+                energy_total_wh,
+                energy_last_min_wh,
+                energy_ts,
+                device_temp_c,
+                device_temp_f,
+                ambient_temp,
+                source
+            FROM car_heater_status
+            ORDER BY id DESC
+            LIMIT 1
+            """
+        )
+        if row is None:
+            raise RuntimeError("Failed to retrieve inserted car_heater_status record")
+
+        return CarHeaterStatus(
+            id=row["id"],
+            timestamp=row["timestamp"],
+            is_heater_on=bool(row["is_heater_on"]),
+            instant_power_w=row["instant_power_w"],
+            voltage_v=row["voltage_v"],
+            current_a=row["current_a"],
+            energy_total_wh=row["energy_total_wh"],
+            energy_last_min_wh=row["energy_last_min_wh"],
+            energy_ts=row["energy_ts"],
+            device_temp_c=row["device_temp_c"],
+            device_temp_f=row["device_temp_f"],
+            ambient_temp=row["ambient_temp"],
+            source=row["source"],
+        )
+
+    def get_last_car_heater_status(self) -> CarHeaterStatus | None:
+        """
+        Return the most recent car heater status row, or None if table is empty.
+        """
+        row = self.db.fetchone(
+            """
+            SELECT
+                id,
+                timestamp,
+                is_heater_on,
+                instant_power_w,
+                voltage_v,
+                current_a,
+                energy_total_wh,
+                energy_last_min_wh,
+                energy_ts,
+                device_temp_c,
+                device_temp_f,
+                ambient_temp,
+                source
+            FROM car_heater_status
+            ORDER BY timestamp DESC, id DESC
+            LIMIT 1
+            """
+        )
+        if row is None:
+            return None
+
+        return CarHeaterStatus(
+            id=row["id"],
+            timestamp=row["timestamp"],
+            is_heater_on=bool(row["is_heater_on"]),
+            instant_power_w=row["instant_power_w"],
+            voltage_v=row["voltage_v"],
+            current_a=row["current_a"],
+            energy_total_wh=row["energy_total_wh"],
+            energy_last_min_wh=row["energy_last_min_wh"],
+            energy_ts=row["energy_ts"],
+            device_temp_c=row["device_temp_c"],
+            device_temp_f=row["device_temp_f"],
+            ambient_temp=row["ambient_temp"],
+            source=row["source"],
+        )
+
+    def get_car_heater_status_between(
+        self,
+        start_iso: str,
+        end_iso: str,
+    ) -> list[CarHeaterStatus]:
+        """
+        Get all car heater status rows between two ISO timestamps (inclusive),
+        ordered by timestamp.
+        """
+        rows = self.db.fetchall(
+            """
+            SELECT
+                id,
+                timestamp,
+                is_heater_on,
+                instant_power_w,
+                voltage_v,
+                current_a,
+                energy_total_wh,
+                energy_last_min_wh,
+                energy_ts,
+                device_temp_c,
+                device_temp_f,
+                ambient_temp,
+                source
+            FROM car_heater_status
+            WHERE timestamp >= ? AND timestamp <= ?
+            ORDER BY timestamp, id
+            """,
+            (start_iso, end_iso),
+        )
+
+        return [
+            CarHeaterStatus(
+                id=row["id"],
+                timestamp=row["timestamp"],
+                is_heater_on=bool(row["is_heater_on"]),
+                instant_power_w=row["instant_power_w"],
+                voltage_v=row["voltage_v"],
+                current_a=row["current_a"],
+                energy_total_wh=row["energy_total_wh"],
+                energy_last_min_wh=row["energy_last_min_wh"],
+                energy_ts=row["energy_ts"],
+                device_temp_c=row["device_temp_c"],
+                device_temp_f=row["device_temp_f"],
+                ambient_temp=row["ambient_temp"],
+                source=row["source"],
+            )
+            for row in rows
+        ]
+
+    def get_recent_car_heater_status(
+        self,
+        limit: int = 200,
+    ) -> list[CarHeaterStatus]:
+        """
+        Get the latest N car heater status rows, newest first.
+        Handy for graphs.
+        """
+        rows = self.db.fetchall(
+            f"""
+            SELECT
+                id,
+                timestamp,
+                is_heater_on,
+                instant_power_w,
+                voltage_v,
+                current_a,
+                energy_total_wh,
+                energy_last_min_wh,
+                energy_ts,
+                device_temp_c,
+                device_temp_f,
+                ambient_temp,
+                source
+            FROM car_heater_status
+            ORDER BY timestamp DESC, id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        )
+
+        return [
+            CarHeaterStatus(
+                id=row["id"],
+                timestamp=row["timestamp"],
+                is_heater_on=bool(row["is_heater_on"]),
+                instant_power_w=row["instant_power_w"],
+                voltage_v=row["voltage_v"],
+                current_a=row["current_a"],
+                energy_total_wh=row["energy_total_wh"],
+                energy_last_min_wh=row["energy_last_min_wh"],
+                energy_ts=row["energy_ts"],
+                device_temp_c=row["device_temp_c"],
+                device_temp_f=row["device_temp_f"],
+                ambient_temp=row["ambient_temp"],
+                source=row["source"],
             )
             for row in rows
         ]

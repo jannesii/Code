@@ -121,3 +121,20 @@ class BMPData:
     temperature: float
     pressure: float
     altitude: float
+
+
+@dataclass
+class CarHeaterStatus:
+    id: int | None
+    timestamp: str
+    is_heater_on: bool
+    instant_power_w: float
+    voltage_v: float | None
+    current_a: float | None
+    energy_total_wh: float | None
+    energy_last_min_wh: float | None
+    energy_ts: int | None
+    device_temp_c: float | None
+    device_temp_f: float | None
+    ambient_temp: float | None
+    source: str | None

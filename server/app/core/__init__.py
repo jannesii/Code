@@ -10,6 +10,7 @@ from .models import (
     ThermostatConf,
     ApiKey,
     BMPData,
+    CarHeaterStatus,
 )
 from .controller import Controller
 from .database import DatabaseManager
@@ -24,6 +25,7 @@ __all__ = [
     "ThermostatConf",
     "ApiKey",
     "BMPData",
+    "CarHeaterStatus",
     "Controller",
     "DatabaseManager",
 ]
