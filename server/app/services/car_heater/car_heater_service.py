@@ -2,9 +2,20 @@ import logging
 import threading
 from typing import Any, Dict, List
 
+from dataclasses import dataclass
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+status_levels = [None, "queued", "sent", "success", "failed"]
+
+@dataclass
+class CommandStatus:
+    turn_on: str | None = None
+    turn_off: str | None = None
+    get_logs: str | None = None
+    esp_restart: str | None = None
+    shelly_restart: str | None = None
 
 class CarHeaterService:
     """
@@ -19,6 +30,7 @@ class CarHeaterService:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._commands: List[Dict[str, Any]] = []
+        self._command_status = CommandStatus()
         self._stop_event = threading.Event()
         self._thread = threading.Thread(
             target=self._run, name="CarHeaterService", daemon=True
@@ -36,7 +48,44 @@ class CarHeaterService:
             raise TypeError("command must be a dict")
         with self._lock:
             self._commands.append(command)
+            action = command.get("action")
+            setattr(self._command_status, action, "queued")
         logger.debug("Queued car heater command: %r", command)
+        
+    def mark_commands_sent(self, commands: List[Dict[str, Any]]) -> None:
+        """
+        Mark the given commands as sent.
+
+        Called from the car_heater status API after returning commands
+        to the ESP.
+        """
+        with self._lock:
+            for cmd in commands:
+                action = cmd.get("action")
+                if hasattr(self._command_status, action):
+                    setattr(self._command_status, action, "sent")
+        logger.debug("Marked %d car heater commands as sent", len(commands))
+        
+    def mark_command_success(self, commands: List[Dict[str, Any]]) -> None:
+        """
+        Mark the given commands as successfully executed.
+
+        Called from the car_heater status API if the ESP indicates
+        successful execution of commands.
+        """
+        with self._lock:
+            for cmd in commands:
+                action = cmd.get("action")
+                success = bool(cmd.get("success", False))
+                string = "success" if success else "failed"
+                if hasattr(self._command_status, action):
+                    setattr(self._command_status, action, string)
+        logger.debug("Marked %d car heater commands as successful", len(commands))
+        
+    def get_command_status(self) -> CommandStatus:
+        """Return the current status of queued commands."""
+        with self._lock:
+            return CommandStatus(**vars(self._command_status))
 
     def get_queued_commands(self) -> List[Dict[str, Any]]:
         """

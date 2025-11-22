@@ -202,6 +202,32 @@
   margin: 12px 0;
 }
 
+.cmd-status-header {
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+}
+
+.cmd-status-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+}
+
+.cmd-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cmd-status-label {
+  color: #9ca3af;
+}
+
+.cmd-status-value {
+  font-weight: 500;
+}
+
 .log-header {
   display: flex;
   align-items: center;
@@ -262,4 +288,3 @@
     padding: 12px 12px 14px;
   }
 }
-

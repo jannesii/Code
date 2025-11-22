@@ -100,19 +100,64 @@ function updateStatusUI(status) {
   if (sourceEl) sourceEl.textContent = status.source || '—';
 }
 
-function appendActionLog(entry) {
-  const list = document.getElementById('actionLog');
-  if (!list) return;
-  const li = document.createElement('li');
-  const ts = fmtTs(entry.ts || new Date().toISOString());
-  li.innerHTML = `
-    <div>
-      <div>${entry.label || entry.action || 'Action'}</div>
-      <div class="meta">${ts}</div>
-    </div>
-    <div class="status ${entry.statusClass || ''}">${entry.statusText || ''}</div>
-  `;
-  list.prepend(li);
+const COMMAND_ACTIONS = {
+  turn_on: 'Turn ON',
+  turn_off: 'Turn OFF',
+  get_logs: 'Get logs',
+  esp_restart: 'Restart ESP',
+  shelly_restart: 'Restart Shelly',
+};
+
+function updateSingleCommandStatus(action, status) {
+  const el = document.getElementById(`cmdStatus_${action}`);
+  if (!el) return;
+
+  el.classList.remove('status-queued', 'status-sent', 'status-success', 'status-error');
+
+  if (!status) {
+    el.textContent = '';
+    el.style.display = 'none';
+    return;
+  }
+
+  let text = '';
+  let cls = '';
+  switch (status) {
+    case 'queued':
+      text = 'Queued';
+      cls = 'status-queued';
+      break;
+    case 'sent':
+      text = 'Sent to ESP';
+      cls = 'status-sent';
+      break;
+    case 'success':
+      text = 'Success';
+      cls = 'status-sent';
+      break;
+    case 'failed':
+      text = 'Failed';
+      cls = 'status-error';
+      break;
+    default:
+      text = String(status);
+      break;
+  }
+
+  el.textContent = text;
+  if (cls) el.classList.add(cls);
+  el.style.display = '';
+}
+
+function updateCommandStatusUI(commandStatus) {
+  const actions = Object.keys(COMMAND_ACTIONS);
+  if (!commandStatus) {
+    actions.forEach(action => updateSingleCommandStatus(action, null));
+    return;
+  }
+  actions.forEach(action => {
+    updateSingleCommandStatus(action, commandStatus[action]);
+  });
 }
 
 function setQueueStatus(mode, text) {
@@ -126,16 +171,7 @@ function setQueueStatus(mode, text) {
 function queueCommand(action) {
   const payload = { action: action };
   setQueueStatus('queue-pending', 'Action queued…');
-  appendActionLog({
-    action,
-    label: action === 'turn_on' ? 'Turn ON' :
-           action === 'turn_off' ? 'Turn OFF' :
-           action === 'get_logs' ? 'Get logs' :
-           action === 'esp_restart' ? 'Restart ESP' :
-           action === 'shelly_restart' ? 'Restart Shelly' : action,
-    statusText: 'Queued',
-    statusClass: 'status-queued',
-  });
+  updateSingleCommandStatus(action, 'queued');
 
   // Prefer Socket.IO for low latency; fall back to HTTP if needed.
   try {
@@ -173,12 +209,15 @@ document.addEventListener('DOMContentLoaded', () => {
     updateStatusUI(window.CAR_HEATER_LAST_STATUS);
   }
 
+  if (window.CAR_HEATER_CMD_STATUS) {
+    updateCommandStatusUI(window.CAR_HEATER_CMD_STATUS);
+  }
+
   const btnOn = document.getElementById('btnTurnOn');
   const btnOff = document.getElementById('btnTurnOff');
   const btnLogs = document.getElementById('btnGetLogs');
   const btnEspRestart = document.getElementById('btnEspRestart');
   const btnShellyRestart = document.getElementById('btnShellyRestart');
-  const btnClearLog = document.getElementById('btnClearLog');
 
   if (btnOn) btnOn.addEventListener('click', () => queueCommand('turn_on'));
   if (btnOff) btnOff.addEventListener('click', () => queueCommand('turn_off'));
@@ -197,10 +236,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
-  if (btnClearLog) btnClearLog.addEventListener('click', () => {
-    const list = document.getElementById('actionLog');
-    if (list) list.innerHTML = '';
-  });
 
   if (window.socket) {
     window.socket.on('car_heater_status', data => {
@@ -209,6 +244,9 @@ document.addEventListener('DOMContentLoaded', () => {
         updateStatusUI(data.status);
       } else {
         updateStatusUI(data);
+      }
+      if (data && (data.command_status || data.commandStatus)) {
+        updateCommandStatusUI(data.command_status || data.commandStatus);
       }
       // When a new status arrives, assume commands were delivered
       setQueueStatus('queue-sent', 'Last command sent to car');
@@ -220,11 +258,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const ok = data.ok !== false;
       setQueueStatus(ok ? 'queue-sent' : 'queue-idle',
                      ok ? 'Last action sent' : 'Action failed');
-      appendActionLog({
-        label: data.label || data.action || 'Action',
-        statusText: ok ? 'Sent' : 'Error',
-        statusClass: ok ? 'status-sent' : 'status-error',
-      });
+      if (ok && data.action) {
+        updateSingleCommandStatus(data.action, 'queued');
+      }
     });
   }
 });

@@ -57,6 +57,8 @@ class SocketEventHandler:
         if role is None:
             ua = str(request.headers.get('User-Agent', '')).lower()
             # Very rough heuristic: browsers include 'mozilla' in UA
+            self.logger.setLevel(logging.DEBUG)
+            self.logger.debug("Socket connect UA: %s", ua)
             if 'mozilla' in ua:
                 is_view = True
         # Normalize role

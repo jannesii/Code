@@ -9,6 +9,7 @@ from flask_login import login_required, current_user
 
 from ...utils import get_ctrl
 from ...core import Controller, CarHeaterStatus
+from ...services.car_heater import CarHeaterService
 
 from . import web_bp
 
@@ -27,8 +28,17 @@ def get_car_heater_page():
     last: CarHeaterStatus | None = ctrl.get_last_car_heater_status()
     last_status = asdict(last) if last is not None else None
 
+    # Command status from in-memory CarHeaterService (if available)
+    command_status = None
+    try:
+        svc: CarHeaterService | None = current_app.config.get("CAR_HEATER_SERVICE")
+        if svc is not None:
+            command_status = asdict(svc.get_command_status())
+    except Exception as e:
+        logger.exception("Failed to get car heater command status: %s", e)
+
     return render_template(
         'car_heater.html',
         last_status=last_status,
+        command_status=command_status,
     )
-

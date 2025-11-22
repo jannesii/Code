@@ -82,12 +82,31 @@
           <button id="btnShellyRestart" class="btn control-btn danger">Restart Shelly</button>
         </div>
         <div class="divider"></div>
-        <div class="log-header">
-          <span>Actions</span>
-          <button id="btnClearLog" class="btn btn-ghost" type="button">Clear</button>
+        <div class="cmd-status-header">
+          <span>Command statuses</span>
         </div>
-        <ul id="actionLog" class="action-log" aria-live="polite" aria-label="Queued and executed actions">
-        </ul>
+        <div class="cmd-status-grid" aria-live="polite" aria-label="Command statuses">
+          <div class="cmd-status-row">
+            <span class="cmd-status-label">Turn ON</span>
+            <span id="cmdStatus_turn_on" class="cmd-status-value"></span>
+          </div>
+          <div class="cmd-status-row">
+            <span class="cmd-status-label">Turn OFF</span>
+            <span id="cmdStatus_turn_off" class="cmd-status-value"></span>
+          </div>
+          <div class="cmd-status-row">
+            <span class="cmd-status-label">Get logs</span>
+            <span id="cmdStatus_get_logs" class="cmd-status-value"></span>
+          </div>
+          <div class="cmd-status-row">
+            <span class="cmd-status-label">Restart ESP</span>
+            <span id="cmdStatus_esp_restart" class="cmd-status-value"></span>
+          </div>
+          <div class="cmd-status-row">
+            <span class="cmd-status-label">Restart Shelly</span>
+            <span id="cmdStatus_shelly_restart" class="cmd-status-value"></span>
+          </div>
+        </div>
       </div>
     </section>
   </div>
@@ -95,6 +114,7 @@
 
 <script>
   window.CAR_HEATER_LAST_STATUS = {{ last_status | tojson }};
+  window.CAR_HEATER_CMD_STATUS = {{ command_status | tojson }};
 </script>
 {% endblock %}
 

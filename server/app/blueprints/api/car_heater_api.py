@@ -3,17 +3,18 @@ from datetime import datetime, date, timezone
 from typing import Any, Dict, List
 import logging
 import json
+from dataclasses import asdict
 from zoneinfo import ZoneInfo
 from flask import Blueprint, request, jsonify, current_app
 from ...core import Controller
 from ...core.models import CarHeaterStatus
-from ...extensions import csrf
+from ...extensions import csrf, socketio
 from ...security import require_api_key
 
 car_bp = Blueprint('car_bp', __name__, url_prefix='/car_heater')
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 
 @car_bp.route('/status', methods=['POST'])
@@ -28,13 +29,6 @@ def update_car_heater_status():
     data = request.get_json()
     if not data:
         return jsonify({"error": "Invalid JSON payload"}), 400
-    
-    action_results = data.get("action_results", {})
-    if action_results:
-        logger.info("Received action results from car heater ESP: \n\n%r", action_results)
-        # Here you could process action_results if needed
-        
-    shelly_connected = bool(data.get("shelly_connected", True))
 
     # Raw Shelly JSON payload from the ESP
     shelly_raw = data.get("shelly")
@@ -61,7 +55,11 @@ def update_car_heater_status():
     aenergy = shelly.get("aenergy") or {}
     temp = shelly.get("temperature") or {}
     
-    if shelly:
+    shelly_connected = bool(data.get("shelly_connected", True))
+    
+    status_payload: Dict[str, Any] | None = None
+
+    if shelly and shelly_connected:
         car = CarHeaterStatus(
             id=None,
             # Core status
@@ -87,51 +85,61 @@ def update_car_heater_status():
         )
 
         # Persist status in DB
+        recorded_id = None
         try:
             recorded = ctrl.record_car_heater_status(car)
-            logger.debug("Recorded car heater status: %s", recorded)
+            recorded_id = getattr(recorded, "id", None)
         except Exception as e:
             logger.exception("Failed to record car heater status: %s", e)
-            
-        # Notify any connected browser views of the latest status
-        try:
-            handler = getattr(current_app, "sio_handler", None)
-            if handler is not None:
-                handler.emit_to_views("car_heater_status", {
-                    "status": {
-                        "id": recorded.id if 'recorded' in locals() else None,
-                        "timestamp": car.timestamp,
-                        "is_heater_on": car.is_heater_on,
-                        "instant_power_w": car.instant_power_w,
-                        "voltage_v": car.voltage_v,
-                        "current_a": car.current_a,
-                        "energy_total_wh": car.energy_total_wh,
-                        "energy_last_min_wh": car.energy_last_min_wh,
-                        "energy_ts": car.energy_ts,
-                        "device_temp_c": car.device_temp_c,
-                        "device_temp_f": car.device_temp_f,
-                        "ambient_temp": car.ambient_temp,
-                        "source": car.source,
-                    }
-                })
-        except Exception as e:
-            logger.exception("Failed to emit car_heater_status over Socket.IO: %s", e)
+
+        status_payload = {
+            "id": recorded_id,
+            "timestamp": car.timestamp.isoformat() if hasattr(car.timestamp, "isoformat") else car.timestamp,
+            "is_heater_on": car.is_heater_on,
+            "instant_power_w": car.instant_power_w,
+            "voltage_v": car.voltage_v,
+            "current_a": car.current_a,
+            "energy_total_wh": car.energy_total_wh,
+            "energy_last_min_wh": car.energy_last_min_wh,
+            "energy_ts": car.energy_ts,
+            "device_temp_c": car.device_temp_c,
+            "device_temp_f": car.device_temp_f,
+            "ambient_temp": car.ambient_temp,
+            "source": car.source,
+        }
     else:
         logger.warning("No shelly data provided in car heater status update")
 
     # Fetch any queued commands from the shared CarHeaterService
     commands: List[Dict[str, Any]] = []
+    command_status: Dict[str, Any] | None = None
     try:
-        service = current_app.config.get("CAR_HEATER_SERVICE")
-        if service is None:
-            logger.warning("CAR_HEATER_SERVICE not found in app.config")
-        else:
+        from ...services.car_heater import CarHeaterService
+        service: CarHeaterService = current_app.config.get("CAR_HEATER_SERVICE")
+        if service:
+            action_results = data.get("action_results", {})
+            if action_results:
+                service.mark_command_success(action_results)
+            
             commands = service.get_queued_commands()
+            service.mark_commands_sent(commands)
+            command_status = asdict(service.get_command_status())
+            logger.debug("cmd status: %s", command_status)
     except Exception as e:
         logger.exception("Failed to fetch queued car heater commands: %s", e)
     if commands:
         logger.info("Sending %s commands to car heater ESP", commands)
 
+    # Notify any connected browser views of the latest status + command statuses.
+    # Use the global Socket.IO instance so events work across Gunicorn workers.
+    try:
+        if status_payload is not None:
+            payload: Dict[str, Any] = {"status": status_payload}
+            if command_status is not None:
+                payload["command_status"] = command_status
+            socketio.emit("car_heater_status", payload)
+    except Exception as e:
+        logger.exception("Failed to emit car_heater_status over Socket.IO: %s", e)
 
     # Return commands as a plain JSON list so ESP can act on them
     return jsonify(commands), 200
